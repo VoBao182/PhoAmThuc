@@ -13,21 +13,19 @@ public partial class MainPage : ContentPage
     }
 
     // --- HÀM TẢI BẢN ĐỒ BẰNG IFRAME (CHỐNG LỖI CHẶN APP) ---
-    // Thay thế hàm LoadMap cũ bằng hàm này
     private async void LoadMap()
     {
         try
         {
-            // 1. LẤY TỌA ĐỘ GPS THẬT CỦA ĐIỆN THOẠI ẢO
             var request = new GeolocationRequest(GeolocationAccuracy.Medium);
             var location = await Geolocation.Default.GetLocationAsync(request);
 
             if (location != null)
             {
-                double lat = location.Latitude;
-                double lng = location.Longitude;
+                // ÉP KIỂU SỐ CHUẨN QUỐC TẾ (Luôn dùng dấu chấm cho số thập phân)
+                string latStr = location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string lngStr = location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-                // 2. NHÚNG BẢN ĐỒ LEAFLET VÀ VẼ MARKER TỪ TỌA ĐỘ VỪA LẤY
                 var htmlSource = new HtmlWebViewSource();
                 htmlSource.Html = $@"
                 <!DOCTYPE html>
@@ -38,38 +36,34 @@ public partial class MainPage : ContentPage
                     <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
                     <style>
                         body {{ margin: 0; padding: 0; overflow: hidden; }}
-                        #map {{ width: 100vw; height: 100vh; }}
+                        #map {{ width: 100vw; height: 100vh; background-color: #e5e5e5; }}
                     </style>
                 </head>
                 <body>
                     <div id='map'></div>
                     <script>
-                        // Khởi tạo bản đồ ngay tại vị trí GPS của bạn
-                        var map = L.map('map').setView([{lat}, {lng}], 16);
+                        // Dùng tọa độ đã chuẩn hóa
+                        var map = L.map('map').setView([{latStr}, {lngStr}], 16);
 
-                        // Load gạch bản đồ từ OpenStreetMap (Miễn phí 100%, không lo API Key)
                         L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
                             attribution: '© OpenStreetMap'
                         }}).addTo(map);
 
-                        // Đánh dấu VỊ TRÍ CỦA BẠN (Lấy từ điện thoại)
-                        var userMarker = L.marker([{lat}, {lng}]).addTo(map)
+                        var userMarker = L.marker([{latStr}, {lngStr}]).addTo(map)
                             .bindPopup('<b>📍 Vị trí của bạn</b>').openPopup();
 
-                        // Đánh dấu QUÁN ỐC OANH (Dữ liệu tĩnh)
                         var ocOanhMarker = L.marker([10.758955, 106.701831]).addTo(map)
                             .bindPopup('Quán Ốc Oanh (Cách bạn 20m)');
                     </script>
                 </body>
                 </html>";
 
-                // Bơm thẳng lên WebView
                 MapWebView.Source = htmlSource;
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Lỗi GPS", "Không thể lấy vị trí, vui lòng kiểm tra lại.", "OK");
+            await DisplayAlert("Lỗi GPS", "Không thể lấy vị trí, vui lòng bật GPS.", "OK");
         }
     }
     // --- HÀM ĐỌC GIỌNG NÓI ---
