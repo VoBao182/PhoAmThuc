@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace VinhKhanhTourDemo
+﻿namespace VinhKhanhTourDemo
 {
     public partial class App : Application
     {
@@ -11,7 +9,12 @@ namespace VinhKhanhTourDemo
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            return new Window(new AppShell());
+            var navPage = new NavigationPage(new MainPage())
+            {
+                BarBackgroundColor = Color.FromArgb("#FF5722"),
+                BarTextColor = Colors.White
+            };
+            return new Window(navPage);
         }
     }
 }

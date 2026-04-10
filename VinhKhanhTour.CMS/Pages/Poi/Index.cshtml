@@ -1,0 +1,117 @@
+@page
+@model VinhKhanhTour.CMS.Pages.Poi.IndexModel
+@{
+    ViewData["Title"] = "Quan ly quan an";
+    ViewData["Page"] = "poi";
+}
+
+<div class="flex-between mb-4">
+    <div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Noi dung quan an</div>
+        <div style="font-size:24px;font-weight:700;color:var(--text);">Quan ly quan va mon an</div>
+    </div>
+    <a href="/Poi/Create" class="btn btn-primary">+ Them quan moi</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ErrorMessage</div>
+}
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Ten quan</th>
+                    <th>Dia chi</th>
+                    <th>Mon an trong quan</th>
+                    <th>Uu tien</th>
+                    <th>Trang thai</th>
+                    <th>Thao tac</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.POIs.Any())
+                {
+                    @foreach (var p in Model.POIs)
+                    {
+                        var monDangBat = p.MonAns.Where(m => m.TinhTrang).ToList();
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(p.AnhDaiDien))
+                                {
+                                    <img src="@p.AnhDaiDien" class="poi-avatar"
+                                         onerror="this.outerHTML='<div class=poi-avatar-placeholder>VK</div>'" />
+                                }
+                                else
+                                {
+                                    <div class="poi-avatar-placeholder">VK</div>
+                                }
+                            </td>
+                            <td>
+                                <strong>@p.TenPOI</strong>
+                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">@(p.SDT ?? "Khong co so dien thoai")</div>
+                            </td>
+                            <td style="color:var(--text-muted);font-size:13px">@(p.DiaChi ?? "-")</td>
+                            <td style="min-width:260px;">
+                                @if (monDangBat.Any())
+                                {
+                                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                                        @foreach (var mon in monDangBat.Take(5))
+                                        {
+                                            <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff7ed;color:#c2410c;font-size:12px;font-weight:600;">
+                                                @mon.TenMonAn
+                                            </span>
+                                        }
+                                        @if (monDangBat.Count > 5)
+                                        {
+                                            <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:600;">
+                                                +@(monDangBat.Count - 5) mon
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="font-size:13px;color:var(--text-muted);">Chua co mon an</span>
+                                }
+                            </td>
+                            <td style="font-size:13px">@p.MucUuTien</td>
+                            <td>
+                                <span class="status-dot @(p.TrangThai ? "dot-on" : "dot-off")"></span>
+                                @(p.TrangThai ? "Hien" : "An")
+                            </td>
+                            <td>
+                                <div class="flex gap-2" style="flex-wrap:wrap;">
+                                    <a href="/Poi/Edit/@p.Id" class="btn btn-ghost btn-sm">Sua quan</a>
+                                    <a href="/Poi/Edit/@p.Id#menu-section" class="btn btn-ghost btn-sm">Xem mon</a>
+                                    <form method="post" asp-page-handler="Toggle" style="display:inline">
+                                        <input type="hidden" name="id" value="@p.Id" />
+                                        <button type="submit" class="btn btn-ghost btn-sm">
+                                            @(p.TrangThai ? "An" : "Hien")
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" style="padding:24px;text-align:center;color:var(--text-muted);">
+                            Chua tai duoc du lieu POI. Kiem tra ket noi database/API roi thu lai.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

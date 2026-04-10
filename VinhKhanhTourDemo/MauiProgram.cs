@@ -9,6 +9,7 @@ namespace VinhKhanhTourDemo
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                // KHÔNG dùng UseMauiMaps() — không cần vì đang dùng Leaflet WebView
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -16,7 +17,7 @@ namespace VinhKhanhTourDemo
                 });
 
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
             return builder.Build();

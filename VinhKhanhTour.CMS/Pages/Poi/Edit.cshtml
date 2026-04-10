@@ -1,0 +1,278 @@
+@page "{id:guid}"
+@model VinhKhanhTour.CMS.Pages.Poi.EditModel
+@{
+    ViewData["Title"] = "Sửa quán: " + Model.POI.TenPOI;
+    ViewData["Page"]  = "poi";
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">✅ @TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">❌ @TempData["Error"]</div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="POI.Id"/>
+    <input type="hidden" id="monan-count" name="monan-count" value="@Model.POI.MonAns.Count"/>
+
+    <div class="grid-2" style="align-items:start;gap:24px">
+
+        <!-- ── CỘT TRÁI: Thông tin quán ── -->
+        <div style="display:flex;flex-direction:column;gap:20px">
+
+            <!-- Thông tin cơ bản -->
+            <div class="card">
+                <div class="card-title">🏪 Thông tin quán</div>
+
+                <div class="form-group">
+                    <label class="form-label">Tên quán <span style="color:var(--danger)">*</span></label>
+                    <input asp-for="POI.TenPOI" class="form-input" required/>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Số điện thoại</label>
+                        <input asp-for="POI.SDT" class="form-input" placeholder="028 xxxx xxxx"/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Thứ tự hiển thị</label>
+                        <input asp-for="POI.MucUuTien" type="number" class="form-input"/>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Địa chỉ</label>
+                    <input asp-for="POI.DiaChi" class="form-input" placeholder="Số nhà, Phố Vĩnh Khánh, Q4"/>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Vĩ độ (Lat)</label>
+                        <input asp-for="POI.ViDo" type="number" step="any" class="form-input"/>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kinh độ (Lng)</label>
+                        <input asp-for="POI.KinhDo" type="number" step="any" class="form-input"/>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bán kính geofence (m)</label>
+                    <input asp-for="POI.BanKinh" type="number" class="form-input"/>
+                    <div class="form-hint">Khoảng cách để kích hoạt thuyết minh tự động. Mặc định 10m.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" asp-for="POI.TrangThai" style="margin-right:6px"/>
+                        Hiển thị trên app
+                    </label>
+                </div>
+            </div>
+
+            <!-- Ảnh bìa -->
+            <div class="card">
+                <div class="card-title">🖼️ Ảnh bìa quán</div>
+                <div class="form-group">
+                    <label class="form-label">URL ảnh</label>
+                    <input asp-for="POI.AnhDaiDien" class="form-input"
+                           placeholder="https://..."
+                           oninput="previewImg(this,'preview-cover')"/>
+                    <div class="form-hint">Dùng URL ảnh từ Supabase Storage, Cloudinary, hoặc Imgur</div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.POI.AnhDaiDien))
+                {
+                    <img id="preview-cover" src="@Model.POI.AnhDaiDien" class="img-preview-lg"
+                         style="width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px"/>
+                }
+                else
+                {
+                    <img id="preview-cover" style="display:none;width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px"/>
+                }
+            </div>
+
+        </div>
+
+        <!-- ── CỘT PHẢI: Thuyết minh 3 ngôn ngữ ── -->
+        <div style="display:flex;flex-direction:column;gap:20px">
+
+            <div class="card">
+                <div class="card-title">🎙️ Nội dung thuyết minh</div>
+                <div class="form-hint mb-4" style="margin-bottom:12px">
+                    Nội dung này sẽ hiển thị trong app và được đọc bằng giọng nói tự động khi khách vào vùng geofence.
+                </div>
+
+                <!-- Lang tabs -->
+                <div class="lang-tabs">
+                    <button type="button" id="tab-tm-vi" class="lang-tab active-vi"
+                            data-tab-group="tm" onclick="switchLang('vi','tm')">
+                        🇻🇳 Tiếng Việt
+                    </button>
+                    <button type="button" id="tab-tm-en" class="lang-tab"
+                            data-tab-group="tm" onclick="switchLang('en','tm')">
+                        🇬🇧 English
+                    </button>
+                    <button type="button" id="tab-tm-zh" class="lang-tab"
+                            data-tab-group="tm" onclick="switchLang('zh','tm')">
+                        🇨🇳 中文
+                    </button>
+                </div>
+
+                <!-- VI -->
+                <div id="panel-tm-vi" class="lang-panel show" data-group="tm">
+                    <div class="form-group">
+                        <label class="form-label">Nội dung <span class="badge-lang lang-vi">VI</span></label>
+                        <textarea name="ThuyetMinhVi" class="form-textarea" rows="8"
+                                  placeholder="Nhập nội dung thuyết minh tiếng Việt...">@Model.ThuyetMinhVi</textarea>
+                        <div class="form-hint">Sẽ được đọc khi điện thoại đặt ngôn ngữ Tiếng Việt</div>
+                    </div>
+                </div>
+
+                <!-- EN -->
+                <div id="panel-tm-en" class="lang-panel" data-group="tm">
+                    <div class="form-group">
+                        <label class="form-label">Content <span class="badge-lang lang-en">EN</span></label>
+                        <textarea name="ThuyetMinhEn" class="form-textarea" rows="8"
+                                  placeholder="Enter English audio guide content...">@Model.ThuyetMinhEn</textarea>
+                        <div class="form-hint">Played when device language is set to English</div>
+                    </div>
+                </div>
+
+                <!-- ZH -->
+                <div id="panel-tm-zh" class="lang-panel" data-group="tm">
+                    <div class="form-group">
+                        <label class="form-label">内容 <span class="badge-lang lang-zh">ZH</span></label>
+                        <textarea name="ThuyetMinhZh" class="form-textarea" rows="8"
+                                  placeholder="请输入中文语音导览内容...">@Model.ThuyetMinhZh</textarea>
+                        <div class="form-hint">当设备语言设置为中文时播放</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── THỰC ĐƠN ── -->
+    <div id="menu-section" class="card mt-6">
+        <div class="flex-between mb-4">
+            <div class="card-title" style="margin-bottom:0">🍽️ Thực đơn</div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addMonAn()">＋ Thêm món</button>
+        </div>
+
+        <!-- Header -->
+        <div style="display:grid;grid-template-columns:60px 1fr 120px 100px 40px;gap:12px;padding:0 0 8px;border-bottom:2px solid var(--border)">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Ảnh</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Tên món / Mô tả</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Phân loại</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Giá (đ)</div>
+            <div></div>
+        </div>
+
+        <div id="monan-list">
+            @for (int i = 0; i < Model.POI.MonAns.Count; i++)
+            {
+                var m = Model.POI.MonAns.ElementAt(i);
+                <div class="monan-item" id="monan-@i">
+                    <div>
+                        @if (!string.IsNullOrEmpty(m.HinhAnh))
+                        {
+                            <img src="@m.HinhAnh" class="monan-img"
+                                 onerror="this.outerHTML='<div class=monan-img-placeholder>🍽️</div>'"/>
+                        }
+                        else
+                        {
+                            <div class="monan-img-placeholder">🍽️</div>
+                        }
+                    </div>
+                    <div>
+                        <input type="hidden" name="MonAns[@i].Id" value="@m.Id"/>
+                        <input name="MonAns[@i].TenMonAn" value="@m.TenMonAn"
+                               placeholder="Tên món ăn" class="form-input" style="margin-bottom:6px" required/>
+                        <input name="MonAns[@i].MoTa" value="@m.MoTa"
+                               placeholder="Mô tả ngắn (tùy chọn)" class="form-input" style="font-size:12px"/>
+                        <input name="MonAns[@i].HinhAnh" value="@m.HinhAnh"
+                               placeholder="URL ảnh món" class="form-input"
+                               style="font-size:12px;margin-top:6px"
+                               oninput="updateMonAnImg(this,@i)"/>
+                    </div>
+                    <input name="MonAns[@i].PhanLoai" value="@m.PhanLoai"
+                           placeholder="VD: Khai vị" class="form-input"/>
+                    <input name="MonAns[@i].DonGia" type="number" value="@m.DonGia"
+                           placeholder="0" class="form-input"/>
+                    <button type="button" class="remove-btn"
+                            onclick="removeMonAn(@i, '@m.Id')">✕</button>
+                    <input type="hidden" name="MonAns[@i].TinhTrang" value="true"/>
+                </div>
+            }
+        </div>
+
+        @if (!Model.POI.MonAns.Any())
+        {
+            <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:14px">
+                Chưa có món ăn. Nhấn "Thêm món" để bắt đầu.
+            </div>
+        }
+    </div>
+
+    <!-- ── SUBMIT ── -->
+    <div class="flex-between mt-6">
+        <a href="/Poi" class="btn btn-ghost">← Quay lại</a>
+        <button type="submit" class="btn btn-primary" style="min-width:140px">
+            💾 Lưu thay đổi
+        </button>
+    </div>
+
+</form>
+
+@section Scripts {
+<script>
+function updateMonAnImg(input, idx) {
+    const url = input.value.trim();
+    const item = document.getElementById(`monan-${idx}`);
+    const imgEl = item.querySelector('.monan-img, .monan-img-placeholder');
+    if (!imgEl) return;
+    if (url) {
+        imgEl.outerHTML = `<img src="${url}" class="monan-img" onerror="this.outerHTML='<div class=monan-img-placeholder>🍽️</div>'"/>`;
+    }
+}
+
+// Override addMonAn for Edit page (includes Id=empty + TinhTrang)
+let monAnIndex = @Model.POI.MonAns.Count;
+document.getElementById('monan-count').value = monAnIndex;
+
+function addMonAn() {
+    const container = document.getElementById('monan-list');
+    const i = monAnIndex++;
+    document.getElementById('monan-count').value = monAnIndex;
+    const div = document.createElement('div');
+    div.className = 'monan-item';
+    div.id = `monan-${i}`;
+    div.innerHTML = `
+        <div class="monan-img-placeholder">🍽️</div>
+        <div>
+            <input type="hidden" name="MonAns[${i}].Id" value=""/>
+            <input name="MonAns[${i}].TenMonAn" placeholder="Tên món ăn"
+                   class="form-input" style="margin-bottom:6px" required/>
+            <input name="MonAns[${i}].MoTa" placeholder="Mô tả ngắn"
+                   class="form-input" style="font-size:12px"/>
+            <input name="MonAns[${i}].HinhAnh" placeholder="URL ảnh món"
+                   class="form-input" style="font-size:12px;margin-top:6px"
+                   oninput="updateMonAnImg(this,${i})"/>
+        </div>
+        <input name="MonAns[${i}].PhanLoai" placeholder="VD: Khai vị" class="form-input"/>
+        <input name="MonAns[${i}].DonGia" type="number" placeholder="0" class="form-input"/>
+        <button type="button" class="remove-btn" onclick="removeMonAn(${i},'')">✕</button>
+        <input type="hidden" name="MonAns[${i}].TinhTrang" value="true"/>
+    `;
+    container.appendChild(div);
+}
+
+function removeMonAn(idx, id) {
+    const el = document.getElementById(`monan-${idx}`);
+    if (el) el.remove();
+}
+</script>
+}

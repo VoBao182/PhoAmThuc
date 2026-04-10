@@ -1,3 +1,7 @@
 <Solution>
-  <Project Path="VinhKhanhTourDemo/VinhKhanhTourDemo.csproj" />
+  <Project Path="VinhKhanhTour.API/VinhKhanhTour.API.csproj" Id="f2503d31-7860-4a74-8424-b573536aaa7c" />
+  <Project Path="VinhKhanhTour.CMS/VinhKhanhTour.CMS.csproj" Id="f543234f-51f5-40ff-b26b-7f490ffd0afd" />
+  <Project Path="VinhKhanhTourDemo/VinhKhanhTourDemo.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
 </Solution>

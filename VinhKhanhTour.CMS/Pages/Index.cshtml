@@ -1,0 +1,116 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Page"] = "dashboard";
+}
+
+<section class="dashboard-shell">
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning">@Model.ErrorMessage</div>
+    }
+
+    <div class="dashboard-hero">
+        <div>
+            <div class="eyebrow">Tong quan he thong</div>
+            <h1>Dashboard quan ly Vinh Khanh Tour</h1>
+            <p>Theo doi nhanh so luong diem den, mon an va tinh trang noi dung tren CMS.</p>
+        </div>
+        <div class="hero-badge">
+            <span>@Model.TongPOI</span>
+            <small>POI dang hoat dong</small>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <article class="stat-tile accent-orange">
+            <div class="tile-label">Tong POI</div>
+            <div class="tile-value">@Model.TongPOI</div>
+            <div class="tile-sub">Dia diem dang hien thi tren he thong</div>
+        </article>
+        <article class="stat-tile accent-blue">
+            <div class="tile-label">Tong mon an</div>
+            <div class="tile-value">@Model.TongMonAn</div>
+            <div class="tile-sub">Mon dang bat trong thuc don</div>
+        </article>
+        <article class="stat-tile accent-green">
+            <div class="tile-label">Ngon ngu</div>
+            <div class="tile-value">3</div>
+            <div class="tile-sub">Tieng Viet, English, Zhongwen</div>
+        </article>
+    </div>
+
+    <section class="dashboard-panel">
+        <div class="panel-head">
+            <div>
+                <div class="eyebrow">Danh sach POI</div>
+                <h2>Quan an noi bat</h2>
+            </div>
+            <a href="/Poi" class="panel-link">Mo quan ly POI</a>
+        </div>
+
+        <div class="poi-dashboard-grid">
+            @if (Model.POIs.Any())
+            {
+                @foreach (var p in Model.POIs)
+                {
+                    <article class="poi-dashboard-card">
+                        <div class="poi-cover">
+                            @if (!string.IsNullOrEmpty(p.AnhDaiDien))
+                            {
+                                <img src="@p.AnhDaiDien" alt="@p.TenPOI" class="poi-cover-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                                <div class="poi-cover-fallback" style="display:none;">VK</div>
+                            }
+                            else
+                            {
+                                <div class="poi-cover-fallback">VK</div>
+                            }
+                        </div>
+
+                        <div class="poi-card-body">
+                            <div class="poi-card-top">
+                                <div>
+                                    <h3>@p.TenPOI</h3>
+                                    <p>@(string.IsNullOrWhiteSpace(p.DiaChi) ? "Pho Vinh Khanh, Quan 4" : p.DiaChi)</p>
+                                </div>
+                                <span class="status-pill @(p.TrangThai ? "status-on" : "status-off")">
+                                    @(p.TrangThai ? "Hien" : "An")
+                                </span>
+                            </div>
+
+                            <div class="poi-meta-row">
+                                <div class="poi-meta">
+                                    <span class="meta-label">Mon dang bat</span>
+                                    <strong>@p.MonAns.Count(m => m.TinhTrang)</strong>
+                                </div>
+                                <div class="poi-meta">
+                                    <span class="meta-label">Tong mon</span>
+                                    <strong>@p.MonAns.Count</strong>
+                                </div>
+                            </div>
+
+                            <div class="poi-card-actions">
+                                <a href="/Poi/Edit/@p.Id" class="cms-btn cms-btn-primary">Chinh sua</a>
+                                <a href="/Poi/Edit/@p.Id#menu-section" class="cms-btn cms-btn-ghost">Xem mon an</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            }
+            else
+            {
+                <article class="poi-dashboard-card">
+                    <div class="poi-card-body">
+                        <div class="poi-card-top">
+                            <div>
+                                <h3>Chua co du lieu POI</h3>
+                                <p>Kiem tra ket noi Supabase, API hoac du lieu nguon roi tai lai trang.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+</section>

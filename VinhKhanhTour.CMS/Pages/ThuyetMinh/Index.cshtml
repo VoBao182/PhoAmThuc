@@ -1,0 +1,89 @@
+@page
+@model VinhKhanhTour.CMS.Pages.ThuyetMinh.IndexModel
+@{
+    ViewData["Title"] = "Thuyết minh";
+    ViewData["Page"] = "thuyetminh";
+}
+
+<section class="dashboard-shell">
+    <div class="dashboard-hero">
+        <div>
+            <div class="eyebrow">Quản lý nội dung</div>
+            <h1>Thuyết minh đa ngôn ngữ</h1>
+            <p>Theo dõi nhanh nội dung tiếng Việt, tiếng Anh và tiếng Trung cho từng POI. Bạn có thể mở trang chỉnh sửa POI để cập nhật nội dung, file audio và trạng thái hiển thị.</p>
+        </div>
+        <div class="hero-badge">
+            <span>@Model.Items.Count</span>
+            <small>POI có thuyết minh</small>
+        </div>
+    </div>
+
+    <section class="dashboard-panel">
+        <div class="panel-head">
+            <div>
+                <div class="eyebrow">Bản dịch</div>
+                <h2>Danh sách thuyết minh</h2>
+            </div>
+            <a href="/Poi" class="panel-link">Mở quản lý POI</a>
+        </div>
+
+        <div style="max-height:70vh; overflow:auto; padding-right:6px;">
+        <div class="poi-dashboard-grid">
+            @foreach (var item in Model.Items)
+            {
+                <article class="poi-dashboard-card">
+                    <div class="poi-card-body">
+                        <div class="poi-card-top">
+                            <div>
+                                <h3>@item.TenPOI</h3>
+                                <p>@item.SoBanDich bản dịch đang có nội dung</p>
+                            </div>
+                            <span class="status-pill @(item.TrangThaiPoi ? "status-on" : "status-off")">
+                                @(item.TrangThaiPoi ? "Hiện" : "Ẩn")
+                            </span>
+                        </div>
+
+                        <div class="poi-meta-row">
+                            <div class="poi-meta">
+                                <span class="meta-label">Tiếng Việt</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.NoiDungVi) ? "Chưa có" : "Đã có")</strong>
+                            </div>
+                            <div class="poi-meta">
+                                <span class="meta-label">English</span>
+                                <strong>@(string.IsNullOrWhiteSpace(item.NoiDungEn) ? "Missing" : "Ready")</strong>
+                            </div>
+                        </div>
+
+                        <div class="poi-meta">
+                            <span class="meta-label">中文</span>
+                            <strong>@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "Chưa có" : "Đã có")</strong>
+                        </div>
+
+                        <div class="poi-meta">
+                            <span class="meta-label">Xem nhanh nội dung</span>
+                            <div style="display:grid; gap:10px; margin-top:8px;">
+                                <div>
+                                    <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">Tiếng Việt</div>
+                                    <div style="font-size:14px; line-height:1.55;">@(string.IsNullOrWhiteSpace(item.NoiDungVi) ? "Chưa có nội dung." : item.NoiDungVi.Length > 120 ? item.NoiDungVi[..120] + "..." : item.NoiDungVi)</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">English</div>
+                                    <div style="font-size:14px; line-height:1.55;">@(string.IsNullOrWhiteSpace(item.NoiDungEn) ? "No content yet." : item.NoiDungEn.Length > 120 ? item.NoiDungEn[..120] + "..." : item.NoiDungEn)</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">中文</div>
+                                    <div style="font-size:14px; line-height:1.55;">@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "Chưa có nội dung." : item.NoiDungZh.Length > 120 ? item.NoiDungZh[..120] + "..." : item.NoiDungZh)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="poi-card-actions">
+                            <a href="/Poi/Edit/@item.PoiId" class="cms-btn cms-btn-primary">Chỉnh sửa thuyết minh</a>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+        </div>
+    </section>
+</section>
