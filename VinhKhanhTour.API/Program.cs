@@ -3,6 +3,12 @@ using VinhKhanhTour.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = GetConnectionString(builder.Configuration);
+var port = Environment.GetEnvironmentVariable("PORT");
+
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -36,6 +42,7 @@ app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 app.UseAuthorization();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();
 

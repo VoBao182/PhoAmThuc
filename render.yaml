@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: vinhkhanhtour-api
+    runtime: docker
+    dockerfilePath: ./VinhKhanhTour.API/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: SUPABASE_CONNECTION_STRING
+        sync: false

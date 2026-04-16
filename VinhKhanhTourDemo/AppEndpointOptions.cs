@@ -4,7 +4,12 @@ internal static class AppEndpointOptions
 {
     public const int ApiPort = 5118;
 
-    // Set this once before publishing the app so customers always use the hosted API.
-    // Example: "https://api.vinhkhanhtour.vn"
-    public const string HostedApiBaseUrl = "";
+    // Fallback for quick local edits. For release builds, prefer the HostedApiBaseUrl
+    // value generated from the HOSTED_API_BASE_URL environment variable or /p:HostedApiBaseUrl.
+    public const string HostedApiBaseUrlFallback = "";
+
+    public static string HostedApiBaseUrl =>
+        !string.IsNullOrWhiteSpace(BuildHostedApiBaseUrl.Value)
+            ? BuildHostedApiBaseUrl.Value
+            : HostedApiBaseUrlFallback;
 }

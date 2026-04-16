@@ -5,6 +5,12 @@ namespace VinhKhanhTourDemo;
 
 public static class AppConfig
 {
+#if DEBUG
+    public const bool IsDebugBuild = true;
+#else
+    public const bool IsDebugBuild = false;
+#endif
+
     private const string CustomApiBaseUrlKey = "api_base_url_override";
     private const string LastGoodApiBaseUrlKey = "api_base_url_last_good";
     private static readonly SemaphoreSlim ResolveLock = new(1, 1);
@@ -34,6 +40,11 @@ public static class AppConfig
         !string.IsNullOrWhiteSpace(ConfiguredHostedApiBaseUrl);
 
     public static bool AllowManualApiOverride =>
+        !HasConfiguredHostedApiBaseUrl;
+
+    public static bool ShouldBlockPublishedAndroidApp =>
+        DeviceInfo.Platform == DevicePlatform.Android &&
+        !IsDebugBuild &&
         !HasConfiguredHostedApiBaseUrl;
 
     public static string? CustomApiBaseUrl =>
@@ -164,6 +175,11 @@ public static class AppConfig
         }
 
         return $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay va URL API dung. Chi tiet: {exception.Message}";
+    }
+
+    public static string BuildMissingHostedApiMessage()
+    {
+        return "Ban dang dong goi APK cho khach hang nhung chua cau hinh HostedApiBaseUrl. Hay deploy backend len public domain va cap nhat AppEndpointOptions.HostedApiBaseUrl truoc khi phat hanh.";
     }
 
     private static IEnumerable<string> GetCandidateApiBaseUrls()

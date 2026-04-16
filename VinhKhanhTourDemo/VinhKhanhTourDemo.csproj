@@ -40,6 +40,9 @@
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
 
+		<HostedApiBaseUrl Condition="'$(HostedApiBaseUrl)' == ''">$([System.Environment]::GetEnvironmentVariable('HOSTED_API_BASE_URL'))</HostedApiBaseUrl>
+		<GeneratedHostedApiFile>$(BaseIntermediateOutputPath)GeneratedHostedApiBaseUrl.g.cs</GeneratedHostedApiFile>
+
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
@@ -84,6 +87,21 @@
 	  <MauiXaml Update="SubscriptionPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <Compile Include="$(GeneratedHostedApiFile)" Visible="false" />
 	</ItemGroup>
+
+	<Target Name="GenerateHostedApiBaseUrl" BeforeTargets="BeforeCompile">
+		<ItemGroup>
+			<GeneratedHostedApiLines Include="namespace VinhKhanhTourDemo%3B" />
+			<GeneratedHostedApiLines Include="internal static class BuildHostedApiBaseUrl" />
+			<GeneratedHostedApiLines Include="{" />
+			<GeneratedHostedApiLines Include="    internal const string Value = @&quot;$(HostedApiBaseUrl)&quot;%3B" />
+			<GeneratedHostedApiLines Include="}" />
+		</ItemGroup>
+		<WriteLinesToFile
+			File="$(GeneratedHostedApiFile)"
+			Overwrite="true"
+			Lines="@(GeneratedHostedApiLines)" />
+	</Target>
 
 </Project>

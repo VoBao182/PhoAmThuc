@@ -36,7 +36,7 @@ internal static class ApiConnectionPrompt
             accept: "Luu",
             cancel: "Huy",
             placeholder: DeviceInfo.Platform == DevicePlatform.Android
-                ? "http://192.168.1.5:5118"
+                ? "http://127.0.0.1:5118"
                 : "http://localhost:5118",
             initialValue: initialValue,
             keyboard: Keyboard.Url);
@@ -48,7 +48,7 @@ internal static class ApiConnectionPrompt
             {
                 await page.DisplayAlertAsync(
                     "URL khong hop le",
-                    "Hay nhap day du giao thuc va cong, vi du http://192.168.1.5:5118.",
+                    "Hay nhap day du giao thuc va cong, vi du http://127.0.0.1:5118.",
                     "OK");
             }
 
