@@ -5,17 +5,18 @@ namespace VinhKhanhTourDemo;
 
 public partial class SubscriptionPage : ContentPage
 {
-
     private readonly HttpClient _http = new(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
-    { Timeout = TimeSpan.FromSeconds(15) };
+    {
+        Timeout = TimeSpan.FromSeconds(15)
+    };
 
-    private const string PREF_DEVICE_ID    = "device_id";
-    private const string PREF_NGAY_HET_HAN = "sub_ngay_het_han";
-    private const string PREF_DA_DUNG_THU  = "da_dung_thu";
+    private const string PrefDeviceId = "device_id";
+    private const string PrefNgayHetHan = "sub_ngay_het_han";
+    private const string PrefDaDungThu = "da_dung_thu";
 
     public SubscriptionPage(bool hetHan = false)
     {
@@ -26,41 +27,44 @@ public partial class SubscriptionPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-
-        // Ẩn nút dùng thử nếu thiết bị đã từng dùng (lưu local để không cần gọi API)
-        bool daDungThu = Preferences.Get(PREF_DA_DUNG_THU, false);
-        if (daDungThu)
-        {
-            BtnDungThu.IsEnabled   = false;
-            BtnDungThu.Text        = "Đã sử dụng";
-            BtnDungThu.BackgroundColor = Color.FromArgb("#9CA3AF");
-        }
+        UpdateTrialButtonState();
     }
 
-    // Lấy (hoặc tạo) mã thiết bị — UUID lưu vĩnh viễn
+    private void UpdateTrialButtonState()
+    {
+        bool daDungThu = Preferences.Get(PrefDaDungThu, false);
+        BtnDungThu.IsEnabled = !daDungThu;
+        BtnDungThu.Text = daDungThu ? "Da su dung" : "Thu ngay";
+        BtnDungThu.BackgroundColor = daDungThu
+            ? Color.FromArgb("#9CA3AF")
+            : Color.FromArgb("#22C55E");
+    }
+
     private static string GetDeviceId()
     {
-        var id = Preferences.Get(PREF_DEVICE_ID, "");
-        if (!string.IsNullOrEmpty(id)) return id;
+        var id = Preferences.Get(PrefDeviceId, "");
+        if (!string.IsNullOrEmpty(id))
+            return id;
+
         id = Guid.NewGuid().ToString("N");
-        Preferences.Set(PREF_DEVICE_ID, id);
+        Preferences.Set(PrefDeviceId, id);
         return id;
     }
 
     private async void OnMuaGoiClicked(object? sender, EventArgs? e)
     {
-        if (sender is not Button btn) return;
-        var loaiGoi  = btn.CommandParameter?.ToString() ?? "thang";
+        if (sender is not Button btn)
+            return;
+
+        var loaiGoi = btn.CommandParameter?.ToString() ?? "thang";
         var deviceId = GetDeviceId();
 
-        // Gói dùng thử: kích hoạt trực tiếp (miễn phí, không cần chuyển khoản)
         if (loaiGoi == "thu")
         {
             await ActivateFreeTrialAsync(deviceId);
             return;
         }
 
-        // Gói trả phí: chuyển sang trang thanh toán QR
         await Navigation.PushModalAsync(new PaymentPage(loaiGoi), animated: true);
     }
 
@@ -71,34 +75,46 @@ public partial class SubscriptionPage : ContentPage
 
         try
         {
+            var apiBaseUrl = await ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync(this, _http);
+            if (string.IsNullOrWhiteSpace(apiBaseUrl))
+            {
+                LblError.IsVisible = true;
+                LblError.Text = AppConfig.BuildConnectionErrorMessage(
+                    new HttpRequestException("Unable to reach API."));
+                return;
+            }
+
             var body = new { MaThietBi = deviceId, LoaiGoi = "thu" };
-            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
-            var res  = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/subscription/purchase", body);
+            var res = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/subscription/purchase", body);
 
             if (!res.IsSuccessStatusCode)
             {
                 var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
-                var errMsg  = errJson.TryGetProperty("message", out var m) ? m.GetString() : "Thử lại sau.";
+                var errMsg = errJson.TryGetProperty("message", out var message)
+                    ? message.GetString()
+                    : "Thu lai sau.";
                 LblError.IsVisible = true;
                 LblError.Text = errMsg;
                 return;
             }
 
-            var json      = await res.Content.ReadFromJsonAsync<JsonElement>();
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
             var hetHanStr = json.GetProperty("ngayHetHan").GetString() ?? "";
-            Preferences.Set(PREF_NGAY_HET_HAN, hetHanStr);
-            Preferences.Set(PREF_DA_DUNG_THU, true);
+            Preferences.Set(PrefNgayHetHan, hetHanStr);
+            Preferences.Set(PrefDaDungThu, true);
+            UpdateTrialButtonState();
 
-            await DisplayAlertAsync("Thành công! 🎉",
-                "Bạn đã kích hoạt gói dùng thử 3 ngày.\nChúc bạn khám phá vui vẻ!",
-                "Bắt đầu");
+            await DisplayAlertAsync(
+                "Thanh cong",
+                "Ban da kich hoat goi dung thu 3 ngay.",
+                "Bat dau");
 
             await Navigation.PopModalAsync();
         }
         catch (Exception ex)
         {
             LblError.IsVisible = true;
-            LblError.Text = "Lỗi kết nối: " + ex.Message;
+            LblError.Text = AppConfig.BuildConnectionErrorMessage(ex);
         }
         finally
         {
@@ -110,10 +126,10 @@ public partial class SubscriptionPage : ContentPage
     {
         LoadingIndicator.IsRunning = loading;
         LoadingIndicator.IsVisible = loading;
-        BtnDungThu.IsEnabled       = !loading && !Preferences.Get(PREF_DA_DUNG_THU, false);
-        BtnMuaNgay.IsEnabled       = !loading;
-        BtnMuaTuan.IsEnabled       = !loading;
-        BtnMuaThang.IsEnabled      = !loading;
-        BtnMuaNam.IsEnabled        = !loading;
+        BtnDungThu.IsEnabled = !loading && !Preferences.Get(PrefDaDungThu, false);
+        BtnMuaNgay.IsEnabled = !loading;
+        BtnMuaTuan.IsEnabled = !loading;
+        BtnMuaThang.IsEnabled = !loading;
+        BtnMuaNam.IsEnabled = !loading;
     }
 }

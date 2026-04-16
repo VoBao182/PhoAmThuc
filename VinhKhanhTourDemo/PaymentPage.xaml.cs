@@ -4,31 +4,31 @@ using System.Text.Json;
 namespace VinhKhanhTourDemo;
 
 /// <summary>
-/// Trang thanh toán QR — hiển thị mã QR chuyển khoản và chờ người dùng xác nhận.
-/// Sau khi người dùng tapping "Đã chuyển khoản", tạo yêu cầu trên server
-/// rồi chuyển sang PaymentStatusPage để polling kết quả duyệt.
+/// Trang thanh toan QR: hien thi ma QR chuyen khoan va cho nguoi dung xac nhan.
+/// Sau khi nguoi dung nhan "Da chuyen khoan", tao yeu cau tren server
+/// roi chuyen sang PaymentStatusPage de polling ket qua duyet.
 /// </summary>
 public partial class PaymentPage : ContentPage
 {
-
-    // Thông tin ngân hàng nhận tiền (cập nhật theo thực tế)
-    private const string BANK_ID    = "MB";
-    private const string ACCOUNT_NO = "0347491930";
-    private const string ACCOUNT_NAME = "VINH KHANH TOUR";
+    private const string BankId = "MB";
+    private const string AccountNo = "0347491930";
+    private const string AccountName = "VINH KHANH TOUR";
 
     private readonly HttpClient _http = new(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
-    { Timeout = TimeSpan.FromSeconds(15) };
+    {
+        Timeout = TimeSpan.FromSeconds(15)
+    };
 
     private static readonly Dictionary<string, (decimal Gia, string Ten, int SoNgay)> GoiInfo = new()
     {
-        ["ngay"]  = (29_000m,   "Gói 1 ngày",   1),
-        ["tuan"]  = (99_000m,   "Gói 1 tuần",   7),
-        ["thang"] = (199_000m,  "Gói 1 tháng",  30),
-        ["nam"]   = (999_000m,  "Gói 1 năm",   365),
+        ["ngay"] = (29_000m, "Goi 1 ngay", 1),
+        ["tuan"] = (99_000m, "Goi 1 tuan", 7),
+        ["thang"] = (199_000m, "Goi 1 thang", 30),
+        ["nam"] = (999_000m, "Goi 1 nam", 365),
     };
 
     private readonly string _loaiGoi;
@@ -40,44 +40,45 @@ public partial class PaymentPage : ContentPage
         InitializeComponent();
         _loaiGoi = loaiGoi;
         _deviceId = GetDeviceId();
-        SetupUI();
+        SetupUi();
     }
 
     private static string GetDeviceId()
     {
         var id = Preferences.Get("device_id", "");
-        if (!string.IsNullOrEmpty(id)) return id;
+        if (!string.IsNullOrEmpty(id))
+            return id;
+
         id = Guid.NewGuid().ToString("N");
         Preferences.Set("device_id", id);
         return id;
     }
 
-    private void SetupUI()
+    private void SetupUi()
     {
-        if (!GoiInfo.TryGetValue(_loaiGoi, out var info)) return;
+        if (!GoiInfo.TryGetValue(_loaiGoi, out var info))
+            return;
 
-        // Nội dung chuyển khoản: VKT THANG ABCDEF
-        var shortId = _deviceId[..Math.Min(6, _deviceId.Length)].ToUpper();
-        _noiDungChuyen = $"VKT {_loaiGoi.ToUpper()} {shortId}";
+        var shortId = _deviceId[..Math.Min(6, _deviceId.Length)].ToUpperInvariant();
+        _noiDungChuyen = $"VKT {_loaiGoi.ToUpperInvariant()} {shortId}";
 
-        LblTenGoi.Text  = $"{info.Ten} — {info.SoNgay} ngày sử dụng";
-        LblSoTK.Text    = ACCOUNT_NO;
-        LblSoTien.Text  = $"{info.Gia:N0}đ";
+        LblTenGoi.Text = $"{info.Ten} - {info.SoNgay} ngay su dung";
+        LblSoTK.Text = AccountNo;
+        LblSoTien.Text = $"{info.Gia:N0}d";
         LblNoiDung.Text = _noiDungChuyen;
 
-        // VietQR URL
         var encodedDesc = Uri.EscapeDataString(_noiDungChuyen);
-        var qrUrl = $"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png" +
-                    $"?amount={(long)info.Gia}&addInfo={encodedDesc}&accountName={Uri.EscapeDataString(ACCOUNT_NAME)}";
+        var qrUrl = $"https://img.vietqr.io/image/{BankId}-{AccountNo}-compact2.png" +
+                    $"?amount={(long)info.Gia}&addInfo={encodedDesc}&accountName={Uri.EscapeDataString(AccountName)}";
         ImgQR.Source = ImageSource.FromUri(new Uri(qrUrl));
     }
 
     private async void OnCopyNoiDungClicked(object? sender, EventArgs? e)
     {
         await Clipboard.SetTextAsync(_noiDungChuyen);
-        BtnCopyNoiDung.Text = "✅";
+        BtnCopyNoiDung.Text = "OK";
         await Task.Delay(1500);
-        BtnCopyNoiDung.Text = "📋";
+        BtnCopyNoiDung.Text = "Copy";
     }
 
     private async void OnDaChuyenKhoanClicked(object? sender, EventArgs? e)
@@ -88,22 +89,30 @@ public partial class PaymentPage : ContentPage
         try
         {
             var body = new { MaThietBi = _deviceId, LoaiGoi = _loaiGoi };
-            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
-            var res  = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/subscription/request", body);
-
-            if (!res.IsSuccessStatusCode)
+            var apiBaseUrl = await ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync(this, _http);
+            if (string.IsNullOrWhiteSpace(apiBaseUrl))
             {
-                var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
-                LblError.Text = errJson.TryGetProperty("message", out var m)
-                    ? m.GetString() : "Lỗi tạo yêu cầu. Thử lại sau.";
+                LblError.Text = AppConfig.BuildConnectionErrorMessage(
+                    new HttpRequestException("Unable to reach API."));
                 LblError.IsVisible = true;
                 return;
             }
 
-            var json     = await res.Content.ReadFromJsonAsync<JsonElement>();
+            var res = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/subscription/request", body);
+
+            if (!res.IsSuccessStatusCode)
+            {
+                var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
+                LblError.Text = errJson.TryGetProperty("message", out var message)
+                    ? message.GetString()
+                    : "Loi tao yeu cau. Thu lai sau.";
+                LblError.IsVisible = true;
+                return;
+            }
+
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
             var yeuCauId = json.GetProperty("yeuCauId").GetString() ?? "";
 
-            // Chuyển sang trang chờ duyệt
             await Navigation.PushModalAsync(
                 new PaymentStatusPage(yeuCauId, _loaiGoi, _noiDungChuyen),
                 animated: true);
@@ -111,7 +120,7 @@ public partial class PaymentPage : ContentPage
         catch (Exception ex)
         {
             LblError.IsVisible = true;
-            LblError.Text = "Lỗi kết nối: " + ex.Message;
+            LblError.Text = AppConfig.BuildConnectionErrorMessage(ex);
         }
         finally
         {
@@ -124,8 +133,8 @@ public partial class PaymentPage : ContentPage
 
     private void SetLoading(bool loading)
     {
-        LoadingIndicator.IsRunning  = loading;
-        LoadingIndicator.IsVisible  = loading;
-        BtnDaChuyenKhoan.IsEnabled  = !loading;
+        LoadingIndicator.IsRunning = loading;
+        LoadingIndicator.IsVisible = loading;
+        BtnDaChuyenKhoan.IsEnabled = !loading;
     }
 }

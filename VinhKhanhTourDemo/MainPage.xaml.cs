@@ -221,17 +221,22 @@ public partial class MainPage : ContentPage
         LblLanguageCaption.Text = GetText("Ngôn ngữ thuyết minh", "Audio language", "语音语言");
         BtnGiaHan.Text = GetText("Gia hạn gói", "Renew plan", "续费套餐");
         LblApiCaption.Text = GetText("Ket noi API", "API connection", "API lian jie");
-        LblApiHint.Text = DeviceInfo.Platform == DevicePlatform.Android
+        LblApiHint.Text = AppConfig.HasConfiguredHostedApiBaseUrl
             ? GetText(
-                "Emulator: http://10.0.2.2:5118. May that: nhap IP may tinh, vi du http://192.168.1.5:5118.",
-                "Emulator: http://10.0.2.2:5118. Physical device: enter your computer IP, for example http://192.168.1.5:5118.",
-                "Mo ni qi: http://10.0.2.2:5118. Zhen ji: qing shu ru dian nao IP, li ru http://192.168.1.5:5118.")
-            : GetText(
-                "Mac dinh: http://localhost:5118",
-                "Default: http://localhost:5118",
-                "Mo ren: http://localhost:5118");
+                "Ung dung dang su dung may chu cong khai da cau hinh san.",
+                "The app is using the preconfigured public API.",
+                "Ying yong zheng zai shi yong yu xian pei zhi de gong gong API.")
+            : DeviceInfo.Platform == DevicePlatform.Android
+                ? GetText(
+                    "Dev local: co the dung adb reverse de map localhost khi test USB.",
+                    "Local dev: you can use adb reverse when testing over USB.",
+                    "Ben di kai fa: USB ce shi shi ke yi shi yong adb reverse.")
+                : GetText(
+                    "Mac dinh: http://localhost:5118",
+                    "Default: http://localhost:5118",
+                    "Mo ren: http://localhost:5118");
         EntryApiBaseUrl.Placeholder = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://192.168.1.5:5118"
+            ? "http://127.0.0.1:5118"
             : "http://localhost:5118";
         BtnSaveApiUrl.Text = GetText("Luu API URL", "Save API URL", "Bao cun API URL");
         BtnResetApiUrl.Text = GetText("Dung mac dinh", "Use default", "Shi yong mo ren zhi");
@@ -306,10 +311,15 @@ public partial class MainPage : ContentPage
         var apiBaseUrl = AppConfig.ApiBaseUrl;
 
         return DeviceInfo.Platform == DevicePlatform.Android
-            ? GetText(
-                $"Khong ket noi duoc toi {apiBaseUrl}. Neu ban dang chay tren may that, hay vao Cai dat > API URL va nhap IP may tinh. Ung dung tam dung du lieu mau.",
-                $"Cannot reach {apiBaseUrl}. If you are using a physical Android device, open Settings > API URL and enter your computer IP. The app is using sample data for now.",
-                $"Wu fa lian jie dao {apiBaseUrl}. Ruo guo ni zheng zai shi yong Android zhen ji, qing zai she zhi > API URL zhong shu ru dian nao IP. Ying yong zan shi shi yong shi li shu ju.")
+            ? AppConfig.HasConfiguredHostedApiBaseUrl
+                ? GetText(
+                    $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra public API dang hoat dong. Ung dung tam dung du lieu mau.",
+                    $"Cannot reach {apiBaseUrl}. Check that the public API is online. The app is using sample data for now.",
+                    $"Wu fa lian jie dao {apiBaseUrl}. Qing jian cha gong gong API shi fou zheng chang. Ying yong zan shi shi yong shi li shu ju.")
+                : GetText(
+                    $"Khong ket noi duoc toi {apiBaseUrl}. Neu dang test qua USB, hay dung adb reverse de map localhost. Ung dung tam dung du lieu mau.",
+                    $"Cannot reach {apiBaseUrl}. If you are testing over USB, use adb reverse to map localhost. The app is using sample data for now.",
+                    $"Wu fa lian jie dao {apiBaseUrl}. Ruo guo ni zheng zai tong guo USB ce shi, qing shi yong adb reverse ying she localhost. Ying yong zan shi shi yong shi li shu ju.")
             : GetText(
                 $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay o cong 5118. Ung dung tam dung du lieu mau.",
                 $"Cannot reach {apiBaseUrl}. Make sure the backend is running on port 5118. The app is using sample data for now.",
@@ -1452,12 +1462,15 @@ public partial class MainPage : ContentPage
 
     private async void OnSaveApiUrlClicked(object? sender, EventArgs e)
     {
+        if (!AppConfig.AllowManualApiOverride)
+            return;
+
         var normalized = AppConfig.NormalizeApiBaseUrl(EntryApiBaseUrl.Text);
         if (string.IsNullOrWhiteSpace(normalized))
         {
             await DisplayAlertAsync(
                 GetText("URL khong hop le", "Invalid URL", "URL wu xiao"),
-                GetText("Hay nhap day du giao thuc va cong, vi du http://192.168.1.5:5118.", "Enter the full URL including protocol and port, for example http://192.168.1.5:5118.", "Qing shu ru wan zheng URL, bao gom xie yi va duan kou, li ru http://192.168.1.5:5118."),
+                GetText("Hay nhap day du giao thuc va cong, vi du http://127.0.0.1:5118.", "Enter the full URL including protocol and port, for example http://127.0.0.1:5118.", "Qing shu ru wan zheng URL, bao gom xie yi he duan kou, li ru http://127.0.0.1:5118."),
                 "OK");
             return;
         }
@@ -1469,6 +1482,9 @@ public partial class MainPage : ContentPage
 
     private async void OnResetApiUrlClicked(object? sender, EventArgs e)
     {
+        if (!AppConfig.AllowManualApiOverride)
+            return;
+
         AppConfig.ClearCustomApiBaseUrl();
         EntryApiBaseUrl.Text = "";
         await LoadPoisFromApi(showFailureAlert: true);

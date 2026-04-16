@@ -8,31 +8,49 @@ public static class AppConfig
     private const string CustomApiBaseUrlKey = "api_base_url_override";
     private const string LastGoodApiBaseUrlKey = "api_base_url_last_good";
     private static readonly SemaphoreSlim ResolveLock = new(1, 1);
-    private static readonly TimeSpan ProbeCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan SuccessfulProbeCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FailedProbeCacheDuration = TimeSpan.FromSeconds(10);
     private static string? _resolvedApiBaseUrl;
     private static DateTime _lastProbeUtc = DateTime.MinValue;
+    private static bool _lastProbeSucceeded;
 
     public static string ApiBaseUrl =>
-        _resolvedApiBaseUrl
+        ConfiguredHostedApiBaseUrl
+        ?? _resolvedApiBaseUrl
         ?? CustomApiBaseUrl
         ?? LastKnownGoodApiBaseUrl
         ?? DefaultApiBaseUrl;
 
     public static string DefaultApiBaseUrl =>
-        DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5118"
-            : "http://localhost:5118";
+        ConfiguredHostedApiBaseUrl
+        ?? (DeviceInfo.Platform == DevicePlatform.Android
+            ? $"http://127.0.0.1:{AppEndpointOptions.ApiPort}"
+            : $"http://localhost:{AppEndpointOptions.ApiPort}");
+
+    public static string? ConfiguredHostedApiBaseUrl =>
+        NormalizeApiBaseUrl(AppEndpointOptions.HostedApiBaseUrl);
+
+    public static bool HasConfiguredHostedApiBaseUrl =>
+        !string.IsNullOrWhiteSpace(ConfiguredHostedApiBaseUrl);
+
+    public static bool AllowManualApiOverride =>
+        !HasConfiguredHostedApiBaseUrl;
 
     public static string? CustomApiBaseUrl =>
-        NormalizeApiBaseUrl(Preferences.Get(CustomApiBaseUrlKey, ""));
+        AllowManualApiOverride
+            ? NormalizeApiBaseUrl(Preferences.Get(CustomApiBaseUrlKey, ""))
+            : null;
 
     public static string? LastKnownGoodApiBaseUrl =>
-        NormalizeApiBaseUrl(Preferences.Get(LastGoodApiBaseUrlKey, ""));
+        AllowManualApiOverride
+            ? NormalizeApiBaseUrl(Preferences.Get(LastGoodApiBaseUrlKey, ""))
+            : null;
 
     public static async Task<string> EnsureApiBaseUrlAsync(HttpClient http, CancellationToken cancellationToken = default)
     {
+        var cacheDuration = _lastProbeSucceeded ? SuccessfulProbeCacheDuration : FailedProbeCacheDuration;
         if (!string.IsNullOrWhiteSpace(_resolvedApiBaseUrl) &&
-            DateTime.UtcNow - _lastProbeUtc < ProbeCacheDuration)
+            DateTime.UtcNow - _lastProbeUtc < cacheDuration)
         {
             return _resolvedApiBaseUrl;
         }
@@ -40,15 +58,16 @@ public static class AppConfig
         await ResolveLock.WaitAsync(cancellationToken);
         try
         {
+            cacheDuration = _lastProbeSucceeded ? SuccessfulProbeCacheDuration : FailedProbeCacheDuration;
             if (!string.IsNullOrWhiteSpace(_resolvedApiBaseUrl) &&
-                DateTime.UtcNow - _lastProbeUtc < ProbeCacheDuration)
+                DateTime.UtcNow - _lastProbeUtc < cacheDuration)
             {
                 return _resolvedApiBaseUrl;
             }
 
             foreach (var candidate in GetCandidateApiBaseUrls())
             {
-                if (await CanReachApiAsync(http, candidate, cancellationToken))
+                if (await ProbeApiAsync(http, candidate, cancellationToken))
                 {
                     RememberResolvedApiBaseUrl(candidate);
                     return candidate;
@@ -59,6 +78,7 @@ public static class AppConfig
                 ?? LastKnownGoodApiBaseUrl
                 ?? DefaultApiBaseUrl;
             _lastProbeUtc = DateTime.UtcNow;
+            _lastProbeSucceeded = false;
             return _resolvedApiBaseUrl;
         }
         finally
@@ -69,19 +89,25 @@ public static class AppConfig
 
     public static void SetCustomApiBaseUrl(string apiBaseUrl)
     {
+        if (!AllowManualApiOverride)
+            return;
+
         var normalized = NormalizeApiBaseUrl(apiBaseUrl)
             ?? throw new ArgumentException("Invalid API URL.", nameof(apiBaseUrl));
 
         Preferences.Set(CustomApiBaseUrlKey, normalized);
         _resolvedApiBaseUrl = normalized;
         _lastProbeUtc = DateTime.MinValue;
+        _lastProbeSucceeded = false;
     }
 
     public static void ClearCustomApiBaseUrl()
     {
+        Preferences.Remove(LastGoodApiBaseUrlKey);
         Preferences.Remove(CustomApiBaseUrlKey);
         _resolvedApiBaseUrl = null;
         _lastProbeUtc = DateTime.MinValue;
+        _lastProbeSucceeded = false;
     }
 
     public static string? NormalizeApiBaseUrl(string? rawUrl)
@@ -101,6 +127,45 @@ public static class AppConfig
         return uri.GetLeftPart(UriPartial.Authority);
     }
 
+    public static async Task<bool> CanReachApiBaseUrlAsync(
+        HttpClient http,
+        string? apiBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeApiBaseUrl(apiBaseUrl);
+        if (string.IsNullOrWhiteSpace(normalized))
+            return false;
+
+        return await ProbeApiAsync(http, normalized, cancellationToken);
+    }
+
+    public static string BuildApiConnectionHelpText()
+    {
+        if (HasConfiguredHostedApiBaseUrl)
+            return $"Ung dung dang duoc cau hinh dung public API: {ConfiguredHostedApiBaseUrl}. Hay kiem tra backend/public domain dang online.";
+
+        return DeviceInfo.Platform == DevicePlatform.Android
+            ? $"Ban dev local: uu tien dung public API. Neu dang test qua USB, hay bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} de app tu dung localhost ma khong can nhap IP."
+            : $"Neu backend khong chay cung may, hay cau hinh mot public API URL, vi du https://api.vinhkhanhtour.vn.";
+    }
+
+    public static string BuildConnectionErrorMessage(Exception exception)
+    {
+        var apiBaseUrl = ApiBaseUrl;
+
+        if (HasConfiguredHostedApiBaseUrl)
+        {
+            return $"Khong ket noi duoc toi {apiBaseUrl}. Day phai la public API cho khach hang, hay kiem tra server/domain dang hoat dong. Chi tiet: {exception.Message}";
+        }
+
+        if (DeviceInfo.Platform == DevicePlatform.Android)
+        {
+            return $"Khong ket noi duoc toi {apiBaseUrl}. Khach hang khong nen phai nhap IP may tinh. Ban can cau hinh HostedApiBaseUrl de tro toi backend public; con khi test USB local thi dung adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
+        }
+
+        return $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay va URL API dung. Chi tiet: {exception.Message}";
+    }
+
     private static IEnumerable<string> GetCandidateApiBaseUrls()
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -112,25 +177,32 @@ public static class AppConfig
                 seen.Add(normalized);
         }
 
+        AddCandidate(ConfiguredHostedApiBaseUrl);
+
+        if (HasConfiguredHostedApiBaseUrl)
+            return seen;
+
         AddCandidate(CustomApiBaseUrl);
         AddCandidate(LastKnownGoodApiBaseUrl);
         AddCandidate(DefaultApiBaseUrl);
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
         {
-            AddCandidate("http://10.0.2.2:5118");
-            AddCandidate("http://10.0.3.2:5118");
+            AddCandidate($"http://127.0.0.1:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://localhost:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://10.0.2.2:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://10.0.3.2:{AppEndpointOptions.ApiPort}");
         }
         else
         {
-            AddCandidate("http://127.0.0.1:5118");
-            AddCandidate("http://localhost:5118");
+            AddCandidate($"http://127.0.0.1:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://localhost:{AppEndpointOptions.ApiPort}");
         }
 
         return seen;
     }
 
-    private static async Task<bool> CanReachApiAsync(HttpClient http, string apiBaseUrl, CancellationToken cancellationToken)
+    private static async Task<bool> ProbeApiAsync(HttpClient http, string apiBaseUrl, CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(2));
@@ -150,24 +222,17 @@ public static class AppConfig
         }
     }
 
-    /// <summary>
-    /// Chuyển URL ảnh thành URL có thể tải được trên thiết bị hiện tại.
-    /// - Đường dẫn tương đối (/uploads/...) → ghép với ApiBaseUrl
-    /// - URL tuyệt đối có host localhost/127.0.0.1 → thay bằng host của ApiBaseUrl
-    /// - URL ngoài (https://...) → giữ nguyên
-    /// </summary>
     public static string ResolveImageUrl(string? url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return "";
+        if (string.IsNullOrWhiteSpace(url))
+            return "";
 
-        // Đường dẫn tương đối
         if (url.StartsWith('/'))
             return ApiBaseUrl.TrimEnd('/') + url;
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return url;
 
-        // URL absolute nhưng host là localhost → thay bằng host của API hiện tại
         if (uri.Host is "localhost" or "127.0.0.1" &&
             Uri.TryCreate(ApiBaseUrl, UriKind.Absolute, out var apiUri) &&
             apiUri.Host != uri.Host)
@@ -186,6 +251,7 @@ public static class AppConfig
 
         _resolvedApiBaseUrl = normalized;
         _lastProbeUtc = DateTime.UtcNow;
+        _lastProbeSucceeded = true;
         Preferences.Set(LastGoodApiBaseUrlKey, normalized);
     }
 }
