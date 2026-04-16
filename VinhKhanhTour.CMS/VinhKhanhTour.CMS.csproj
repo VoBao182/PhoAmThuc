@@ -6,6 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Tự động unblock DLL sau build (tránh SAC chặn trên máy dev) -->
+  <Target Name="UnblockOutput" AfterTargets="Build">
+    <Exec Command="powershell -NonInteractive -Command &quot;Get-ChildItem '$(OutDir)' -Recurse -Include '*.dll','*.exe' | ForEach-Object { Unblock-File $_.FullName -ErrorAction SilentlyContinue }&quot;" ContinueOnError="true" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <PrivateAssets>all</PrivateAssets>
