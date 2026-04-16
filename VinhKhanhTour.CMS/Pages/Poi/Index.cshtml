@@ -1,16 +1,16 @@
 @page
 @model VinhKhanhTour.CMS.Pages.Poi.IndexModel
 @{
-    ViewData["Title"] = "Quan ly quan an";
+    ViewData["Title"] = "Quản lý quán ăn";
     ViewData["Page"] = "poi";
 }
 
 <div class="flex-between mb-4">
     <div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Noi dung quan an</div>
-        <div style="font-size:24px;font-weight:700;color:var(--text);">Quan ly quan va mon an</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Nội dung quán ăn</div>
+        <div style="font-size:24px;font-weight:700;color:var(--text);">Quản lý quán và món ăn</div>
     </div>
-    <a href="/Poi/Create" class="btn btn-primary">+ Them quan moi</a>
+    <a href="/Poi/Create" class="btn btn-primary">+ Thêm quán mới</a>
 </div>
 
 @if (TempData["Success"] != null)
@@ -29,12 +29,12 @@
             <thead>
                 <tr>
                     <th></th>
-                    <th>Ten quan</th>
-                    <th>Dia chi</th>
-                    <th>Mon an trong quan</th>
-                    <th>Uu tien</th>
-                    <th>Trang thai</th>
-                    <th>Thao tac</th>
+                    <th>Tên quán</th>
+                    <th>Địa chỉ</th>
+                    <th>Món ăn trong quán</th>
+                    <th>Ưu tiên</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,7 +57,7 @@
                             </td>
                             <td>
                                 <strong>@p.TenPOI</strong>
-                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">@(p.SDT ?? "Khong co so dien thoai")</div>
+                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">@(p.SDT ?? "Không có số điện thoại")</div>
                             </td>
                             <td style="color:var(--text-muted);font-size:13px">@(p.DiaChi ?? "-")</td>
                             <td style="min-width:260px;">
@@ -73,29 +73,29 @@
                                         @if (monDangBat.Count > 5)
                                         {
                                             <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:600;">
-                                                +@(monDangBat.Count - 5) mon
+                                                +@(monDangBat.Count - 5) món
                                             </span>
                                         }
                                     </div>
                                 }
                                 else
                                 {
-                                    <span style="font-size:13px;color:var(--text-muted);">Chua co mon an</span>
+                                    <span style="font-size:13px;color:var(--text-muted);">Chưa có món ăn</span>
                                 }
                             </td>
                             <td style="font-size:13px">@p.MucUuTien</td>
                             <td>
                                 <span class="status-dot @(p.TrangThai ? "dot-on" : "dot-off")"></span>
-                                @(p.TrangThai ? "Hien" : "An")
+                                @(p.TrangThai ? "Hiện" : "Ẩn")
                             </td>
                             <td>
                                 <div class="flex gap-2" style="flex-wrap:wrap;">
-                                    <a href="/Poi/Edit/@p.Id" class="btn btn-ghost btn-sm">Sua quan</a>
-                                    <a href="/Poi/Edit/@p.Id#menu-section" class="btn btn-ghost btn-sm">Xem mon</a>
+                                    <a href="/Poi/Edit/@p.Id" class="btn btn-ghost btn-sm">Sửa quán</a>
+                                    <a href="/Poi/Edit/@p.Id#menu-section" class="btn btn-ghost btn-sm">Xem món</a>
                                     <form method="post" asp-page-handler="Toggle" style="display:inline">
                                         <input type="hidden" name="id" value="@p.Id" />
                                         <button type="submit" class="btn btn-ghost btn-sm">
-                                            @(p.TrangThai ? "An" : "Hien")
+                                            @(p.TrangThai ? "Ẩn" : "Hiện")
                                         </button>
                                     </form>
                                 </div>
@@ -107,7 +107,7 @@
                 {
                     <tr>
                         <td colspan="7" style="padding:24px;text-align:center;color:var(--text-muted);">
-                            Chua tai duoc du lieu POI. Kiem tra ket noi database/API roi thu lai.
+                            Chưa tải được dữ liệu POI. Kiểm tra kết nối database/API rồi thử lại.
                         </td>
                     </tr>
                 }

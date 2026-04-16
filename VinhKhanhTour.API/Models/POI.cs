@@ -37,6 +37,14 @@ public class POI
     [Column("anhdaidien")]
     public string? AnhDaiDien { get; set; }
 
+    /// <summary>
+    /// Hạn duy trì hệ thống của quán.
+    /// Null = chưa đăng ký; quá hạn = POI không hiển thị trên app.
+    /// </summary>
+    [Column("ngayhethanduytri")]
+    public DateTime? NgayHetHanDuyTri { get; set; }
+
     public ICollection<ThuyetMinh> ThuyetMinhs { get; set; } = [];
     public ICollection<MonAn> MonAns { get; set; } = [];
+    public ICollection<HoaDon> HoaDons { get; set; } = [];
 }

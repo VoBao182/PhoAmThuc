@@ -9,7 +9,14 @@ namespace VinhKhanhTour.CMS.Pages.Poi;
 public class EditModel : PageModel
 {
     private readonly AppDbContext _db;
-    public EditModel(AppDbContext db) => _db = db;
+    private readonly IConfiguration _config;
+    public EditModel(AppDbContext db, IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
+
+    public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
     [BindProperty] public POI POI { get; set; } = null!;
 

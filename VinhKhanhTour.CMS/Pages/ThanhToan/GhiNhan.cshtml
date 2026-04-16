@@ -1,0 +1,138 @@
+@page "{poiId:guid}"
+@model VinhKhanhTour.CMS.Pages.ThanhToan.GhiNhanModel
+@{
+    ViewData["Title"] = $"Ghi nhận phí duy trì — {Model.TenPOI}";
+    Layout = "/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container py-4" style="max-width: 600px">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/ThanhToan/Index">Phí duy trì</a></li>
+            <li class="breadcrumb-item active">Ghi nhận</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0">💰 Ghi nhận thanh toán phí duy trì</h5>
+        </div>
+        <div class="card-body p-4">
+
+            <!-- Thông tin POI -->
+            <div class="alert alert-light border mb-4">
+                <div class="fw-semibold fs-5">@Model.TenPOI</div>
+                <div class="text-muted small">@(Model.DiaChi ?? "Chưa có địa chỉ")</div>
+                <hr class="my-2">
+                <div class="row">
+                    <div class="col-6">
+                        <span class="text-muted small">Hạn hiện tại</span><br>
+                        @if (Model.NgayHetHanDuyTri.HasValue)
+                        {
+                            var isQuaHan = Model.NgayHetHanDuyTri < DateTime.UtcNow;
+                            <span class="fw-medium @(isQuaHan ? "text-danger" : "text-success")">
+                                @Model.NgayHetHanDuyTri.Value.ToLocalTime().ToString("dd/MM/yyyy")
+                                @(isQuaHan ? "(Đã quá hạn)" : "")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Chưa có</span>
+                        }
+                    </div>
+                    <div class="col-6">
+                        <span class="text-muted small">Phí/tháng</span><br>
+                        <span class="fw-medium text-primary">@Model.PhiDuyTriThang.ToString("N0")đ</span>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.LỗiMessage))
+            {
+                <div class="alert alert-danger">@Model.LỗiMessage</div>
+            }
+
+            <form method="post">
+                <input type="hidden" name="PoiId" value="@Model.PoiId" />
+
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Số tháng gia hạn <span class="text-danger">*</span></label>
+                    <select name="SoThangGiaHan" class="form-select" id="soThang" onchange="tinhTong()">
+                        <option value="1">1 tháng</option>
+                        <option value="2">2 tháng</option>
+                        <option value="3">3 tháng</option>
+                        <option value="6">6 tháng</option>
+                        <option value="12">12 tháng (1 năm)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Đơn giá/tháng</label>
+                    <input type="number" name="PhiDuyTriThang" class="form-control"
+                           id="donGia" value="@Model.PhiDuyTriThang" min="0" step="1000"
+                           onchange="tinhTong()" />
+                    <div class="form-text">Có thể điều chỉnh nếu có thỏa thuận đặc biệt.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Tổng tiền thu</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control fw-bold text-primary fs-5 bg-light"
+                               id="tongTien" readonly />
+                        <span class="input-group-text">VND</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Ghi chú (tuỳ chọn)</label>
+                    <input type="text" name="GhiChu" class="form-control"
+                           placeholder="VD: Thu tiền mặt, chuyển khoản MB Bank..." />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        ✅ Xác nhận ghi nhận thanh toán
+                    </button>
+                    <a asp-page="/ThanhToan/Index" class="btn btn-outline-secondary">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lịch sử gần đây -->
+    @if (Model.LichSuGanDay.Any())
+    {
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">📋 Lịch sử thanh toán gần đây</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var hd in Model.LichSuGanDay)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary me-2">@hd.KyThanhToan</span>
+                            <span class="small text-muted">@hd.NgayThanhToan.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <span class="fw-medium text-success">@hd.SoTien.ToString("N0")đ</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+const phiThang = @Model.PhiDuyTriThang;
+
+function tinhTong() {
+    const soThang = parseInt(document.getElementById('soThang').value || '1');
+    const donGia  = parseFloat(document.getElementById('donGia').value || phiThang);
+    const tong    = soThang * donGia;
+    document.getElementById('tongTien').value = tong.toLocaleString('vi-VN');
+}
+
+tinhTong(); // Tính ngay khi tải trang
+</script>
+}

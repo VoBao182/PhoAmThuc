@@ -120,8 +120,6 @@ public partial class DetailPage : ContentPage
     //   - Android Emulator  → "http://10.0.2.2:5118"
     //   - Thiết bị thật     → "http://192.168.x.x:5118"  (IP máy tính của bạn)
     //   - Đã deploy lên server → URL thật
-    private static string API_BASE => AppConfig.ApiBaseUrl;
-
     private static readonly HttpClient _http = new(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =
@@ -276,7 +274,8 @@ player.addEventListener('ended', emitState);
 
         try
         {
-            string url = $"{API_BASE}/api/poi/{poiId}?lang={_lang}";
+            string apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            string url = $"{apiBaseUrl}/api/poi/{poiId}?lang={_lang}";
             Console.WriteLine($"[DetailPage] GET {url}");
 
             _poi = await _http.GetFromJsonAsync<PoiDetailDto>(url);
@@ -285,7 +284,7 @@ player.addEventListener('ended', emitState);
 
             // Ảnh bìa
             if (!string.IsNullOrEmpty(_poi.AnhDaiDien))
-                ImgCover.Source = ImageSource.FromUri(new Uri(_poi.AnhDaiDien));
+                ImgCover.Source = ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(_poi.AnhDaiDien)));
 
             LblTitle.Text    = _poi.TenPOI;
             LblTen.Text      = _poi.TenPOI;
@@ -312,8 +311,9 @@ player.addEventListener('ended', emitState);
 
     private void UseFallback(string tenPoi)
     {
-        var fallbackImg = _poiBasic.AnhDaiDien
-            ?? "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800";
+        var fallbackImg = AppConfig.ResolveImageUrl(
+            _poiBasic.AnhDaiDien
+            ?? "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800");
 
         ImgCover.Source    = ImageSource.FromUri(new Uri(fallbackImg));
         LblTitle.Text      = tenPoi;
@@ -389,7 +389,7 @@ player.addEventListener('ended', emitState);
                 {
                     var img = new Image
                     {
-                        Source       = ImageSource.FromUri(new Uri(mon.HinhAnh!)),
+                        Source       = ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(mon.HinhAnh))),
                         Aspect       = Aspect.AspectFill,
                         HeightRequest = 90,
                         WidthRequest  = 90
@@ -537,7 +537,7 @@ player.addEventListener('ended', emitState);
         MainThread.BeginInvokeOnMainThread(() =>
         {
             BtnPlayPauseAudio.Text = _isAudioPlaying ? "Pause" : "Play audio";
-            BtnNghe.Text = _isAudioPlaying ? "⏸ Dang phat audio" : AppStrings.BtnListen;
+            BtnNghe.Text = _isAudioPlaying ? "⏸ Đang phát audio" : AppStrings.BtnListen;
             LblAudioCurrent.Text = FormatTime(current);
             LblAudioDuration.Text = FormatTime(duration);
 

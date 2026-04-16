@@ -1,0 +1,149 @@
+@page
+@model VinhKhanhTour.CMS.Pages.ThanhToan.IndexModel
+@{
+    ViewData["Title"] = "Quản lý phí duy trì";
+    Layout = "/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Quản lý phí duy trì</h2>
+            <p class="text-muted mb-0">Theo dõi tình trạng đóng phí của từng quán</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ThongBao))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.ThongBao
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Tóm tắt -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-1 fw-bold text-success">@Model.SoQuanDaDong</div>
+                <div class="text-muted small">Đã đóng tiền tháng này</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-1 fw-bold text-danger">@Model.SoQuanQuaHan</div>
+                <div class="text-muted small">Quá hạn duy trì</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-1 fw-bold text-warning">@Model.SoQuanSapHan</div>
+                <div class="text-muted small">Sắp hết hạn (≤ 7 ngày)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-1 fw-bold text-primary">@Model.TongThuThang.ToString("N0")đ</div>
+                <div class="text-muted small">Tổng thu tháng này</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách POI -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h6 class="mb-0 fw-semibold">Danh sách quán</h6>
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="filterStatus" onchange="filterTable(this.value)">
+                    <option value="">Tất cả</option>
+                    <option value="quahan">Quá hạn</option>
+                    <option value="saphan">Sắp hết hạn</option>
+                    <option value="ok">Còn hạn</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="poiTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên quán</th>
+                            <th>Địa chỉ</th>
+                            <th>Hạn duy trì</th>
+                            <th>Trạng thái</th>
+                            <th>Phí/tháng</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.DanhSachPOI)
+                        {
+                            var now = DateTime.UtcNow;
+                            var isQuaHan = item.NgayHetHanDuyTri == null || item.NgayHetHanDuyTri < now;
+                            var isSapHan = !isQuaHan && item.NgayHetHanDuyTri.HasValue
+                                           && (item.NgayHetHanDuyTri.Value - now).TotalDays <= 7;
+                            var rowClass = isQuaHan ? "quahan" : isSapHan ? "saphan" : "ok";
+                            <tr data-status="@rowClass">
+                                <td class="fw-medium">@item.TenPOI</td>
+                                <td class="text-muted small">@(item.DiaChi ?? "—")</td>
+                                <td>
+                                    @if (item.NgayHetHanDuyTri.HasValue)
+                                    {
+                                        <span>@item.NgayHetHanDuyTri.Value.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Chưa đăng ký</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (isQuaHan)
+                                    {
+                                        <span class="badge bg-danger">Quá hạn</span>
+                                    }
+                                    else if (isSapHan)
+                                    {
+                                        var days = (int)(item.NgayHetHanDuyTri!.Value - now).TotalDays;
+                                        <span class="badge bg-warning text-dark">Còn @days ngày</span>
+                                    }
+                                    else
+                                    {
+                                        var days = (int)(item.NgayHetHanDuyTri!.Value - now).TotalDays;
+                                        <span class="badge bg-success">Còn @days ngày</span>
+                                    }
+                                </td>
+                                <td>@item.PhiDuyTriThang.ToString("N0")đ</td>
+                                <td>
+                                    <a asp-page="/ThanhToan/GhiNhan"
+                                       asp-route-poiId="@item.POIId"
+                                       class="btn btn-sm btn-primary">
+                                        💰 Ghi nhận
+                                    </a>
+                                    <a asp-page="/ThanhToan/LichSu"
+                                       asp-route-poiId="@item.POIId"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        📋 Lịch sử
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function filterTable(value) {
+    document.querySelectorAll('#poiTable tbody tr').forEach(row => {
+        if (!value || row.dataset.status === value) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+}

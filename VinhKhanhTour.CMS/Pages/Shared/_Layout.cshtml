@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Vĩnh Khánh CMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #faf7f2;
@@ -30,7 +32,7 @@
                 radial-gradient(circle at top left, rgba(255, 143, 61, 0.18), transparent 28%),
                 linear-gradient(180deg, #f7f2eb 0%, #efe7dc 100%);
             color: var(--text);
-            font-family: "Segoe UI", system-ui, sans-serif;
+            font-family: "Be Vietnam Pro", system-ui, sans-serif;
         }
 
         .cms-shell {
@@ -60,7 +62,7 @@
             margin: 0;
             font-size: 1.9rem;
             font-weight: 700;
-            font-family: Georgia, "Times New Roman", serif;
+            font-family: "Playfair Display", Georgia, serif;
             line-height: 1.05;
         }
 
@@ -73,49 +75,60 @@
             text-transform: uppercase;
         }
 
-        .nav-group-title {
-            padding: 8px 12px 4px;
-            color: rgba(255,255,255,0.34);
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
         .cms-nav {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         }
 
-        .cms-nav a {
+        .cms-nav > a {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            border-radius: 14px;
-            color: rgba(255,255,255,0.8);
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            color: rgba(255,255,255,0.78);
             text-decoration: none;
             font-weight: 600;
+            border: 1px solid transparent;
             transition: 0.2s ease;
         }
 
-        .cms-nav a:hover {
+        .cms-nav > a:hover {
             color: white;
             background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.08);
             transform: translateX(2px);
         }
 
-        .cms-nav a.active {
-            color: white;
-            background: linear-gradient(90deg, #d85a06, #ef7a1a);
-            box-shadow: 0 12px 22px rgba(216, 90, 6, 0.22);
+        .cms-nav > a.active {
+            color: #201712;
+            background: linear-gradient(135deg, #fff6ec 0%, #ffd7b6 100%);
+            border-color: rgba(255,255,255,0.18);
+            box-shadow: 0 16px 28px rgba(227, 106, 17, 0.22);
         }
 
         .nav-icon {
-            width: 22px;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.08);
             text-align: center;
+            font-size: 13px;
+            font-weight: 700;
             opacity: 0.92;
+        }
+
+        .cms-nav > a.active .nav-icon {
+            background: rgba(32, 23, 18, 0.08);
         }
 
         .cms-main {
@@ -443,19 +456,29 @@
             </div>
 
             <nav class="cms-nav">
-                <div class="nav-group-title">Tổng quan</div>
                 <a href="/" class="@(ViewData["Page"]?.ToString() == "dashboard" ? "active" : "")">
-                    <span class="nav-icon">📊</span>
+                    <span class="nav-icon">DB</span>
                     <span>Dashboard</span>
                 </a>
-                <div class="nav-group-title">Nội dung</div>
                 <a href="/Poi" class="@(ViewData["Page"]?.ToString() == "poi" ? "active" : "")">
-                    <span class="nav-icon">🏪</span>
-                    <span>Quản lý quán</span>
+                    <span class="nav-icon">QA</span>
+                    <span>Quán ăn</span>
                 </a>
                 <a href="/ThuyetMinh" class="@(ViewData["Page"]?.ToString() == "thuyetminh" ? "active" : "")">
-                    <span class="nav-icon">🎙️</span>
+                    <span class="nav-icon">TM</span>
                     <span>Thuyết minh</span>
+                </a>
+                <a href="/ThanhToan" class="@(ViewData["Page"]?.ToString() == "thanhtoan" ? "active" : "")">
+                    <span class="nav-icon">💰</span>
+                    <span>Phí duy trì</span>
+                </a>
+                <a href="/DuyetThanhToan" class="@(ViewData["Page"]?.ToString() == "duyetthanhtoan" ? "active" : "")">
+                    <span class="nav-icon">✅</span>
+                    <span>Duyệt thanh toán</span>
+                </a>
+                <a href="/BanDo" class="@(ViewData["Page"]?.ToString() == "bando" ? "active" : "")">
+                    <span class="nav-icon">🗺</span>
+                    <span>Bản đồ live</span>
                 </a>
             </nav>
         </aside>
@@ -468,5 +491,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("Scripts", required: false)
 </body>
 </html>

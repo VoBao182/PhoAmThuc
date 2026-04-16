@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
+using VinhKhanhTour.API.Utils;
 
 namespace VinhKhanhTour.API.Controllers;
 
@@ -21,9 +22,9 @@ public class LogController : ControllerBase
             {
                 Id           = Guid.NewGuid(),
                 POIId        = req.POIId,
-                NgonNguDung  = req.NgonNguDung,
+                NgonNguDung  = LichSuPhatInputNormalizer.NormalizeNgonNgu(req.NgonNguDung),
                 ThoiGian     = req.ThoiGian ?? DateTime.UtcNow,
-                Nguon        = req.Nguon ?? "GPS"
+                Nguon        = LichSuPhatInputNormalizer.NormalizeNguon(req.Nguon)
             };
 
             _db.LichSuPhats.Add(log);

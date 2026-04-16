@@ -12,12 +12,16 @@ public class PoiController : ControllerBase
     private readonly AppDbContext _db;
     public PoiController(AppDbContext db) => _db = db;
 
-    // GET /api/poi — lấy tất cả POI
+    // GET /api/poi — lấy POI đang hoạt động
+    // Chỉ hiện quán có NgayHetHanDuyTri còn hạn (null hoặc quá hạn → ẩn)
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        var now = DateTime.UtcNow;
         var pois = await _db.POIs
-            .Where(p => p.TrangThai)
+            .Where(p => p.TrangThai
+                     && p.NgayHetHanDuyTri.HasValue
+                     && p.NgayHetHanDuyTri > now)
             .OrderBy(p => p.MucUuTien)
             .Select(p => new {
                 p.Id,

@@ -45,7 +45,7 @@
                            FontSize="19"
                            FontAttributes="Bold"/>
                     <Label x:Name="LblHeaderSub"
-                           Text="Kham pha pho am thuc"
+                           Text="Khám phá phố ẩm thực"
                            TextColor="White"
                            FontSize="13"
                            Opacity="0.85"/>
@@ -87,7 +87,7 @@
                                      Spacing="1"
                                      VerticalOptions="Center">
                     <Label x:Name="NowPlayingTitle"
-                           Text="Dang phat thuyet minh"
+                           Text="Đang phát thuyết minh"
                            TextColor="White"
                            FontSize="11"
                            FontAttributes="Bold"
@@ -100,7 +100,7 @@
                 </VerticalStackLayout>
                 <Button Grid.Column="2"
                         x:Name="BtnNowPlayingDetail"
-                        Text="Chi tiet"
+                        Text="Chi tiết"
                         BackgroundColor="White"
                         TextColor="#E65100"
                         CornerRadius="20"
@@ -139,7 +139,7 @@
                 </Border>
                 <Entry x:Name="SearchEntry"
                        Grid.Column="1"
-                       Placeholder="Tim quan an, dia chi..."
+                       Placeholder="Tìm quán ăn, địa chỉ..."
                        FontSize="15"
                        PlaceholderColor="#AAAAAA"
                        VerticalOptions="Center"
@@ -155,7 +155,7 @@
                 <Grid ColumnDefinitions="*, Auto">
                     <Label x:Name="LblNearbyTitle"
                            Grid.Column="0"
-                           Text="Diem den gan ban"
+                           Text="Điểm đến gần bạn"
                            FontSize="18"
                            FontAttributes="Bold"
                            TextColor="#1a1a1a"/>
@@ -228,7 +228,7 @@
                                     <RoundRectangle CornerRadius="20"/>
                                 </Border.StrokeShape>
                                 <Label x:Name="LblSheetNearBadge"
-                                       Text="Dang trong vung audio"
+                                       Text="Đang trong vùng audio"
                                        FontSize="11"
                                        TextColor="#E65100"
                                        FontAttributes="Bold"/>
@@ -240,7 +240,7 @@
                           Margin="0,4,0,0">
                         <Button Grid.Column="0"
                                 x:Name="SheetBtnDetail"
-                                Text="Xem chi tiet"
+                                Text="Xem chi tiết"
                                 BackgroundColor="#FF5722"
                                 TextColor="White"
                                 CornerRadius="12"
@@ -250,7 +250,7 @@
                                 Clicked="OnSheetDetailClicked"/>
                         <Button Grid.Column="1"
                                 x:Name="SheetBtnMap"
-                                Text="Chi duong"
+                                Text="Chỉ đường"
                                 BackgroundColor="#2196F3"
                                 TextColor="White"
                                 CornerRadius="12"
@@ -260,7 +260,7 @@
                                 Clicked="OnSheetMapClicked"/>
                     </Grid>
                     <Button x:Name="BtnSheetClose"
-                            Text="Dong"
+                            Text="Đóng"
                             BackgroundColor="Transparent"
                             TextColor="#AAAAAA"
                             FontSize="13"
@@ -275,206 +275,309 @@
                     Grid.Row="3"
                     IsVisible="False"
                     VerticalScrollBarVisibility="Never">
-            <VerticalStackLayout Spacing="16" Padding="16,20,16,32">
-                <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
-                    <Border BackgroundColor="#FFF3E0"
-                            Stroke="#FF8A65"
-                            StrokeThickness="2.5"
-                            WidthRequest="88"
-                            HeightRequest="88"
-                            HorizontalOptions="Center">
-                        <Border.StrokeShape>
-                            <Ellipse/>
-                        </Border.StrokeShape>
-                        <Label Text="VK"
-                               FontSize="24"
-                               FontAttributes="Bold"
-                               TextColor="#7A3410"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"/>
-                    </Border>
-                    <Label x:Name="LblUserName"
-                           Text="Khach tham quan"
-                           FontSize="22"
-                           FontAttributes="Bold"
-                           TextColor="#1a1a1a"
-                           HorizontalOptions="Center"/>
-                    <Border BackgroundColor="#FFF3E0"
-                            Stroke="Transparent"
-                            Padding="14,5"
-                            HorizontalOptions="Center">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="20"/>
-                        </Border.StrokeShape>
-                        <Label x:Name="LblUserRole"
-                               Text="Tour guest mode"
-                               FontSize="13"
-                               TextColor="#E65100"
-                               FontAttributes="Bold"/>
-                    </Border>
-                </VerticalStackLayout>
+            <VerticalStackLayout Spacing="0" Padding="0,0,0,32">
 
-                <Border BackgroundColor="White" Stroke="Transparent">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16"/>
-                    </Border.StrokeShape>
-                    <Border.Shadow>
-                        <Shadow Brush="Black" Offset="0,2" Opacity="0.06" Radius="8"/>
-                    </Border.Shadow>
-                    <VerticalStackLayout>
-                        <Grid ColumnDefinitions="Auto,*"
-                              ColumnSpacing="14"
-                              Padding="16,14">
-                            <Border Grid.Column="0"
-                                    BackgroundColor="#FFF3E0"
-                                    Stroke="Transparent"
-                                    WidthRequest="40"
-                                    HeightRequest="40">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12"/>
-                                </Border.StrokeShape>
-                                <Label Text="Mode"
-                                       FontSize="10"
-                                       FontAttributes="Bold"
-                                       TextColor="#E65100"
+                <!-- ── PROFILE HEADER ── -->
+                <Border Stroke="Transparent" Padding="20,32,20,28">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FF5722" Offset="0.0"/>
+                            <GradientStop Color="#FF8A65" Offset="1.0"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.StrokeShape><RoundRectangle CornerRadius="0,0,28,28"/></Border.StrokeShape>
+                    <VerticalStackLayout Spacing="16">
+
+                        <!-- Avatar + Name row -->
+                        <HorizontalStackLayout Spacing="18" HorizontalOptions="Center">
+                            <Border BackgroundColor="#FFF7E6"
+                                    Stroke="#FFE1BF" StrokeThickness="2.5"
+                                    WidthRequest="76" HeightRequest="76">
+                                <Border.StrokeShape><Ellipse/></Border.StrokeShape>
+                                <Label x:Name="LblUserName"
+                                       Text="VK"
+                                       FontSize="26" FontAttributes="Bold"
+                                       TextColor="#F97316"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center"/>
                             </Border>
-                            <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="2"
-                                                 VerticalOptions="Center">
-                                <Label x:Name="LblModeCaption"
-                                       Text="Che do"
-                                       FontSize="12"
-                                       TextColor="#999"/>
-                                <Label x:Name="LblUserUsername"
-                                       Text="Guest mode"
-                                       FontSize="15"
-                                       FontAttributes="Bold"
-                                       TextColor="#1a1a1a"/>
+                            <VerticalStackLayout Spacing="5" VerticalOptions="Center">
+                                <Label Text="Khách VK"
+                                       FontSize="20" FontAttributes="Bold"
+                                       TextColor="White"/>
+                                <Label x:Name="LblUserRole"
+                                       Text="Thám tử ẩm thực · Cấp 1"
+                                       FontSize="13" TextColor="White" Opacity="0.85"/>
+                                <Border BackgroundColor="#FFF7ED"
+                                        Stroke="Transparent" Padding="10,4"
+                                        HorizontalOptions="Start">
+                                    <Border.StrokeShape><RoundRectangle CornerRadius="20"/></Border.StrokeShape>
+                                    <Label Text="+ Explorer"
+                                           FontSize="11" TextColor="#C2410C" FontAttributes="Bold"/>
+                                </Border>
                             </VerticalStackLayout>
-                        </Grid>
+                        </HorizontalStackLayout>
 
-                        <BoxView HeightRequest="0.5" Color="#F2F2F2" Margin="16,0"/>
+                        <!-- XP Bar -->
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <Label Grid.Column="0" Text="Kinh nghiệm khám phá"
+                                       FontSize="12" TextColor="White" Opacity="0.8"/>
+                                <Label x:Name="LblXpProgress" Grid.Column="1" Text="XP: 0 / 500"
+                                       FontSize="12" TextColor="White" FontAttributes="Bold"/>
+                            </Grid>
+                            <ProgressBar x:Name="ProfileXpBar"
+                                         Progress="0"
+                                         ProgressColor="White"
+                                         BackgroundColor="#FF6D40"
+                                         HeightRequest="7"/>
+                        </VerticalStackLayout>
 
-                        <Grid ColumnDefinitions="Auto,*"
-                              ColumnSpacing="14"
-                              Padding="16,14">
-                            <Border Grid.Column="0"
-                                    BackgroundColor="#E8F5E9"
-                                    Stroke="Transparent"
-                                    WidthRequest="40"
-                                    HeightRequest="40">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12"/>
-                                </Border.StrokeShape>
-                                <Label Text="Data"
-                                       FontSize="10"
-                                       FontAttributes="Bold"
-                                       TextColor="#2E7D32"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="2"
-                                                 VerticalOptions="Center">
-                                <Label x:Name="LblLocalDataCaption"
-                                       Text="Du lieu cuc bo"
-                                       FontSize="12"
-                                       TextColor="#999"/>
-                                <Label x:Name="LblUserPhone"
-                                       Text="Khong co"
-                                       FontSize="15"
-                                       FontAttributes="Bold"
-                                       TextColor="#1a1a1a"/>
-                            </VerticalStackLayout>
-                        </Grid>
-
-                        <BoxView HeightRequest="0.5" Color="#F2F2F2" Margin="16,0"/>
-
-                        <Grid ColumnDefinitions="Auto,*"
-                              ColumnSpacing="14"
-                              Padding="16,14">
-                            <Border Grid.Column="0"
-                                    BackgroundColor="#E3F2FD"
-                                    Stroke="Transparent"
-                                    WidthRequest="40"
-                                    HeightRequest="40">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12"/>
-                                </Border.StrokeShape>
-                                <Label Text="API"
-                                       FontSize="12"
-                                       FontAttributes="Bold"
-                                       TextColor="#1565C0"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="2"
-                                                 VerticalOptions="Center">
-                                <Label x:Name="LblApiCaption"
-                                       Text="API server"
-                                       FontSize="12"
-                                       TextColor="#999"/>
-                                <Label x:Name="LblUserEmail"
-                                       Text="localhost"
-                                       FontSize="15"
-                                       FontAttributes="Bold"
-                                       TextColor="#1a1a1a"/>
-                            </VerticalStackLayout>
-                        </Grid>
-
-                        <BoxView HeightRequest="0.5" Color="#F2F2F2" Margin="16,0"/>
-
-                        <Grid ColumnDefinitions="Auto,*"
-                              ColumnSpacing="14"
-                              Padding="16,14">
-                            <Border Grid.Column="0"
-                                    BackgroundColor="#F3E5F5"
-                                    Stroke="Transparent"
-                                    WidthRequest="40"
-                                    HeightRequest="40">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="12"/>
-                                </Border.StrokeShape>
-                                <Label Text="Lang"
-                                       FontSize="10"
-                                       FontAttributes="Bold"
-                                       TextColor="#8E24AA"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"/>
-                            </Border>
-                            <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="2"
-                                                 VerticalOptions="Center">
-                                <Label x:Name="LblLanguageCaption"
-                                       Text="Ngon ngu thuyet minh"
-                                       FontSize="12"
-                                       TextColor="#999"/>
-                                <Label x:Name="LblUserLang"
-                                       Text="Tieng Viet"
-                                       FontSize="15"
-                                       FontAttributes="Bold"
-                                       TextColor="#1a1a1a"/>
-                            </VerticalStackLayout>
-                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 
+                <!-- ── BADGES ── -->
+                <Grid ColumnDefinitions="*, *, *" Padding="16,16,16,4" ColumnSpacing="10" IsVisible="False">
+                    <Border Grid.Column="0" BackgroundColor="White" Stroke="#F3F4F6"
+                            StrokeThickness="1" Padding="0,14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                            <Label Text="🏆" FontSize="22" HorizontalOptions="Center"/>
+                            <Label Text="Nhà vô địch" FontSize="10" TextColor="#555"
+                                   HorizontalOptions="Center" FontAttributes="Bold"/>
+                            <Label Text="Chưa mở" FontSize="10" TextColor="#CCC" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Grid.Column="1" BackgroundColor="White" Stroke="#F3F4F6"
+                            StrokeThickness="1" Padding="0,14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                            <Label Text="🗺" FontSize="22" HorizontalOptions="Center"/>
+                            <Label Text="Khám phá" FontSize="10" TextColor="#555"
+                                   HorizontalOptions="Center" FontAttributes="Bold"/>
+                            <Label Text="Chưa mở" FontSize="10" TextColor="#CCC" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Grid.Column="2" BackgroundColor="White" Stroke="#F3F4F6"
+                            StrokeThickness="1" Padding="0,14">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout Spacing="5" HorizontalOptions="Center">
+                            <Label Text="⭐" FontSize="22" HorizontalOptions="Center"/>
+                            <Label Text="Huyền thoại" FontSize="10" TextColor="#555"
+                                   HorizontalOptions="Center" FontAttributes="Bold"/>
+                            <Label Text="Chưa mở" FontSize="10" TextColor="#CCC" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- ── STATS ── -->
+                <Grid ColumnDefinitions="*, *" Padding="16,10,16,4" ColumnSpacing="10" IsVisible="False">
+                    <Border Grid.Column="0" BackgroundColor="White" Stroke="#F3F4F6" StrokeThickness="1">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout HorizontalOptions="Center" Padding="12,14" Spacing="4">
+                            <Label x:Name="LblStatQuanXem" Text="0"
+                                   FontSize="30" FontAttributes="Bold"
+                                   TextColor="#FF5722" HorizontalOptions="Center"/>
+                            <Label Text="Quán đã ghé" FontSize="12"
+                                   TextColor="#777" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Grid.Column="1" BackgroundColor="White" Stroke="#F3F4F6" StrokeThickness="1">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout HorizontalOptions="Center" Padding="12,14" Spacing="4">
+                            <Label Text="Ẩm thực" FontSize="16" FontAttributes="Bold"
+                                   TextColor="#2196F3" HorizontalOptions="Center"/>
+                            <Label Text="Chuyên gia" FontSize="12"
+                                   TextColor="#777" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*, *" Padding="16,10,16,4" ColumnSpacing="10">
+                    <Border Grid.Column="0" BackgroundColor="White" Stroke="#F3F4F6" StrokeThickness="1">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout HorizontalOptions="Center" Padding="12,14" Spacing="4">
+                            <Label x:Name="LblStatQuanXemV2" Text="0"
+                                   FontSize="30" FontAttributes="Bold"
+                                   TextColor="#FF5722" HorizontalOptions="Center"/>
+                            <Label Text="Quán đã xem" FontSize="12"
+                                   TextColor="#777" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Grid.Column="1" BackgroundColor="White" Stroke="#F3F4F6" StrokeThickness="1">
+                        <Border.StrokeShape><RoundRectangle CornerRadius="14"/></Border.StrokeShape>
+                        <Border.Shadow><Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/></Border.Shadow>
+                        <VerticalStackLayout HorizontalOptions="Center" Padding="12,14" Spacing="4">
+                            <Label x:Name="LblStatQuanGheV2" Text="0"
+                                   FontSize="30" FontAttributes="Bold"
+                                   TextColor="#2196F3" HorizontalOptions="Center"/>
+                            <Label Text="Quán đã ghé" FontSize="12"
+                                   TextColor="#777" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <!-- ── SETTINGS CARD ── -->
+                <Border BackgroundColor="White" Stroke="#F3F4F6"
+                        StrokeThickness="1" Margin="16,12,16,4">
+                    <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                    <Border.Shadow><Shadow Brush="Black" Offset="0,2" Opacity="0.05" Radius="6"/></Border.Shadow>
+                    <VerticalStackLayout>
+
+                        <Label Text="CÀI ĐẶT"
+                               FontSize="11" FontAttributes="Bold"
+                               TextColor="#9CA3AF" CharacterSpacing="1"
+                               Padding="16,14,16,6"/>
+
+                        <!-- Ngôn ngữ -->
+                        <Grid ColumnDefinitions="36, *, Auto" ColumnSpacing="12" Padding="16,12">
+                            <Label Grid.Column="0" Text="🌐" FontSize="20" VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                <Label x:Name="LblLanguageCaption"
+                                       Text="Ngôn ngữ thuyết minh"
+                                       FontSize="12" TextColor="#999"/>
+                                <Label x:Name="LblUserLang"
+                                       Text="Tiếng Việt"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#1a1a1a"/>
+                            </VerticalStackLayout>
+                            <Label Grid.Column="2" Text="›" FontSize="22"
+                                   TextColor="#CCC" VerticalOptions="Center"/>
+                        </Grid>
+
+                        <BoxView HeightRequest="0.5" Color="#F3F4F6" Margin="16,0"/>
+
+                        <!-- Gói đăng ký -->
+                        <Grid ColumnDefinitions="36, *, Auto" ColumnSpacing="12" Padding="16,12">
+                            <Label Grid.Column="0" Text="✨" FontSize="20" VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                <Label x:Name="LblSubCaption"
+                                       Text="Gói đăng ký"
+                                       FontSize="12" TextColor="#999"/>
+                                <Label x:Name="LblSubStatus"
+                                       Text="—"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#1a1a1a"/>
+                            </VerticalStackLayout>
+                            <Label Grid.Column="2" Text="›" FontSize="22"
+                                   TextColor="#CCC" VerticalOptions="Center"/>
+                        </Grid>
+
+                        <BoxView HeightRequest="0.5" Color="#F3F4F6" Margin="16,0"/>
+
+                        <!-- Mã thiết bị -->
+                        <Grid ColumnDefinitions="36, *" ColumnSpacing="12" Padding="16,12">
+                            <Label Grid.Column="0" Text="📱" FontSize="20" VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                <Label x:Name="LblLocalDataCaption"
+                                       Text="Mã thiết bị"
+                                       FontSize="12" TextColor="#999"/>
+                                <Label x:Name="LblUserPhone"
+                                       Text="—"
+                                       FontSize="13" TextColor="#555"/>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <BoxView HeightRequest="0.5" Color="#F3F4F6" Margin="16,0"/>
+
+                        <!-- Chế độ (hidden label kept for code compat) -->
+                        <Grid ColumnDefinitions="36, *" ColumnSpacing="12" Padding="16,12">
+                            <Label Grid.Column="0" Text="👤" FontSize="20" VerticalOptions="Center"/>
+                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                <Label x:Name="LblModeCaption"
+                                       Text="Chế độ"
+                                       FontSize="12" TextColor="#999"/>
+                                <Label x:Name="LblUserUsername"
+                                       Text="Khách ẩn danh"
+                                       FontSize="14" FontAttributes="Bold" TextColor="#1a1a1a"/>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- ── BUTTONS ── -->
+                <Button x:Name="BtnGiaHan"
+                        Text="Gia hạn gói"
+                        BackgroundColor="#FF5722"
+                        TextColor="White"
+                        CornerRadius="14"
+                        FontSize="15"
+                        FontAttributes="Bold"
+                        HeightRequest="52"
+                        Margin="16,12,16,10"
+                        Clicked="OnGiaHanClicked"/>
+
                 <Button x:Name="BtnReloadData"
-                        Text="Tai lai du lieu"
+                        Text="Tải lại dữ liệu"
                         BackgroundColor="#FFF3E0"
                         TextColor="#E65100"
                         CornerRadius="14"
                         FontSize="15"
                         FontAttributes="Bold"
                         HeightRequest="52"
+                        Margin="16,0,16,0"
                         Clicked="OnReloadDataClicked"/>
+
+                <Border BackgroundColor="White"
+                        Stroke="#F3F4F6"
+                        StrokeThickness="1"
+                        Margin="16,12,16,0"
+                        Padding="14"
+                        IsVisible="False">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label x:Name="LblApiCaption"
+                               Text="API URL"
+                               FontSize="12"
+                               TextColor="#999"/>
+                        <Label x:Name="LblApiHint"
+                               Text="Emulator: http://10.0.2.2:5118"
+                               FontSize="12"
+                               TextColor="#777"/>
+                        <Entry x:Name="EntryApiBaseUrl"
+                               Placeholder="http://192.168.1.5:5118"
+                               Keyboard="Url"
+                               ClearButtonVisibility="WhileEditing"
+                               BackgroundColor="#FAFAFA"
+                               TextColor="#1a1a1a"/>
+                        <HorizontalStackLayout Spacing="10">
+                            <Button x:Name="BtnSaveApiUrl"
+                                    Text="Luu API URL"
+                                    BackgroundColor="#FFF3E0"
+                                    TextColor="#E65100"
+                                    CornerRadius="12"
+                                    FontAttributes="Bold"
+                                    HeightRequest="42"
+                                    HorizontalOptions="Fill"
+                                    Clicked="OnSaveApiUrlClicked"/>
+                            <Button x:Name="BtnResetApiUrl"
+                                    Text="Dung mac dinh"
+                                    BackgroundColor="#F3F4F6"
+                                    TextColor="#4B5563"
+                                    CornerRadius="12"
+                                    FontAttributes="Bold"
+                                    HeightRequest="42"
+                                    HorizontalOptions="Fill"
+                                    Clicked="OnResetApiUrlClicked"/>
+                        </HorizontalStackLayout>
+                        <Label x:Name="LblApiStatus"
+                               Text="Dang dung: http://10.0.2.2:5118"
+                               FontSize="12"
+                               TextColor="#16A34A"/>
+                    </VerticalStackLayout>
+                </Border>
+
             </VerticalStackLayout>
         </ScrollView>
 
-        <Border Grid.Row="4" Stroke="Transparent" BackgroundColor="White" Padding="8,10">
+        <Border Grid.Row="4" Stroke="Transparent" BackgroundColor="White" Padding="10,10,10,12">
             <Border.StrokeShape>
                 <RoundRectangle CornerRadius="20,20,0,0"/>
             </Border.StrokeShape>
@@ -484,7 +587,9 @@
             <Grid ColumnDefinitions="*, *, *">
                 <VerticalStackLayout x:Name="BtnKhamPha"
                                      Grid.Column="0"
-                                     Spacing="2"
+                                     Spacing="4"
+                                     Padding="0,2"
+                                     WidthRequest="96"
                                      HorizontalOptions="Center"
                                      VerticalOptions="Center"
                                      Opacity="1.0">
@@ -492,21 +597,22 @@
                         <TapGestureRecognizer Tapped="OnTabKhamPhaTapped"/>
                     </VerticalStackLayout.GestureRecognizers>
                     <Label x:Name="IconKhamPha"
-                           Text="EXP"
-                           FontSize="12"
-                           FontAttributes="Bold"
+                           Text="🍜"
+                           FontSize="22"
                            HorizontalOptions="Center"/>
                     <Label x:Name="LblKhamPha"
-                           Text="Kham pha"
+                           Text="Khám phá"
+                           FontFamily="OpenSansSemibold"
                            FontSize="11"
                            TextColor="#FF5722"
-                           FontAttributes="Bold"
                            HorizontalOptions="Center"/>
                 </VerticalStackLayout>
 
                 <VerticalStackLayout x:Name="BtnBanDo"
                                      Grid.Column="1"
-                                     Spacing="2"
+                                     Spacing="4"
+                                     Padding="0,2"
+                                     WidthRequest="96"
                                      HorizontalOptions="Center"
                                      VerticalOptions="Center"
                                      Opacity="0.45">
@@ -514,21 +620,22 @@
                         <TapGestureRecognizer Tapped="OnTabBanDoTapped"/>
                     </VerticalStackLayout.GestureRecognizers>
                     <Label x:Name="IconBanDo"
-                           Text="MAP"
-                           FontSize="12"
-                           FontAttributes="Bold"
+                           Text="🗺"
+                           FontSize="22"
                            HorizontalOptions="Center"/>
                     <Label x:Name="LblBanDo"
-                           Text="Ban do"
+                           Text="Bản đồ"
+                           FontFamily="OpenSansSemibold"
                            FontSize="11"
                            TextColor="#888"
-                           FontAttributes="Bold"
                            HorizontalOptions="Center"/>
                 </VerticalStackLayout>
 
                 <VerticalStackLayout x:Name="BtnCaiDat"
                                      Grid.Column="2"
-                                     Spacing="2"
+                                     Spacing="4"
+                                     Padding="0,2"
+                                     WidthRequest="96"
                                      HorizontalOptions="Center"
                                      VerticalOptions="Center"
                                      Opacity="0.45">
@@ -536,15 +643,14 @@
                         <TapGestureRecognizer Tapped="OnTabCaiDatTapped"/>
                     </VerticalStackLayout.GestureRecognizers>
                     <Label x:Name="IconCaiDat"
-                           Text="SET"
-                           FontSize="12"
-                           FontAttributes="Bold"
+                           Text="👤"
+                           FontSize="22"
                            HorizontalOptions="Center"/>
                     <Label x:Name="LblCaiDat"
-                           Text="Cai dat"
+                           Text="Hồ sơ"
+                           FontFamily="OpenSansSemibold"
                            FontSize="11"
                            TextColor="#888"
-                           FontAttributes="Bold"
                            HorizontalOptions="Center"/>
                 </VerticalStackLayout>
             </Grid>

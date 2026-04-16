@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql \"host=db.gdehuskbrhfswvrkfzkl.supabase.co dbname=postgres user=postgres password=Nikonchipbao182. sslmode=require\" -c \"SELECT column_name FROM information_schema.columns WHERE table_name='poi' ORDER BY ordinal_position;\")",
+      "Bash(dotnet --version)"
+    ]
+  }
+}

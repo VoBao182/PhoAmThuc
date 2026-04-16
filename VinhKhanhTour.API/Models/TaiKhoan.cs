@@ -25,12 +25,17 @@ public class TaiKhoan
     [Column("sodienthoai")]
     public string? SoDienThoai { get; set; }
 
+    /// <summary>khach | admin | quanly</summary>
     [Column("vaitro")]
-    public string VaiTro { get; set; } = "khach";  // khach | admin
+    public string VaiTro { get; set; } = "khach";
 
     [Column("trangthai")]
     public bool TrangThai { get; set; } = true;
 
     [Column("ngaytao")]
     public DateTime NgayTao { get; set; } = DateTime.UtcNow;
+
+    /// <summary>POI mà tài khoản quản lý (chỉ dùng cho VaiTro = "quanly")</summary>
+    [Column("poiid")]
+    public Guid? PoiId { get; set; }
 }

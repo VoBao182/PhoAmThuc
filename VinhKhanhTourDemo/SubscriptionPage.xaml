@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="VinhKhanhTourDemo.SubscriptionPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    BackgroundColor="#F7F2EB"
+    Shell.NavBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24,52,24,36" Spacing="0">
+
+            <!-- Header -->
+            <Label Text="🍜" FontSize="48" HorizontalOptions="Center" Margin="0,0,0,10"/>
+            <Label Text="Vinh Khánh Tour"
+                   FontSize="26" FontAttributes="Bold"
+                   HorizontalOptions="Center" TextColor="#1F2933"/>
+            <Label Text="Chọn gói phù hợp để bắt đầu khám phá"
+                   FontSize="14" HorizontalOptions="Center"
+                   TextColor="#6B7280" Margin="0,4,0,28"/>
+
+            <!-- Banner hết hạn -->
+            <Border x:Name="BannerHetHan" IsVisible="False"
+                    BackgroundColor="#FEF3C7" Stroke="#F59E0B"
+                    StrokeThickness="1" Margin="0,0,0,16">
+                <Border.StrokeShape><RoundRectangle CornerRadius="12"/></Border.StrokeShape>
+                <Label Text="Gói sử dụng đã hết hạn. Vui lòng gia hạn để tiếp tục."
+                       FontSize="13" TextColor="#92400E" Padding="14,10"/>
+            </Border>
+
+            <!-- ── DÙNG THỬ ── -->
+            <Border BackgroundColor="#F0FDF4" Stroke="#22C55E"
+                    StrokeThickness="1.5" Margin="0,0,0,20">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                <Grid ColumnDefinitions="*, Auto" Padding="18,16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Dùng thử" FontSize="16" FontAttributes="Bold" TextColor="#1F2933"/>
+                            <Border BackgroundColor="#22C55E" Padding="6,2">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="6"/></Border.StrokeShape>
+                                <Label Text="MIỄN PHÍ" FontSize="10" FontAttributes="Bold" TextColor="White"/>
+                            </Border>
+                        </HorizontalStackLayout>
+                        <Label Text="3 ngày trải nghiệm đầy đủ" FontSize="13" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <Button Grid.Column="1"
+                            x:Name="BtnDungThu"
+                            Text="Thử ngay"
+                            FontSize="13" FontAttributes="Bold"
+                            BackgroundColor="#22C55E" TextColor="White"
+                            CornerRadius="10" HeightRequest="38"
+                            Padding="16,0" VerticalOptions="Center"
+                            Clicked="OnMuaGoiClicked" CommandParameter="thu"/>
+                </Grid>
+            </Border>
+
+            <!-- ── DIVIDER ── -->
+            <Label Text="GÓI TRẢ PHÍ"
+                   FontSize="11" FontAttributes="Bold"
+                   TextColor="#9CA3AF" CharacterSpacing="1.5"
+                   Margin="0,0,0,12"/>
+
+            <!-- Gói Ngày -->
+            <Border BackgroundColor="White" Stroke="#E5E7EB"
+                    StrokeThickness="1" Margin="0,0,0,10">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                <Border.Shadow>
+                    <Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/>
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*, Auto" Padding="18,16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="3">
+                        <Label Text="Gói Ngày" FontSize="16" FontAttributes="Bold" TextColor="#1F2933"/>
+                        <Label Text="1 ngày khám phá thoải mái" FontSize="13" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End"
+                                         VerticalOptions="Center" Spacing="6">
+                        <Label Text="29.000đ" FontSize="17" FontAttributes="Bold"
+                               TextColor="#E36A11" HorizontalOptions="End"/>
+                        <Button x:Name="BtnMuaNgay" Text="Chọn"
+                                FontSize="13" FontAttributes="Bold"
+                                BackgroundColor="#E36A11" TextColor="White"
+                                CornerRadius="10" HeightRequest="36" Padding="16,0"
+                                Clicked="OnMuaGoiClicked" CommandParameter="ngay"/>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Gói Tuần -->
+            <Border BackgroundColor="White" Stroke="#E5E7EB"
+                    StrokeThickness="1" Margin="0,0,0,10">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                <Border.Shadow>
+                    <Shadow Brush="Black" Offset="0,1" Opacity="0.04" Radius="4"/>
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*, Auto" Padding="18,16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="3">
+                        <Label Text="Gói Tuần" FontSize="16" FontAttributes="Bold" TextColor="#1F2933"/>
+                        <Label Text="7 ngày trải nghiệm liên tục" FontSize="13" TextColor="#6B7280"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End"
+                                         VerticalOptions="Center" Spacing="6">
+                        <Label Text="99.000đ" FontSize="17" FontAttributes="Bold"
+                               TextColor="#E36A11" HorizontalOptions="End"/>
+                        <Button x:Name="BtnMuaTuan" Text="Chọn"
+                                FontSize="13" FontAttributes="Bold"
+                                BackgroundColor="#E36A11" TextColor="White"
+                                CornerRadius="10" HeightRequest="36" Padding="16,0"
+                                Clicked="OnMuaGoiClicked" CommandParameter="tuan"/>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Gói Tháng (nổi bật) -->
+            <Border BackgroundColor="#FFF7ED" Stroke="#E36A11"
+                    StrokeThickness="2" Margin="0,0,0,10">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                <Border.Shadow>
+                    <Shadow Brush="#E36A11" Offset="0,3" Opacity="0.15" Radius="8"/>
+                </Border.Shadow>
+                <VerticalStackLayout Padding="18,14" Spacing="10">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <HorizontalStackLayout Grid.Column="0" Spacing="8">
+                            <Label Text="Gói Tháng" FontSize="16" FontAttributes="Bold" TextColor="#1F2933"/>
+                            <Border BackgroundColor="#E36A11" Padding="8,2">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="6"/></Border.StrokeShape>
+                                <Label Text="PHỔ BIẾN" FontSize="10" FontAttributes="Bold" TextColor="White"/>
+                            </Border>
+                        </HorizontalStackLayout>
+                        <Label Grid.Column="1" Text="199.000đ" FontSize="20" FontAttributes="Bold"
+                               TextColor="#E36A11" VerticalOptions="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="30 ngày không giới hạn"
+                               FontSize="13" TextColor="#78350F" VerticalOptions="Center"/>
+                        <Button Grid.Column="1"
+                                x:Name="BtnMuaThang" Text="Mua ngay"
+                                FontSize="13" FontAttributes="Bold"
+                                BackgroundColor="#E36A11" TextColor="White"
+                                CornerRadius="10" HeightRequest="38" Padding="16,0"
+                                Clicked="OnMuaGoiClicked" CommandParameter="thang"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Gói Năm -->
+            <Border BackgroundColor="#1F2933" Stroke="Transparent"
+                    StrokeThickness="0" Margin="0,0,0,28">
+                <Border.StrokeShape><RoundRectangle CornerRadius="16"/></Border.StrokeShape>
+                <Border.Shadow>
+                    <Shadow Brush="Black" Offset="0,2" Opacity="0.12" Radius="6"/>
+                </Border.Shadow>
+                <Grid ColumnDefinitions="*, Auto" Padding="18,16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="3">
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="Gói Năm" FontSize="16" FontAttributes="Bold" TextColor="White"/>
+                            <Border BackgroundColor="#F59E0B" Padding="8,2">
+                                <Border.StrokeShape><RoundRectangle CornerRadius="6"/></Border.StrokeShape>
+                                <Label Text="TIẾT KIỆM" FontSize="10" FontAttributes="Bold" TextColor="White"/>
+                            </Border>
+                        </HorizontalStackLayout>
+                        <Label Text="365 ngày • Tốt nhất cho khám phá" FontSize="13" TextColor="#9CA3AF"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" HorizontalOptions="End"
+                                         VerticalOptions="Center" Spacing="6">
+                        <Label Text="999.000đ" FontSize="17" FontAttributes="Bold"
+                               TextColor="#F59E0B" HorizontalOptions="End"/>
+                        <Button x:Name="BtnMuaNam" Text="Chọn"
+                                FontSize="13" FontAttributes="Bold"
+                                BackgroundColor="#F59E0B" TextColor="White"
+                                CornerRadius="10" HeightRequest="36" Padding="16,0"
+                                Clicked="OnMuaGoiClicked" CommandParameter="nam"/>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Loading -->
+            <ActivityIndicator x:Name="LoadingIndicator"
+                               IsRunning="False" IsVisible="False"
+                               Color="#E36A11" HorizontalOptions="Center"
+                               Margin="0,0,0,12"/>
+
+            <!-- Lỗi -->
+            <Label x:Name="LblError" IsVisible="False"
+                   TextColor="#DC2626" FontSize="13"
+                   HorizontalOptions="Center" Margin="0,0,0,8"/>
+
+            <!-- Lợi ích -->
+            <Label Text="✓  Thuyết minh tự động khi đến gần quán"
+                   FontSize="13" TextColor="#6B7280" Margin="0,0,0,5"/>
+            <Label Text="✓  Bản đồ toàn bộ phố ẩm thực Vĩnh Khánh"
+                   FontSize="13" TextColor="#6B7280" Margin="0,0,0,5"/>
+            <Label Text="✓  Hỗ trợ 3 ngôn ngữ: Việt, Anh, Trung"
+                   FontSize="13" TextColor="#6B7280" Margin="0,0,0,5"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

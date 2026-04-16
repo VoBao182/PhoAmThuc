@@ -8,7 +8,10 @@ namespace VinhKhanhTour.CMS.Pages.Poi;
 public class CreateModel : PageModel
 {
     private readonly AppDbContext _db;
-    public CreateModel(AppDbContext db) => _db = db;
+    private readonly IConfiguration _config;
+    public CreateModel(AppDbContext db, IConfiguration config) { _db = db; _config = config; }
+
+    public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
     [BindProperty] public POI POI { get; set; } = new();
     [BindProperty] public string? ThuyetMinhVi { get; set; }

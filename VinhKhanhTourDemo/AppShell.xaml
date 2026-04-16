@@ -6,10 +6,10 @@
     xmlns:local="clr-namespace:VinhKhanhTourDemo"
     Shell.NavBarIsVisible="False">
 
-    <!-- Mở thẳng MainPage, không cần login -->
     <ShellContent
         Title="Home"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage"/>
+
 
 </Shell>

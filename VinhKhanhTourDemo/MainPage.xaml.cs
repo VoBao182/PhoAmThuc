@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls.Shapes;
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text;
 using System.Threading;
 
 namespace VinhKhanhTourDemo;
@@ -20,8 +21,9 @@ public class PoiDto
 
 public partial class MainPage : ContentPage
 {
-    private static string API_BASE => AppConfig.ApiBaseUrl;
     private const int COOLDOWN_MINUTES = 10;
+    private const string ViewedPoiIdsPreferenceKey = "viewed_poi_ids";
+    private const string VisitedPoiIdsPreferenceKey = "visited_poi_ids";
 
     private readonly HttpClient _http = new(new HttpClientHandler
     {
@@ -45,6 +47,13 @@ public partial class MainPage : ContentPage
     private string _searchText = "";
     private readonly SemaphoreSlim _speakLock = new(1, 1);
     private readonly Dictionary<string, DateTime> _lastSpokenTime = new();
+    private int _heartbeatTick = 0;
+    private int _poiRefreshTick = 0;
+    private bool _subscriptionModalOpen;
+    private bool _isUsingFallbackData;
+    private string? _lastDataLoadError;
+    private const int HEARTBEAT_EVERY_TICKS   = 3;   // mỗi 3 lần GPS poll = 15 giây
+    private const int POI_REFRESH_EVERY_TICKS = 6;   // mỗi 6 lần GPS poll = 30 giây (đủ nhanh để test)
 
     public MainPage()
     {
@@ -57,6 +66,10 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
+        // Kiểm tra gói đăng ký — nếu chưa có hoặc hết hạn → hiện modal mua gói
+        if (await EnsureSubscriptionGateAsync())
+            return;
+
         if (!_isInitialized)
         {
             _isInitialized = true;
@@ -64,6 +77,106 @@ public partial class MainPage : ContentPage
         }
 
         await EnsureGpsTrackingAsync();
+    }
+
+    private async Task<bool> EnsureSubscriptionGateAsync()
+    {
+        if (KiemTraSubscription())
+            return false;
+
+        if (_subscriptionModalOpen)
+            return true;
+
+        _subscriptionModalOpen = true;
+        try
+        {
+            bool hetHan = Preferences.ContainsKey("sub_ngay_het_han");
+            await Task.Yield();
+            await Navigation.PushModalAsync(new SubscriptionPage(hetHan), animated: false);
+            return true;
+        }
+        finally
+        {
+            _subscriptionModalOpen = false;
+        }
+    }
+
+    private static bool KiemTraSubscription()
+    {
+        var hetHanStr = Preferences.Get("sub_ngay_het_han", "");
+        if (string.IsNullOrEmpty(hetHanStr)) return false;
+        if (!DateTime.TryParse(hetHanStr, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan))
+            return false;
+        return hetHan > DateTime.UtcNow;
+    }
+
+    private static HashSet<string> GetSavedPoiIds(string preferenceKey)
+    {
+        var raw = Preferences.Get(preferenceKey, "");
+        if (string.IsNullOrWhiteSpace(raw))
+            return [];
+
+        return raw
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static void SavePoiIds(string preferenceKey, HashSet<string> poiIds)
+    {
+        Preferences.Set(preferenceKey, string.Join('|', poiIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private static int GetSavedPoiCount(string preferenceKey) => GetSavedPoiIds(preferenceKey).Count;
+
+    private static string NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var normalized = value
+            .Trim()
+            .Replace('đ', 'd')
+            .Replace('Đ', 'D')
+            .Normalize(NormalizationForm.FormD);
+
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var character in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+                builder.Append(char.ToLowerInvariant(character));
+        }
+
+        return builder
+            .ToString()
+            .Normalize(NormalizationForm.FormC);
+    }
+
+    private static bool MatchesSearch(string? source, string normalizedKeyword)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrEmpty(normalizedKeyword))
+            return false;
+
+        return NormalizeSearchText(source).Contains(normalizedKeyword, StringComparison.Ordinal);
+    }
+
+    private static void RecordSavedPoi(string preferenceKey, PoiDto poi)
+    {
+        var poiIds = GetSavedPoiIds(preferenceKey);
+        if (poiIds.Add(poi.Id.ToString()))
+            SavePoiIds(preferenceKey, poiIds);
+    }
+
+    private void RecordViewedPoi(PoiDto poi) => RecordSavedPoi(ViewedPoiIdsPreferenceKey, poi);
+
+    private void RecordVisitedPoi(PoiDto poi) => RecordSavedPoi(VisitedPoiIdsPreferenceKey, poi);
+
+    private async Task OpenPoiDetailAsync(PoiDto poi)
+    {
+        RecordViewedPoi(poi);
+        _ = RecordPoiViewAsync(poi);   // ghi nhận lên server để CMS thấy số quán đã xem
+        UpdateCaiDatUI();
+        await Navigation.PushAsync(new DetailPage(poi));
     }
 
     protected override void OnDisappearing()
@@ -86,23 +199,39 @@ public partial class MainPage : ContentPage
     private void ApplyLocalizedUiText()
     {
         LblHeaderTitle.Text = "Vinh Khanh Tour";
-        LblHeaderSub.Text = GetText("Kham pha pho am thuc", "Discover the food street", "探索美食街");
-        NowPlayingTitle.Text = GetText("Dang phat thuyet minh", "Now playing audio guide", "正在播放语音导览");
-        BtnNowPlayingDetail.Text = GetText("Chi tiet", "Details", "详情");
-        SearchEntry.Placeholder = GetText("Tim quan an, dia chi...", "Search places, address...", "搜索店名、地址...");
-        LblNearbyTitle.Text = GetText("Diem den gan ban", "Nearby places", "附近地点");
-        LblSheetNearBadge.Text = GetText("Dang trong vung audio", "Inside audio zone", "已进入语音范围");
-        SheetBtnDetail.Text = GetText("Xem chi tiet", "View details", "查看详情");
-        SheetBtnMap.Text = GetText("Chi duong", "Directions", "导航");
-        BtnSheetClose.Text = GetText("Dong", "Close", "关闭");
-        LblKhamPha.Text = GetText("Kham pha", "Explore", "探索");
-        LblBanDo.Text = GetText("Ban do", "Map", "地图");
-        LblCaiDat.Text = GetText("Cai dat", "Settings", "设置");
-        BtnReloadData.Text = GetText("Tai lai du lieu", "Reload data", "重新加载数据");
-        LblModeCaption.Text = GetText("Che do", "Mode", "模式");
-        LblLocalDataCaption.Text = GetText("Du lieu cuc bo", "Local data", "本地数据");
-        LblApiCaption.Text = "API server";
-        LblLanguageCaption.Text = GetText("Ngon ngu thuyet minh", "Audio language", "语音语言");
+        LblHeaderSub.Text = GetText("Khám phá phố ẩm thực", "Discover the food street", "探索美食街");
+        NowPlayingTitle.Text = GetText("Đang phát thuyết minh", "Now playing audio guide", "正在播放语音导览");
+        BtnNowPlayingDetail.Text = GetText("Chi tiết", "Details", "详情");
+        SearchEntry.Placeholder = GetText("Tìm quán ăn, địa chỉ...", "Search places, address...", "搜索店名、地址...");
+        LblNearbyTitle.Text = GetText("Điểm đến gần bạn", "Nearby places", "附近地点");
+        LblSheetNearBadge.Text = GetText("Đang trong vùng audio", "Inside audio zone", "已进入语音范围");
+        SheetBtnDetail.Text = GetText("Xem chi tiết", "View details", "查看详情");
+        SheetBtnMap.Text = GetText("Chỉ đường", "Directions", "导航");
+        BtnSheetClose.Text = GetText("Đóng", "Close", "关闭");
+        LblKhamPha.Text = GetText("Khám phá", "Explore", "探索");
+        LblBanDo.Text = GetText("Bản đồ", "Map", "地图");
+        LblCaiDat.Text = GetText("Cài đặt", "Settings", "设置");
+        BtnReloadData.Text = GetText("Tải lại dữ liệu", "Reload data", "重新加载数据");
+        LblModeCaption.Text = GetText("Chế độ", "Mode", "模式");
+        LblSubCaption.Text = GetText("Gói đăng ký", "Subscription", "订阅套餐");
+        LblLocalDataCaption.Text = GetText("Mã thiết bị", "Device ID", "设备编号");
+        LblLanguageCaption.Text = GetText("Ngôn ngữ thuyết minh", "Audio language", "语音语言");
+        BtnGiaHan.Text = GetText("Gia hạn gói", "Renew plan", "续费套餐");
+        LblApiCaption.Text = GetText("Ket noi API", "API connection", "API lian jie");
+        LblApiHint.Text = DeviceInfo.Platform == DevicePlatform.Android
+            ? GetText(
+                "Emulator: http://10.0.2.2:5118. May that: nhap IP may tinh, vi du http://192.168.1.5:5118.",
+                "Emulator: http://10.0.2.2:5118. Physical device: enter your computer IP, for example http://192.168.1.5:5118.",
+                "Mo ni qi: http://10.0.2.2:5118. Zhen ji: qing shu ru dian nao IP, li ru http://192.168.1.5:5118.")
+            : GetText(
+                "Mac dinh: http://localhost:5118",
+                "Default: http://localhost:5118",
+                "Mo ren: http://localhost:5118");
+        EntryApiBaseUrl.Placeholder = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://192.168.1.5:5118"
+            : "http://localhost:5118";
+        BtnSaveApiUrl.Text = GetText("Luu API URL", "Save API URL", "Bao cun API URL");
+        BtnResetApiUrl.Text = GetText("Dung mac dinh", "Use default", "Shi yong mo ren zhi");
     }
 
     private async Task EnsureGpsTrackingAsync()
@@ -114,7 +243,7 @@ public partial class MainPage : ContentPage
         if (permission != PermissionStatus.Granted)
         {
             GpsStatusDot.BackgroundColor = Color.FromArgb("#AAAAAA");
-            await DisplayAlertAsync(
+                await DisplayAlertAsync(
                 GetText("Can cap vi tri", "Location required", "需要位置权限"),
                 GetText(
                     "Hay cap quyen vi tri de ban do xac dinh vi tri hien tai va tu dong phat audio.",
@@ -127,14 +256,17 @@ public partial class MainPage : ContentPage
         StartGpsTracking();
     }
 
-    private async Task LoadPoisFromApi()
+    private async Task LoadPoisFromApi(bool showFailureAlert = false)
     {
         try
         {
-            var result = await _http.GetFromJsonAsync<List<PoiDto>>($"{API_BASE}/api/poi");
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var result = await _http.GetFromJsonAsync<List<PoiDto>>($"{apiBaseUrl}/api/poi");
             if (result != null)
             {
                 _pois = result;
+                _isUsingFallbackData = false;
+                _lastDataLoadError = null;
                 Console.WriteLine($"=== Loaded {_pois.Count} POI ===");
                 foreach (var p in _pois)
                     Console.WriteLine($"  - {p.TenPOI}: {p.ViDo}, {p.KinhDo}");
@@ -144,66 +276,155 @@ public partial class MainPage : ContentPage
         {
             Console.WriteLine($"API error, fallback to local sample: {ex.Message}");
             _pois = CreateFallbackPois();
+            _isUsingFallbackData = true;
+            _lastDataLoadError = ex.Message;
 
-            await DisplayAlertAsync(
-                GetText("Khong tai duoc du lieu", "Unable to load data", "无法加载数据"),
+            if (showFailureAlert)
+            {
+                await DisplayAlertAsync(
+                GetText("Không tải được dữ liệu", "Unable to load data", "无法加载数据"),
                 GetText(
-                    "API hoac database dang loi. Ung dung tam dung du lieu mau de ban tiep tuc kiem tra giao dien.",
+                    "API hoặc database đang lỗi. Ứng dụng tạm dùng dữ liệu mẫu để bạn tiếp tục kiểm tra giao diện.",
                     "The API or database is failing. The app is temporarily using sample data so you can continue testing the UI.",
                     "API 或数据库发生错误。应用暂时使用示例数据，方便你继续测试界面。"),
                 "OK");
+            }
         }
 
         LoadMap();
         RenderPoiCards();
+        UpdateApiConnectionUi();
+    }
+
+    private string BuildApiFailureMessage()
+    {
+        var apiBaseUrl = AppConfig.ApiBaseUrl;
+
+        return DeviceInfo.Platform == DevicePlatform.Android
+            ? GetText(
+                $"Khong ket noi duoc toi {apiBaseUrl}. Neu ban dang chay tren may that, hay vao Cai dat > API URL va nhap IP may tinh. Ung dung tam dung du lieu mau.",
+                $"Cannot reach {apiBaseUrl}. If you are using a physical Android device, open Settings > API URL and enter your computer IP. The app is using sample data for now.",
+                $"Wu fa lian jie dao {apiBaseUrl}. Ruo guo ni zheng zai shi yong Android zhen ji, qing zai she zhi > API URL zhong shu ru dian nao IP. Ying yong zan shi shi yong shi li shu ju.")
+            : GetText(
+                $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay o cong 5118. Ung dung tam dung du lieu mau.",
+                $"Cannot reach {apiBaseUrl}. Make sure the backend is running on port 5118. The app is using sample data for now.",
+                $"Wu fa lian jie dao {apiBaseUrl}. Qing que ren hou duan yi zai 5118 duan kou yun han. Ying yong zan shi shi yong shi li shu ju.");
+    }
+
+    private void UpdateApiConnectionUi()
+    {
+        if (EntryApiBaseUrl is not null && !EntryApiBaseUrl.IsFocused)
+            EntryApiBaseUrl.Text = AppConfig.CustomApiBaseUrl ?? "";
+
+        var apiBaseUrl = AppConfig.ApiBaseUrl;
+        var statusText = GetText($"Dang dung: {apiBaseUrl}", $"Current URL: {apiBaseUrl}", $"Dang qian URL: {apiBaseUrl}");
+
+        if (_isUsingFallbackData)
+        {
+            statusText += GetText(" • Du lieu mau", " • Sample data", " • Shi li shu ju");
+            LblApiStatus.TextColor = Color.FromArgb("#DC2626");
+        }
+        else
+        {
+            LblApiStatus.TextColor = Color.FromArgb("#16A34A");
+        }
+
+        LblApiStatus.Text = statusText;
     }
 
     private static List<PoiDto> CreateFallbackPois() =>
     [
+        // 1. Quán ốc — thương hiệu nổi tiếng nhất phố
         new PoiDto
         {
             Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            TenPOI = "Quan Oc Oanh",
+            TenPOI = "Quán Ốc Oanh",
             KinhDo = 106.701831,
-            ViDo = 10.758955,
-            BanKinh = 30,
+            ViDo   = 10.758955,
+            BanKinh = 35,
             MucUuTien = 1,
-            DiaChi = "234 Vinh Khanh, Q4",
-            SDT = "0909 000 001"
+            DiaChi = "234 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 001",
+            AnhDaiDien = "https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=1200&q=80"
         },
+        // 2. Bò tơ — đặc sản bò nướng lá lốt
         new PoiDto
         {
             Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            TenPOI = "Bo To Co Ut",
+            TenPOI = "Bò Tơ Cô Út",
             KinhDo = 106.700942,
-            ViDo = 10.759512,
+            ViDo   = 10.759512,
             BanKinh = 30,
             MucUuTien = 2,
-            DiaChi = "215 Vinh Khanh, Q4",
-            SDT = "0909 000 002"
+            DiaChi = "215 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 002",
+            AnhDaiDien = "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=1200&q=80"
         },
+        // 3. Lẩu cá đuối — nét đặc trưng phố hải sản
         new PoiDto
         {
             Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            TenPOI = "Lau Ca Duoi 404",
+            TenPOI = "Lẩu Cá Đuối 404",
             KinhDo = 106.702114,
-            ViDo = 10.758312,
+            ViDo   = 10.758312,
             BanKinh = 30,
             MucUuTien = 3,
-            DiaChi = "404 Vinh Khanh, Q4",
-            SDT = "0909 000 003"
+            DiaChi = "404 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 003",
+            AnhDaiDien = "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80"
         },
+        // 4. Chè — đồ ngọt giải nhiệt
         new PoiDto
         {
             Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-            TenPOI = "Che Khanh Vy",
+            TenPOI = "Chè Khánh Vy",
             KinhDo = 106.701221,
-            ViDo = 10.759884,
+            ViDo   = 10.759884,
             BanKinh = 25,
             MucUuTien = 4,
-            DiaChi = "180 Vinh Khanh, Q4",
-            SDT = "0909 000 004"
-        }
+            DiaChi = "180 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 004",
+            AnhDaiDien = "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=1200&q=80"
+        },
+        // 5. Hải sản nướng — mực, tôm, ghẹ
+        new PoiDto
+        {
+            Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            TenPOI = "Hải Sản Nướng Ba Phát",
+            KinhDo = 106.702450,
+            ViDo   = 10.759100,
+            BanKinh = 30,
+            MucUuTien = 5,
+            DiaChi = "310 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 005",
+            AnhDaiDien = "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=1200&q=80"
+        },
+        // 6. Bún bò Huế — món nước đặc sắc
+        new PoiDto
+        {
+            Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
+            TenPOI = "Bún Bò Huế Dì Sáu",
+            KinhDo = 106.700560,
+            ViDo   = 10.758640,
+            BanKinh = 25,
+            MucUuTien = 6,
+            DiaChi = "152 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 006",
+            AnhDaiDien = "https://images.unsplash.com/photo-1617093727343-374698b1b08d?auto=format&fit=crop&w=1200&q=80"
+        },
+        // 7. Quán nhậu — mồi nhắm đặc sắc buổi tối
+        new PoiDto
+        {
+            Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+            TenPOI = "Nhậu Vỉa Hè Năm Béo",
+            KinhDo = 106.701605,
+            ViDo   = 10.760210,
+            BanKinh = 28,
+            MucUuTien = 7,
+            DiaChi = "275 Vĩnh Khánh, Q4, TP.HCM",
+            SDT    = "0909 000 007",
+            AnhDaiDien = "https://images.unsplash.com/photo-1529563021893-cc83c992d75d?auto=format&fit=crop&w=1200&q=80"
+        },
     ];
 
     private void StartGpsTracking()
@@ -237,6 +458,22 @@ public partial class MainPage : ContentPage
                             GpsStatusDot.BackgroundColor = Color.FromArgb("#4CAF50");
                             UpdateUserLocationOnMap(location);
                         });
+
+                        // Heartbeat mỗi 15 giây (mỗi HEARTBEAT_EVERY_TICKS vòng)
+                        _heartbeatTick++;
+                        if (_heartbeatTick >= HEARTBEAT_EVERY_TICKS)
+                        {
+                            _heartbeatTick = 0;
+                            _ = SendHeartbeatAsync(location.Latitude, location.Longitude);
+                        }
+
+                        // Tự động refresh danh sách POI mỗi 30 giây
+                        _poiRefreshTick++;
+                        if (_poiRefreshTick >= POI_REFRESH_EVERY_TICKS)
+                        {
+                            _poiRefreshTick = 0;
+                            _ = RefreshPoisInBackgroundAsync();
+                        }
                     }
                     else
                     {
@@ -265,6 +502,92 @@ public partial class MainPage : ContentPage
                 }
             }
         }, token);
+    }
+
+    private async Task SendHeartbeatAsync(double lat, double lng)
+    {
+        try
+        {
+            var deviceId = Preferences.Get("device_id", "");
+            if (string.IsNullOrEmpty(deviceId)) return;
+
+            var body = new
+            {
+                MaThietBi    = deviceId,
+                Lat          = lat,
+                Lng          = lng,
+                PoiIdHienTai  = _currentPoi?.Id,
+                TenPoiHienTai = _currentPoi?.TenPOI
+            };
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat", body);
+        }
+        catch
+        {
+            // Fire-and-forget: bỏ qua lỗi mạng
+        }
+    }
+
+    /// <summary>
+    /// Refresh POI ngầm mỗi 30 giây — phát hiện thêm/sửa/ẩn từ CMS mà không làm gián đoạn người dùng.
+    /// </summary>
+    private async Task RefreshPoisInBackgroundAsync()
+    {
+        try
+        {
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var result = await _http.GetFromJsonAsync<List<PoiDto>>($"{apiBaseUrl}/api/poi");
+            if (result == null) return;
+
+            _pois = result;
+            _isUsingFallbackData = false;
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                LoadMap();
+                RenderPoiCards();
+            });
+        }
+        catch
+        {
+            // Silent — đừng hiện dialog khi refresh ngầm thất bại
+        }
+    }
+
+    /// <summary>Ghi nhận khách mở trang chi tiết POI lên server để CMS theo dõi.</summary>
+    private async Task RecordPoiViewAsync(PoiDto poi)
+    {
+        try
+        {
+            var deviceId = Preferences.Get("device_id", "");
+            if (string.IsNullOrEmpty(deviceId)) return;
+
+            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/view", body);
+        }
+        catch
+        {
+            // Fire-and-forget
+        }
+    }
+
+    private async Task RecordPoiVisitAsync(PoiDto poi)
+    {
+        try
+        {
+            var deviceId = Preferences.Get("device_id", "");
+            if (string.IsNullOrEmpty(deviceId)) return;
+
+            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/visit", body);
+        }
+        catch
+        {
+            // Fire-and-forget
+        }
     }
 
     private void CheckGeofence(Location userLoc)
@@ -305,13 +628,17 @@ public partial class MainPage : ContentPage
             if (isCooledDown && isNewPoi)
             {
                 _lastSpokenTime[poiKey] = DateTime.UtcNow;
+                RecordVisitedPoi(nearest);
 
                 Console.WriteLine($"[Geofence] Speak: {nearest.TenPOI}");
+                // Ghi nhận lượt ghé thăm POI lên server (để admin theo dõi hành trình)
+                _ = RecordPoiVisitAsync(nearest);
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     _ = SpeakPoiAsync(nearest);
                     HighlightNearestPoi(nearest.Id);
                     RenderPoiCards();
+                    UpdateCaiDatUI();
                 });
             }
             else if (!isCooledDown)
@@ -340,7 +667,8 @@ public partial class MainPage : ContentPage
         {
             string langCode = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
 
-            var response = await _http.GetAsync($"{API_BASE}/api/thuyet-minh/{poi.Id}?lang={langCode}");
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var response = await _http.GetAsync($"{apiBaseUrl}/api/thuyet-minh/{poi.Id}?lang={langCode}");
 
             string content = "";
             if (response.IsSuccessStatusCode)
@@ -350,7 +678,7 @@ public partial class MainPage : ContentPage
             }
 
             if (string.IsNullOrEmpty(content))
-                content = GetText($"Chao mung ban den {poi.TenPOI}", $"Welcome to {poi.TenPOI}", $"欢迎来到 {poi.TenPOI}");
+                content = GetText($"Chào mừng bạn đến {poi.TenPOI}", $"Welcome to {poi.TenPOI}", $"欢迎来到 {poi.TenPOI}");
 
             var locales = await TextToSpeech.Default.GetLocalesAsync();
             var locale = locales.FirstOrDefault(l => l.Language.StartsWith(langCode))
@@ -380,7 +708,7 @@ public partial class MainPage : ContentPage
 
     private void ShowNowPlaying(PoiDto poi)
     {
-        NowPlayingTitle.Text = GetText("Dang phat thuyet minh", "Now playing audio guide", "正在播放语音导览");
+        NowPlayingTitle.Text = GetText("Đang phát thuyết minh", "Now playing audio guide", "正在播放语音导览");
         NowPlayingName.Text = poi.TenPOI;
         NowPlayingBanner.IsVisible = true;
         _ = AnimateNowPlayingIcon();
@@ -409,7 +737,8 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            await _http.PostAsJsonAsync($"{API_BASE}/api/log", new
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/log", new
             {
                 POIId = poiId,
                 NgonNguDung = langCode,
@@ -618,12 +947,12 @@ public partial class MainPage : ContentPage
         _sheetPoi = poi;
 
         SheetTen.Text = poi.TenPOI;
-        SheetDiaChi.Text = $"{GetText("Dia chi", "Address", "地址")}: {poi.DiaChi ?? GetText("Pho Vinh Khanh, Quan 4", "Vinh Khanh Street, District 4", "荣庆街，第4区")}";
+        SheetDiaChi.Text = $"{GetText("Địa chỉ", "Address", "地址")}: {poi.DiaChi ?? GetText("Phố Vĩnh Khánh, Quận 4", "Vinh Khanh Street, District 4", "荣庆街，第4区")}";
         SheetSDT.Text = string.IsNullOrEmpty(poi.SDT) ? "" : $"Hotline: {poi.SDT}";
 
         SheetImg.Source = string.IsNullOrEmpty(poi.AnhDaiDien)
             ? ImageSource.FromUri(new Uri("https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400"))
-            : ImageSource.FromUri(new Uri(poi.AnhDaiDien));
+            : ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(poi.AnhDaiDien)));
 
         SheetNearBadge.IsVisible = _currentPoi?.Id == poi.Id || _playingPoi?.Id == poi.Id;
 
@@ -646,7 +975,7 @@ public partial class MainPage : ContentPage
 
         await MapPoiSheet.TranslateToAsync(0, 300, 180, Easing.CubicIn);
         MapPoiSheet.IsVisible = false;
-        await Navigation.PushAsync(new DetailPage(_sheetPoi));
+        await OpenPoiDetailAsync(_sheetPoi);
     }
 
     private async void OnSheetMapClicked(object? sender, EventArgs e)
@@ -665,25 +994,27 @@ public partial class MainPage : ContentPage
         if (poi == null)
             return;
 
-        await Navigation.PushAsync(new DetailPage(poi));
+        await OpenPoiDetailAsync(poi);
     }
 
     private IReadOnlyList<PoiDto> GetVisiblePois()
     {
-        if (string.IsNullOrWhiteSpace(_searchText))
-            return _pois;
+        IEnumerable<PoiDto> source = _pois;
 
-        string keyword = _searchText.Trim();
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            string keyword = NormalizeSearchText(_searchText);
+            source = source.Where(p =>
+                MatchesSearch(p.TenPOI, keyword) ||
+                MatchesSearch(p.DiaChi, keyword) ||
+                MatchesSearch(p.SDT, keyword));
+        }
 
-        return _pois
-            .Where(p =>
-                (!string.IsNullOrWhiteSpace(p.TenPOI) &&
-                 p.TenPOI.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(p.DiaChi) &&
-                 p.DiaChi.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(p.SDT) &&
-                 p.SDT.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)))
-            .ToList();
+        // Quán đang trong vùng geofence (đang tô cam) luôn nổi lên đầu danh sách
+        if (_currentPoi != null)
+            source = source.OrderByDescending(p => p.Id == _currentPoi.Id);
+
+        return source.ToList();
     }
 
     private void RenderPoiCards()
@@ -694,13 +1025,13 @@ public partial class MainPage : ContentPage
         if (visiblePois.Count == 0)
         {
             LblPoiCount.Text = _pois.Count > 0
-                ? GetText("Khong tim thay ket qua", "No results", "没有结果")
+                ? GetText("Không tìm thấy kết quả", "No results", "没有结果")
                 : "";
 
             PoiListContainer.Children.Add(new Label
             {
                 Text = GetText(
-                    "Khong co dia diem phu hop voi tu khoa tim kiem.",
+                    "Không có địa điểm phù hợp với từ khóa tìm kiếm.",
                     "No places match your search.",
                     "没有符合搜索条件的地点。"),
                 FontSize = 14,
@@ -712,12 +1043,12 @@ public partial class MainPage : ContentPage
         }
 
         LblPoiCount.Text = string.IsNullOrWhiteSpace(_searchText)
-            ? GetText($"{visiblePois.Count} dia diem", $"{visiblePois.Count} places", $"{visiblePois.Count} 个地点")
-            : GetText($"{visiblePois.Count}/{_pois.Count} ket qua", $"{visiblePois.Count}/{_pois.Count} results", $"{visiblePois.Count}/{_pois.Count} 条结果");
+            ? GetText($"{visiblePois.Count} địa điểm", $"{visiblePois.Count} places", $"{visiblePois.Count} 个地点")
+            : GetText($"{visiblePois.Count}/{_pois.Count} kết quả", $"{visiblePois.Count}/{_pois.Count} results", $"{visiblePois.Count}/{_pois.Count} 条结果");
 
         foreach (var poi in visiblePois)
         {
-            string distanceText = GetText("Dang xac dinh...", "Calculating...", "正在计算...");
+            string distanceText = GetText("Đang xác định...", "Calculating...", "正在计算...");
             if (_userLocation != null)
             {
                 double distM = Location.CalculateDistance(
@@ -726,8 +1057,8 @@ public partial class MainPage : ContentPage
                     DistanceUnits.Kilometers) * 1000;
 
                 distanceText = distM < 1000
-                    ? GetText($"Cach ban: {(int)distM}m", $"{(int)distM}m away", $"距离 {(int)distM} 米")
-                    : GetText($"Cach ban: {distM / 1000:F1}km", $"{distM / 1000:F1}km away", $"距离 {distM / 1000:F1} 公里");
+                    ? GetText($"Cách bạn: {(int)distM}m", $"{(int)distM}m away", $"距离 {(int)distM} 米")
+                    : GetText($"Cách bạn: {distM / 1000:F1}km", $"{distM / 1000:F1}km away", $"距离 {distM / 1000:F1} 公里");
             }
 
             bool isNear = _currentPoi?.Id == poi.Id;
@@ -761,7 +1092,7 @@ public partial class MainPage : ContentPage
             {
                 Source = string.IsNullOrEmpty(poi.AnhDaiDien)
                     ? "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800"
-                    : poi.AnhDaiDien,
+                    : AppConfig.ResolveImageUrl(poi.AnhDaiDien),
                 Aspect = Aspect.AspectFill
             };
             Grid.SetRow(img, 0);
@@ -776,7 +1107,7 @@ public partial class MainPage : ContentPage
             {
                 info.Children.Add(new Label
                 {
-                    Text = GetText("Dang gan - tu dong phat audio", "Nearby - auto audio", "附近 - 自动语音"),
+                    Text = GetText("Đang gần - tự động phát audio", "Nearby - auto audio", "附近 - 自动语音"),
                     FontSize = 11,
                     TextColor = Color.FromArgb("#FF6600"),
                     FontAttributes = FontAttributes.Bold
@@ -793,14 +1124,14 @@ public partial class MainPage : ContentPage
 
             info.Children.Add(new Label
             {
-                Text = $"{distanceText} - {poi.DiaChi ?? GetText("Pho Vinh Khanh", "Vinh Khanh Street", "荣庆街")}",
+                Text = $"{distanceText} - {poi.DiaChi ?? GetText("Phố Vĩnh Khánh", "Vinh Khanh Street", "荣庆街")}",
                 FontSize = 13,
                 TextColor = Color.FromArgb("#666666")
             });
 
             var btn = new Button
             {
-                Text = GetText("Xem chi tiet", "View details", "查看详情"),
+                Text = GetText("Xem chi tiết", "View details", "查看详情"),
                 BackgroundColor = isNear ? Color.FromArgb("#FF6600") : Color.FromArgb("#2196F3"),
                 TextColor = Colors.White,
                 CornerRadius = 8,
@@ -809,7 +1140,7 @@ public partial class MainPage : ContentPage
             };
 
             var capturedPoi = poi;
-            btn.Clicked += async (s, e) => await Navigation.PushAsync(new DetailPage(capturedPoi));
+            btn.Clicked += async (s, e) => await OpenPoiDetailAsync(capturedPoi);
 
             info.Children.Add(btn);
             Grid.SetRow(info, 1);
@@ -860,18 +1191,80 @@ public partial class MainPage : ContentPage
         ApplyLocalizedUiText();
 
         string lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        LblUserName.Text = GetText("Khach tham quan", "Visitor", "游客");
-        LblUserUsername.Text = GetText("Che do khach", "Guest mode", "游客模式");
-        LblUserPhone.Text = GetText("Khong luu", "Not stored", "未保存");
-        LblUserEmail.Text = AppConfig.ApiBaseUrl;
-        LblUserRole.Text = GetText("Che do tham quan", "Tour guest mode", "游客模式");
+
+        // Avatar initials — 2 ký tự đầu của device ID
+        var deviceId = Preferences.Get("device_id", "");
+        var initials = string.IsNullOrEmpty(deviceId) ? "VK"
+            : deviceId[..Math.Min(2, deviceId.Length)].ToUpper();
+        LblUserName.Text = initials;
+
+        // Chế độ / role (hiển thị trong settings row)
+        LblUserUsername.Text = GetText("Khách ẩn danh", "Anonymous guest", "匿名游客");
+        LblUserRole.Text     = GetText("Thám tử ẩm thực · Cấp 1", "Food Explorer · Lv 1", "美食探索者·1级");
 
         LblUserLang.Text = lang switch
         {
             "en" => "English",
             "zh" => "中文",
-            _ => "Tieng Viet"
+            _ => "Tiếng Việt"
         };
+
+        // Gói đăng ký: hiển thị số ngày còn lại
+        var hetHanStr = Preferences.Get("sub_ngay_het_han", "");
+        if (!string.IsNullOrEmpty(hetHanStr) &&
+            DateTime.TryParse(hetHanStr, null,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan) &&
+            hetHan > DateTime.UtcNow)
+        {
+            int soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
+            LblSubStatus.Text = GetText($"Còn {soNgay} ngày", $"{soNgay} days left", $"剩余 {soNgay} 天");
+            LblSubStatus.TextColor = Color.FromArgb("#16A34A");
+        }
+        else
+        {
+            LblSubStatus.Text = GetText("Chưa kích hoạt", "Not activated", "未激活");
+            LblSubStatus.TextColor = Color.FromArgb("#DC2626");
+        }
+
+        // Mã thiết bị (8 ký tự đầu của UUID)
+        LblUserPhone.Text = string.IsNullOrEmpty(deviceId)
+            ? "—"
+            : deviceId[..Math.Min(8, deviceId.Length)].ToUpper();
+
+        // Số quán đã ghé (đọc từ LichSuPhat qua bộ nhớ local — cập nhật khi reload)
+        var viewedPoiCount = GetSavedPoiCount(ViewedPoiIdsPreferenceKey);
+        var visitedPoiCount = GetSavedPoiCount(VisitedPoiIdsPreferenceKey);
+        var totalXp = (viewedPoiCount * 50) + (visitedPoiCount * 100);
+        var currentLevel = Math.Max(1, (totalXp / 500) + 1);
+        var xpInCurrentLevel = totalXp % 500;
+        var xpProgress = Math.Clamp(xpInCurrentLevel / 500d, 0d, 1d);
+
+        if (LblStatQuanXemV2 is not null)
+            LblStatQuanXemV2.Text = viewedPoiCount.ToString();
+
+        if (LblStatQuanGheV2 is not null)
+            LblStatQuanGheV2.Text = visitedPoiCount.ToString();
+
+        if (LblStatQuanXem is not null)
+            LblStatQuanXem.Text = viewedPoiCount.ToString();
+
+        if (LblXpProgress is not null)
+            LblXpProgress.Text = $"XP: {xpInCurrentLevel} / 500";
+
+        if (ProfileXpBar is not null)
+            ProfileXpBar.Progress = xpProgress;
+
+        LblUserRole.Text = GetText(
+            $"Thám tử ẩm thực · Cấp {currentLevel}",
+            $"Food Explorer · Lv {currentLevel}",
+            $"美食探索者·{currentLevel}级");
+
+        UpdateApiConnectionUi();
+    }
+
+    private async void OnGiaHanClicked(object? sender, EventArgs? e)
+    {
+        await Navigation.PushModalAsync(new SubscriptionPage(hetHan: false), animated: true);
     }
 
     private async void OnReloadDataClicked(object? sender, EventArgs e)
@@ -887,14 +1280,42 @@ public partial class MainPage : ContentPage
         _pendingMapLocation = null;
         _pendingHighlightPoiId = null;
 
-        await LoadPoisFromApi();
+        await LoadPoisFromApi(showFailureAlert: true);
         await EnsureGpsTrackingAsync();
         UpdateCaiDatUI();
 
-        await DisplayAlertAsync(
-            GetText("Thong bao", "Notice", "提示"),
-            GetText("Da tai lai du lieu moi nhat.", "Latest data reloaded.", "已重新加载最新数据。"),
+        if (!_isUsingFallbackData)
+        {
+            await DisplayAlertAsync(
+            GetText("Thông báo", "Notice", "提示"),
+            GetText("Đã tải lại dữ liệu mới nhất.", "Latest data reloaded.", "已重新加载最新数据。"),
             GetText("OK", "OK", "确定"));
+        }
+    }
+
+    private async void OnSaveApiUrlClicked(object? sender, EventArgs e)
+    {
+        var normalized = AppConfig.NormalizeApiBaseUrl(EntryApiBaseUrl.Text);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            await DisplayAlertAsync(
+                GetText("URL khong hop le", "Invalid URL", "URL wu xiao"),
+                GetText("Hay nhap day du giao thuc va cong, vi du http://192.168.1.5:5118.", "Enter the full URL including protocol and port, for example http://192.168.1.5:5118.", "Qing shu ru wan zheng URL, bao gom xie yi va duan kou, li ru http://192.168.1.5:5118."),
+                "OK");
+            return;
+        }
+
+        AppConfig.SetCustomApiBaseUrl(normalized);
+        await LoadPoisFromApi(showFailureAlert: true);
+        UpdateCaiDatUI();
+    }
+
+    private async void OnResetApiUrlClicked(object? sender, EventArgs e)
+    {
+        AppConfig.ClearCustomApiBaseUrl();
+        EntryApiBaseUrl.Text = "";
+        await LoadPoisFromApi(showFailureAlert: true);
+        UpdateCaiDatUI();
     }
 
     private void SetTabActive(string tab)
@@ -932,9 +1353,9 @@ public partial class MainPage : ContentPage
         }
 
         await DisplayAlertAsync(
-            GetText("Thong bao", "Notice", "提示"),
+            GetText("Thông báo", "Notice", "提示"),
             GetText(
-                "Hay den gan mot quan an de nghe thuyet minh.",
+                "Hãy đến gần một quán ăn để nghe thuyết minh.",
                 "Move closer to a place to start the audio guide.",
                 "请靠近一个地点以开始语音导览。"),
             GetText("OK", "OK", "确定"));

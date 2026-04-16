@@ -2,11 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+var connectionString = GetConnectionString(builder.Configuration);
 
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connectionString,
         npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
 
 var app = builder.Build();
@@ -15,3 +16,11 @@ app.UseStaticFiles();
 app.UseRouting();
 app.MapRazorPages();
 app.Run();
+
+static string GetConnectionString(ConfigurationManager configuration)
+{
+    return Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
+        ?? configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException(
+            "Missing database connection string. Set SUPABASE_CONNECTION_STRING or ConnectionStrings:DefaultConnection.");
+}

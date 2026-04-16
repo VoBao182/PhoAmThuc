@@ -22,14 +22,21 @@ public class LichSuPhat
     [Column("thoigian")]
     public DateTime ThoiGian { get; set; } = DateTime.UtcNow;
 
-    [Column("ngonnguDung")]
+    [Column("ngonngudung")]
+    [MaxLength(20)]
     public string? NgonNguDung { get; set; }
 
     [Column("nguon")]
+    [MaxLength(50)]
     public string? Nguon { get; set; }
 
-    [Column("thoiluongnge")]
+    // Database hien tai chua co cot nay; tam bo qua mapping de tranh loi SaveChanges.
+    [NotMapped]
     public int? ThoiLuongNghe { get; set; }
+
+    /// <summary>Mã thiết bị ẩn danh — dùng khi khách không đăng nhập</summary>
+    [Column("mathietbi")]
+    public string? MaThietBi { get; set; }
 
     public POI? POI { get; set; }
 }

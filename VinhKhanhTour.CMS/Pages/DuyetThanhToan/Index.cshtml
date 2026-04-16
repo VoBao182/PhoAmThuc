@@ -1,0 +1,177 @@
+@page
+@model VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel
+@{
+    ViewData["Title"] = "Duyệt thanh toán app";
+    ViewData["Page"]  = "duyetthanhtoan";
+    Layout = "/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Duyệt thanh toán app</h2>
+            <p class="text-muted mb-0">Xác nhận yêu cầu chuyển khoản từ khách mua gói</p>
+        </div>
+        <span class="badge bg-warning text-dark fs-6">
+            @Model.SoChoDuyet yêu cầu chờ duyệt
+        </span>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ThongBao))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.ThongBao
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Model.LỗiMsg))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @Model.LỗiMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Filter tabs -->
+    <ul class="nav nav-tabs mb-3" id="filterTab">
+        <li class="nav-item">
+            <a class="nav-link @(Model.FilterTab == "cho_duyet" ? "active" : "")"
+               href="?tab=cho_duyet">⏳ Chờ duyệt (@Model.SoChoDuyet)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.FilterTab == "da_duyet" ? "active" : "")"
+               href="?tab=da_duyet">✅ Đã duyệt</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.FilterTab == "tu_choi" ? "active" : "")"
+               href="?tab=tu_choi">❌ Đã từ chối</a>
+        </li>
+    </ul>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Thiết bị</th>
+                            <th>Gói</th>
+                            <th>Số tiền</th>
+                            <th>Nội dung CK</th>
+                            <th>Thời gian</th>
+                            <th>Ghi chú admin</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.DanhSach.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    Không có yêu cầu nào.
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var yc in Model.DanhSach)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="font-monospace small fw-semibold"
+                                          title="@yc.MaThietBi">
+                                        @(yc.MaThietBi.Length > 8 ? yc.MaThietBi[..8].ToUpper() : yc.MaThietBi.ToUpper())
+                                    </span>
+                                    <div class="text-muted" style="font-size:10px">ID thiết bị</div>
+                                </td>
+                                <td>
+                                    @switch (yc.LoaiGoi)
+                                    {
+                                        case "ngay":  <span class="badge bg-secondary">1 ngày</span>;   break;
+                                        case "tuan":  <span class="badge bg-info text-dark">1 tuần</span>; break;
+                                        case "thang": <span class="badge bg-primary">1 tháng</span>;   break;
+                                        case "nam":   <span class="badge bg-success">1 năm</span>;     break;
+                                        default:      <span class="badge bg-light text-dark">@yc.LoaiGoi</span>; break;
+                                    }
+                                </td>
+                                <td class="fw-semibold text-success">@yc.SoTien.ToString("N0")đ</td>
+                                <td>
+                                    <code class="small">@yc.NoiDungChuyen</code>
+                                </td>
+                                <td class="small text-muted">
+                                    @yc.NgayTao.ToLocalTime().ToString("dd/MM HH:mm")
+                                    @if (yc.NgayDuyet.HasValue)
+                                    {
+                                        <br /><span class="text-info">→ @yc.NgayDuyet.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                    }
+                                </td>
+                                <td class="small text-muted">@(yc.GhiChuAdmin ?? "—")</td>
+                                <td>
+                                    @if (yc.TrangThai == "cho_duyet")
+                                    {
+                                        <form method="post" asp-page-handler="Approve" class="d-inline">
+                                            <input type="hidden" name="yeuCauId" value="@yc.Id" />
+                                            <button type="submit" class="btn btn-sm btn-success me-1"
+                                                    onclick="return confirm('Xác nhận duyệt yêu cầu này?')">
+                                                ✅ Duyệt
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalTuChoi"
+                                                data-id="@yc.Id">
+                                            ❌ Từ chối
+                                        </button>
+                                    }
+                                    else if (yc.TrangThai == "da_duyet")
+                                    {
+                                        <span class="badge bg-success">✅ Đã duyệt</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">❌ Từ chối</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal từ chối -->
+<div class="modal fade" id="modalTuChoi" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Reject">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Từ chối yêu cầu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="tuChoiId" name="yeuCauId" />
+                    <div class="mb-3">
+                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
+                        <textarea name="lyDo" class="form-control" rows="3"
+                                  placeholder="Ví dụ: Không tìm thấy giao dịch khớp nội dung chuyển khoản..."
+                                  required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Xác nhận từ chối</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// Truyền ID vào modal
+document.getElementById('modalTuChoi').addEventListener('show.bs.modal', function(e) {
+    var id = e.relatedTarget.dataset.id;
+    document.getElementById('tuChoiId').value = id;
+});
+</script>
+}

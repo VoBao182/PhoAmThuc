@@ -27,7 +27,7 @@ public class IndexModel : PageModel
         catch (Exception ex)
         {
             POIs = [];
-            ErrorMessage = $"Khong the tai danh sach POI: {ex.GetBaseException().Message}";
+            ErrorMessage = $"Không thể tải danh sách POI: {ex.GetBaseException().Message}";
         }
     }
 
@@ -38,7 +38,7 @@ public class IndexModel : PageModel
         {
             poi.TrangThai = !poi.TrangThai;
             await _db.SaveChangesAsync();
-            TempData["Success"] = $"Da {(poi.TrangThai ? "hien" : "an")} quan \"{poi.TenPOI}\"";
+            TempData["Success"] = $"Đã {(poi.TrangThai ? "hiện" : "ẩn")} quán \"{poi.TenPOI}\"";
         }
         return RedirectToPage();
     }

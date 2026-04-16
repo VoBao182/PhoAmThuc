@@ -1,0 +1,75 @@
+@page "{poiId:guid}"
+@model VinhKhanhTour.CMS.Pages.ThanhToan.LichSuModel
+@{
+    ViewData["Title"] = $"Lịch sử thanh toán — {Model.TenPOI}";
+    Layout = "/Pages/Shared/_Layout.cshtml";
+}
+
+<div class="container py-4" style="max-width: 800px">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="/ThanhToan/Index">Phí duy trì</a></li>
+            <li class="breadcrumb-item active">Lịch sử — @Model.TenPOI</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h6 class="mb-0 fw-semibold">📋 Lịch sử hóa đơn của @Model.TenPOI</h6>
+            <a asp-page="/ThanhToan/GhiNhan" asp-route-poiId="@Model.PoiId"
+               class="btn btn-sm btn-primary">💰 Ghi nhận mới</a>
+        </div>
+        <div class="card-body p-0">
+            @if (!Model.HoaDons.Any())
+            {
+                <div class="text-center text-muted py-5">Chưa có hóa đơn nào.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Loại phí</th>
+                                <th>Kỳ</th>
+                                <th>Số tiền</th>
+                                <th>Ngày ghi nhận</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var hd in Model.HoaDons)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (hd.LoaiPhi == "duytri")
+                                        {
+                                            <span class="badge bg-primary">Duy trì</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info text-dark">Convert TTS</span>
+                                        }
+                                    </td>
+                                    <td>@(hd.KyThanhToan ?? "—")</td>
+                                    <td class="fw-medium text-success">@hd.SoTien.ToString("N0")đ</td>
+                                    <td class="text-muted small">
+                                        @hd.NgayThanhToan.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    </td>
+                                    <td class="text-muted small">@(hd.GhiChu ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="2" class="fw-semibold">Tổng cộng</td>
+                                <td class="fw-bold text-success">@Model.HoaDons.Sum(h => h.SoTien).ToString("N0")đ</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
