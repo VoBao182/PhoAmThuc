@@ -1,49 +1,28 @@
 @startuml
-' Diagram: F09 - Giam sat khach dang online va xem hanh trinh live (Activity)
+' Diagram: F09 - Theo doi khach hang va trang thai su dung (Activity)
 ' Status: VERIFIED
 ' Baseline: branch master, HEAD 6510344
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync()
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml: loadData(), renderDeviceList(), selectDevice(), showHistory()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetActive(), GetHistory()
-' Note: Da doi chieu duoc ca PageModel, JS va API lien quan; van can cap nhat neu thay doi payload heartbeat hoac giao dien live map.
-title F09 - Giam sat khach dang online va xem hanh trinh live
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), GetStatusText(), GetSubscriptionText()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
+' - VinhKhanhTour.API/Models/DangKyApp.cs
+' - VinhKhanhTour.API/Models/VitriKhach.cs
+' - VinhKhanhTour.API/Models/LichSuPhat.cs
+' Note: Da sua theo code hien tai: trang BanDo khong con la live map fetch API bang JS, ma la bang tong hop render server-side.
+title F09 - Theo doi khach hang va trang thai su dung
 start
 :BanDo/Index.OnGetAsync();
-:Doc danh sach POI dang hoat dong;
-:Serialize thanh PoisJson;
-:Render page + Leaflet map;
-
-:JS loadData();
-:fetch GET /api/heartbeat/active;
-if (API thanh cong?) then (Co)
-  :Cap nhat lblCount + lblLastUpdate;
-  :guestLayer.clearLayers();
-  :Ve marker cho tung thiet bi online;
-  :renderDeviceList(items);
-else (Khong)
-  :console.error(...);
-endif
-
-while (Admin van mo trang?) is (Co)
-  if (Admin click 1 thiet bi?) then (Co)
-    :selectDevice(short, lat, lng);
-    :map.flyTo(...);
-    :open popup marker;
-  endif
-
-  if (Admin bam "Xem hanh trinh"?) then (Co)
-    :showHistory(deviceShort);
-    :fetch GET /api/heartbeat/history/{deviceShort};
-    if (Co lich su?) then (Co)
-      :Render modal lich su + link Google Maps;
-    else (Khong)
-      :Hien thong bao chua co luot ghe;
-    endif
-  endif
-
-  :setInterval(loadData, 30000);
-endwhile (Khong)
+:Truy van DangKyApps theo MaThietBi va lay han muon nhat;
+:Truy van VitriKhachs;
+:Dem so POI da ghe tu LichSuPhat (Nguon = GPS);
+:Dem so POI da xem tu LichSuPhat (Nguon = VIEW);
+:Hop nhat deviceIds tu subscription, location, viewed, visited;
+:Tinh trang thai online / o quan / het han;
+:GetStatusText(...);
+:GetSubscriptionText(...);
+:Sap xep Customers;
+:Tinh TotalCustomers, ActiveCustomers,\nCustomersAtPoi, ExpiredCustomers;
+:Render bang thong ke trong Index.cshtml;
 
 stop
 @enduml

@@ -16,7 +16,8 @@
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/*.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs
-' Note: So do tong hop cap cao; giu nguyen logic hien tai va can doi chieu lai voi cac module con truoc khi dua vao bao cao.
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
+' Note: Da doi chieu lai sau khi module BanDo chuyen tu live map JS sang trang tong hop khach hang render server-side.
 left to right direction
 skinparam packageStyle rectangle
 
@@ -36,7 +37,7 @@ rectangle "VinhKhanhTour" {
   usecase "F06\nQuan ly POI,\nanh, geofence,\nthuyet minh, menu" as UC06
   usecase "F07\nGhi nhan phi duy tri\nva lich su hoa don" as UC07
   usecase "F08\nDuyet / tu choi\nthanh toan goi app" as UC08
-  usecase "F09\nBan do live va\nhanh trinh khach" as UC09
+  usecase "F09\nTheo doi khach hang,\ntrang thai su dung\nva hanh trinh" as UC09
   usecase "F10\nDashboard tong quan CMS" as UC10
 }
 
@@ -54,7 +55,6 @@ Admin --> UC10
 
 GPS --> UC03
 Maps --> UC04
-Maps --> UC09
 Bank --> UC05
 
 UC02 .> UC04 : <<extend>>

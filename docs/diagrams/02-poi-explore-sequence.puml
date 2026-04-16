@@ -3,10 +3,10 @@
 ' Status: WIP
 ' Baseline: branch master, HEAD 6510344
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: LoadPoisFromApi(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView()
-' Note: Sequence da bam theo code MainPage hien tai; chua mo rong them luong ngoai repo va khong tu suy dien event nao khac.
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView(), SyncHistory()
+' Note: Da bo sung luong dong bo lich su local -> server; cac buoc khac duoc giu nguyen.
 title F02 - Tai va kham pha danh sach POI
 
 actor Guest
@@ -24,6 +24,12 @@ PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri > now
 DB --> PoiController: danh sach POI
 PoiController --> MainPage: List<PoiDto>
 MainPage -> MainPage: LoadMap()\nRenderPoiCards()
+opt dong bo lich su local sau khi tai POI / vao lai man hinh
+  MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
+  HeartbeatController -> DB: kiem tra VIEW/GPS da co\nchen thieu tu ViewedPoiIds/VisitedPoiIds
+  DB --> HeartbeatController: insertedViews / insertedVisits
+  HeartbeatController --> MainPage: 200 OK
+end
 
 Guest -> MainPage: nhap SearchEntry
 MainPage -> MainPage: OnSearchTextChanged()\nGetVisiblePois()\nRenderPoiCards()
@@ -33,6 +39,9 @@ MainPage -> MainPage: OpenPoiDetailAsync(poi)\nRecordViewedPoi(poi)
 MainPage -> HeartbeatController: POST /api/heartbeat/view
 HeartbeatController -> DB: dedup 5 phut + insert LichSuPhat(Nguon="VIEW")
 DB --> HeartbeatController: saved
+MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
+HeartbeatController -> DB: bo sung lich su local neu can
+DB --> HeartbeatController: synced
 MainPage -> DetailPage: PushAsync(new DetailPage(poi))
 
 opt refresh nen 30 giay

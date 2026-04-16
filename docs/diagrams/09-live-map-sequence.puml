@@ -1,42 +1,36 @@
 @startuml
-' Diagram: F09 - Giam sat khach dang online va xem hanh trinh live (Sequence)
+' Diagram: F09 - Theo doi khach hang va trang thai su dung (Sequence)
 ' Status: VERIFIED
 ' Baseline: branch master, HEAD 6510344
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync()
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml: loadData(), showHistory()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetActive(), GetHistory()
-' Note: Sequence da duoc kiem tra tu endpoint den JS renderer; co the dung cho bao cao neu module BanDo khong doi them.
-title F09 - Giam sat khach dang online va xem hanh trinh live
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), GetStatusText(), GetSubscriptionText()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
+' - VinhKhanhTour.API/Data/AppDbContext.cs
+' Note: Da cap nhat theo luong truy van DB truc tiep trong CMS; khong con JS fetch HeartbeatController.
+title F09 - Theo doi khach hang va trang thai su dung
 
 actor Admin
 participant "BanDo IndexModel" as IndexModel
-participant "BanDo JS + Leaflet" as JS
-participant "HeartbeatController" as HeartbeatController
 participant AppDbContext
 database DB
 
 Admin -> IndexModel: mo /BanDo
-IndexModel -> AppDbContext: load POI dang hoat dong
-AppDbContext -> DB: SELECT poi(trangthai=true)
-DB --> AppDbContext: pois
-IndexModel --> JS: page + API_BASE + PoisJson
-JS -> JS: khoi tao Leaflet map + ve marker POI
+IndexModel -> AppDbContext: query DangKyApps group theo MaThietBi
+AppDbContext -> DB: SELECT expiresAt moi nhat tung thiet bi
+DB --> AppDbContext: subscriptions
 
-loop moi 30 giay
-  JS -> HeartbeatController: GET /api/heartbeat/active
-  HeartbeatController -> DB: query VitriKhach online + LichSuPhat + DangKyApp
-  DB --> HeartbeatController: items
-  HeartbeatController --> JS: { count, items }
-  JS -> JS: guestLayer.clearLayers()\nrenderDeviceList(items)
-end
+IndexModel -> AppDbContext: query VitriKhachs
+AppDbContext -> DB: SELECT vi tri / lan heartbeat cuoi
+DB --> AppDbContext: locations
 
-opt admin xem lich su mot thiet bi
-  Admin -> JS: click "Xem hanh trinh"
-  JS -> HeartbeatController: GET /api/heartbeat/history/{deviceShort}
-  HeartbeatController -> DB: tim MaThietBi + join LichSuPhat voi POI
-  DB --> HeartbeatController: lich su
-  HeartbeatController --> JS: { soDiemDaGhe, lichSu[] }
-  JS --> Admin: modal lich su + link Google Maps
-end
+IndexModel -> AppDbContext: query LichSuPhat (Nguon = GPS)
+AppDbContext -> DB: dem so POI da ghe theo MaThietBi
+DB --> AppDbContext: visitedCounts
+
+IndexModel -> AppDbContext: query LichSuPhat (Nguon = VIEW)
+AppDbContext -> DB: dem so POI da xem theo MaThietBi
+DB --> AppDbContext: viewedCounts
+
+IndexModel -> IndexModel: hop nhat deviceIds\nGetStatusText()\nGetSubscriptionText()\nsap xep va tinh summary
+IndexModel --> Admin: render bang khach hang + summary tiles
 @enduml

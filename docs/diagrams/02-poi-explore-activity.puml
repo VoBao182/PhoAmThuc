@@ -3,10 +3,10 @@
 ' Status: WIP
 ' Baseline: branch master, HEAD 6510344
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: LoadPoisFromApi(), RefreshPoisInBackgroundAsync(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RefreshPoisInBackgroundAsync(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView()
-' Note: So do giu luong hien tai gom API va fallback local sample; can sync lai neu thay doi cach tim kiem, refresh hoac luu view.
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView(), SyncHistory()
+' Note: Da bo sung luong dong bo lich su xem/ghe tu local Preferences len server sau khi mo app, tai POI va mo chi tiet.
 title F02 - Tai va kham pha danh sach POI
 start
 :MainPage.LoadPoisFromApi();
@@ -15,6 +15,8 @@ start
 if (API thanh cong?) then (Co)
   :_pois = ket qua tu PoiController.GetAll();
   :_isUsingFallbackData = false;
+  :SyncPoiHistoryAsync();
+  :POST /api/heartbeat/sync-history;
 else (Khong)
   :CreateFallbackPois();
   :_isUsingFallbackData = true;
@@ -35,6 +37,7 @@ while (Nguoi dung tiep tuc kham pha?) is (Co)
     :OpenPoiDetailAsync(poi);
     :RecordViewedPoi(poi);
     :RecordPoiViewAsync(poi);
+    :SyncPoiHistoryAsync();
     :Navigation.PushAsync(new DetailPage(poi));
   endif
 

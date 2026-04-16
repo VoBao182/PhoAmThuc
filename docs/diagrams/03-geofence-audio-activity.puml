@@ -3,11 +3,11 @@
 ' Status: WIP
 ' Baseline: branch master, HEAD 6510344
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SpeakPoiAsync(), LogPlaybackAsync()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
-' Note: MainPage dang la module de nhay cam va de thay doi nhat; uu tien giu WIP cho den khi ban chot logic geofence, TTS va logging.
+' Note: Da cap nhat them buoc sync lich su local voi server khi vao app va khi ghi nhan da ghe; van giu WIP vi MainPage con dang bien dong.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
 :EnsureGpsTrackingAsync();
@@ -37,6 +37,8 @@ while (token chua bi cancel?) is (Co)
     if (tim thay nearest POI nam trong ban kinh?) then (Co)
       if (isNewPoi && qua cooldown?) then (Co)
         :RecordVisitedPoi(nearest);
+        :SyncPoiHistoryAsync();
+        :POST /api/heartbeat/sync-history;
         :RecordPoiVisitAsync(nearest);
         :POST /api/heartbeat/visit;
         :SpeakPoiAsync(nearest);
