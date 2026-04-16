@@ -1,0 +1,63 @@
+@startuml
+' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit()
+' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
+' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
+' Note: MainPage dang la module de nhay cam va de thay doi nhat; uu tien giu WIP cho den khi ban chot logic geofence, TTS va logging.
+title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
+start
+:EnsureGpsTrackingAsync();
+if (Da duoc cap quyen vi tri?) then (Co)
+  :StartGpsTracking();
+else (Khong)
+  :DisplayAlert can cap quyen vi tri;
+  stop
+endif
+
+while (token chua bi cancel?) is (Co)
+  :Geolocation.Default.GetLocationAsync();
+  if (location != null?) then (Co)
+    :_userLocation = location;
+    :CheckGeofence(location);
+    :UpdateUserLocationOnMap(location);
+
+    if (den nhip heartbeat 15s?) then (Co)
+      :SendHeartbeatAsync(lat, lng);
+      :POST /api/heartbeat;
+    endif
+
+    if (den nhip refresh POI 30s?) then (Co)
+      :RefreshPoisInBackgroundAsync();
+    endif
+
+    if (tim thay nearest POI nam trong ban kinh?) then (Co)
+      if (isNewPoi && qua cooldown?) then (Co)
+        :RecordVisitedPoi(nearest);
+        :RecordPoiVisitAsync(nearest);
+        :POST /api/heartbeat/visit;
+        :SpeakPoiAsync(nearest);
+        :GET /api/thuyet-minh/{poiId}?lang=...;
+        if (Co NoiDung/API hop le?) then (Co)
+          :TextToSpeech.Default.SpeakAsync(content);
+        else (Khong)
+          :Speak text fallback;
+        endif
+        :LogPlaybackAsync(poiId, lang);
+        :POST /api/log;
+      else (Khong)
+        :Chi highlight / render lai card;
+      endif
+    else (Khong)
+      :ClearHighlight();
+      :_currentPoi = null;
+    endif
+  else (Khong)
+    :GpsStatusDot = xam;
+  endif
+endwhile (Khong)
+stop
+@enduml

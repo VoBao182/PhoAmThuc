@@ -66,7 +66,7 @@ public class EditModel : PageModel
         // ── 1. Cập nhật POI ──
         var poi = await _db.POIs
             .Include(p => p.MonAns)
-            .Include(p => p.ThuyetMinhs)
+            .Include(p => p.ThuyetMinhs.Where(t => t.TrangThai))
                 .ThenInclude(t => t.BanDichs)
             .FirstOrDefaultAsync(p => p.Id == POI.Id);
 
@@ -145,9 +145,17 @@ public class EditModel : PageModel
             }
         }
 
-        await _db.SaveChangesAsync();
-        TempData["Success"] = $"Đã lưu thông tin quán \"{poi.TenPOI}\"";
-        return RedirectToPage(new { id = poi.Id });
+        try
+        {
+            await _db.SaveChangesAsync();
+            TempData["Success"] = $"Đã lưu thông tin quán \"{poi.TenPOI}\"";
+            return RedirectToPage(new { id = poi.Id });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["Error"] = "Dữ liệu đã bị thay đổi bởi tiến trình khác. Vui lòng tải lại trang và thử lại.";
+            return RedirectToPage(new { id = poi.Id });
+        }
     }
 
     private void UpsertBanDich(VinhKhanhTour.API.Models.ThuyetMinh tm, string lang, string? noiDung)

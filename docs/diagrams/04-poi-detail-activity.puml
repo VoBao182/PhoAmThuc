@@ -1,0 +1,53 @@
+@startuml
+' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), UseFallback(), ConfigureAudioPlayer(), RenderMenu(), OnNgheClicked(), OnMapClicked()
+' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
+' Note: DetailPage van la khu vuc dang kiem tra; giu WIP de tranh xem day la luong da chot, nhat la phan audio bridge va fallback.
+title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
+start
+:Tao DetailPage(poiBasic);
+:InitializeAudioBridge();
+:ApplyLocalizedLabels();
+:LoadDetail(poiId, tenPoi);
+
+:AppConfig.EnsureApiBaseUrlAsync();
+:GET /api/poi/{id}?lang=_lang;
+if (API thanh cong?) then (Co)
+  :Gan ImgCover, thong tin quan,\nNoiDungThuyetMinh, MonAns;
+  :ConfigureAudioPlayer();
+  :RenderMenu(_poi.MonAns);
+else (Khong)
+  :UseFallback(tenPoi);
+endif
+
+if (Nguoi dung bam nghe?) then (Co)
+  if (Co FileAudio?) then (Co)
+    :AudioControls.IsVisible = true;
+    if (_audioBridgeReady?) then (Co)
+      :ExecuteAudioScript("playAudio()");
+    else (Chua)
+      :_playWhenReady = true;
+    endif
+  else (Khong)
+    if (NoiDungThuyetMinh rong?) then (Co)
+      :DisplayAlert(AppStrings.NoAudio);
+    else (Khong)
+      :TextToSpeech.Default.SpeakAsync(text);
+    endif
+  endif
+endif
+
+if (Nguoi dung pause/stop/seek?) then (Co)
+  :OnPlayPauseClicked() / OnStopAudioClicked() /\nOnAudioSliderDragCompleted();
+  :ExecuteAudioScript(...);
+endif
+
+if (Nguoi dung bam Chi duong?) then (Co)
+  :Browser.Default.OpenAsync(google maps q=lat,lng);
+endif
+
+stop
+@enduml

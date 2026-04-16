@@ -40,15 +40,17 @@
             <tbody>
                 @if (Model.POIs.Any())
                 {
-                    @foreach (var p in Model.POIs)
+                    @foreach (var poi in Model.POIs)
                     {
-                        var monDangBat = p.MonAns.Where(m => m.TinhTrang).ToList();
+                        var activeMenuItems = poi.MonAns.Where(m => m.TinhTrang).ToList();
+                        var coverImageUrl = ImageUrlHelper.Resolve(poi.AnhDaiDien, Model.ApiBaseUrl);
+
                         <tr>
                             <td>
-                                @if (!string.IsNullOrEmpty(p.AnhDaiDien))
+                                @if (!string.IsNullOrEmpty(coverImageUrl))
                                 {
-                                    <img src="@p.AnhDaiDien" class="poi-avatar"
-                                         onerror="this.outerHTML='<div class=poi-avatar-placeholder>VK</div>'" />
+                                    <img src="@coverImageUrl" class="poi-avatar"
+                                         onerror="this.outerHTML='<div class=&quot;poi-avatar-placeholder&quot;>VK</div>'" />
                                 }
                                 else
                                 {
@@ -56,24 +58,49 @@
                                 }
                             </td>
                             <td>
-                                <strong>@p.TenPOI</strong>
-                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">@(p.SDT ?? "Không có số điện thoại")</div>
+                                <strong>@poi.TenPOI</strong>
+                                <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">@(poi.SDT ?? "Không có số điện thoại")</div>
                             </td>
-                            <td style="color:var(--text-muted);font-size:13px">@(p.DiaChi ?? "-")</td>
-                            <td style="min-width:260px;">
-                                @if (monDangBat.Any())
+                            <td style="color:var(--text-muted);font-size:13px">@(poi.DiaChi ?? "-")</td>
+                            <td style="min-width:320px;">
+                                @if (activeMenuItems.Any())
                                 {
-                                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                                        @foreach (var mon in monDangBat.Take(5))
+                                    <div style="display:flex;flex-direction:column;gap:8px;">
+                                        @foreach (var mon in activeMenuItems.Take(4))
                                         {
-                                            <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff7ed;color:#c2410c;font-size:12px;font-weight:600;">
-                                                @mon.TenMonAn
-                                            </span>
+                                            var dishImageUrl = ImageUrlHelper.Resolve(mon.HinhAnh, Model.ApiBaseUrl);
+
+                                            <div style="display:flex;align-items:center;gap:10px;">
+                                                @if (!string.IsNullOrEmpty(dishImageUrl))
+                                                {
+                                                    <img src="@dishImageUrl"
+                                                         style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex:none"
+                                                         onerror="this.style.display='none'" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="monan-img-placeholder" style="width:36px;height:36px;font-size:11px;flex:none">AN</div>
+                                                }
+
+                                                <div style="min-width:0;">
+                                                    <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                                        @mon.TenMonAn
+                                                    </div>
+                                                    <div style="font-size:12px;color:var(--text-muted);">
+                                                        @(string.IsNullOrWhiteSpace(mon.PhanLoai) ? "Chưa phân loại" : mon.PhanLoai)
+                                                        @if (mon.DonGia > 0)
+                                                        {
+                                                            <text> • @mon.DonGia.ToString("N0") đ</text>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
                                         }
-                                        @if (monDangBat.Count > 5)
+
+                                        @if (activeMenuItems.Count > 4)
                                         {
-                                            <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:600;">
-                                                +@(monDangBat.Count - 5) món
+                                            <span style="display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:600;width:max-content;">
+                                                +@(activeMenuItems.Count - 4) món
                                             </span>
                                         }
                                     </div>
@@ -83,19 +110,19 @@
                                     <span style="font-size:13px;color:var(--text-muted);">Chưa có món ăn</span>
                                 }
                             </td>
-                            <td style="font-size:13px">@p.MucUuTien</td>
+                            <td style="font-size:13px">@poi.MucUuTien</td>
                             <td>
-                                <span class="status-dot @(p.TrangThai ? "dot-on" : "dot-off")"></span>
-                                @(p.TrangThai ? "Hiện" : "Ẩn")
+                                <span class="status-dot @(poi.TrangThai ? "dot-on" : "dot-off")"></span>
+                                @(poi.TrangThai ? "Hiện" : "Ẩn")
                             </td>
                             <td>
                                 <div class="flex gap-2" style="flex-wrap:wrap;">
-                                    <a href="/Poi/Edit/@p.Id" class="btn btn-ghost btn-sm">Sửa quán</a>
-                                    <a href="/Poi/Edit/@p.Id#menu-section" class="btn btn-ghost btn-sm">Xem món</a>
+                                    <a href="/Poi/Edit/@poi.Id" class="btn btn-ghost btn-sm">Sửa quán</a>
+                                    <a href="/Poi/Edit/@poi.Id#menu-section" class="btn btn-ghost btn-sm">Xem món</a>
                                     <form method="post" asp-page-handler="Toggle" style="display:inline">
-                                        <input type="hidden" name="id" value="@p.Id" />
+                                        <input type="hidden" name="id" value="@poi.Id" />
                                         <button type="submit" class="btn btn-ghost btn-sm">
-                                            @(p.TrangThai ? "Ẩn" : "Hiện")
+                                            @(poi.TrangThai ? "Ẩn" : "Hiện")
                                         </button>
                                     </form>
                                 </div>

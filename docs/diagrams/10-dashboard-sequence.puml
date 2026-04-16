@@ -1,0 +1,21 @@
+@startuml
+' Diagram: F10 - Dashboard tong quan CMS (Sequence)
+' Status: VERIFIED
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync()
+' Note: Sequence ngan va khop truc tiep voi code dashboard hien tai; co the xem la on dinh hon cac module dang phat trien.
+title F10 - Dashboard tong quan CMS
+
+actor Admin
+participant "CMS IndexModel" as IndexModel
+participant AppDbContext
+database DB
+
+Admin -> IndexModel: mo trang chu CMS
+IndexModel -> AppDbContext: load POIs include MonAns
+AppDbContext -> DB: SELECT poi + monan
+DB --> AppDbContext: data
+IndexModel -> IndexModel: tinh TongPOI,\nTongMonAn,\nSoQuanQuaHan
+IndexModel --> Admin: dashboard summary
+@enduml

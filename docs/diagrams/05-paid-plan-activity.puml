@@ -1,0 +1,47 @@
+@startuml
+' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUI(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: OnAppearing(), StartPollingAsync(), PollStatusAsync(), ShowSuccess(), ShowRejected()
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
+' Note: Luong thanh toan app phu thuoc vao quy trinh duyet thu cong; can kiem tra lai neu doi polling, QR content hoac cach dong modal.
+title F05 - Thanh toan goi tra phi va cho duyet
+start
+:SubscriptionPage.OnMuaGoiClicked(loaiGoi != "thu");
+:Navigation.PushModalAsync(PaymentPage);
+:PaymentPage.SetupUI();
+:Tao _noiDungChuyen = "VKT <GOI> <SHORTID>";
+:Sinh URL VietQR va hien QR;
+
+if (Nguoi dung bam copy noi dung?) then (Co)
+  :Clipboard.SetTextAsync(_noiDungChuyen);
+endif
+
+if (Nguoi dung bam "Da chuyen khoan"?) then (Co)
+  :OnDaChuyenKhoanClicked();
+  :POST /api/subscription/request;
+  if (Tao yeu cau thanh cong?) then (Co)
+    :PushModalAsync(PaymentStatusPage);
+    while (Trang thai van la cho_duyet?) is (Co)
+      :PollStatusAsync();
+      :GET /api/subscription/request/{yeuCauId};
+      :dem nguoc 10 giay;
+    endwhile (Khong)
+
+    if (trangThai == da_duyet?) then (Co)
+      :ShowSuccess();
+      :Preferences.Set(sub_ngay_het_han);
+      :GoToAsync("//MainPage");
+    else (tu_choi)
+      :ShowRejected(lyDo);
+    endif
+  else (Khong)
+    :Hien loi ket noi / loi tao yeu cau;
+  endif
+else (Khong)
+  :Nguoi dung dong PaymentPage;
+endif
+stop
+@enduml

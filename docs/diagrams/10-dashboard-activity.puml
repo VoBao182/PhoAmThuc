@@ -1,0 +1,21 @@
+@startuml
+' Diagram: F10 - Dashboard tong quan CMS (Activity)
+' Status: VERIFIED
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync()
+' Note: Luong don gian va da doi chieu truc tiep voi code IndexModel hien tai; chi can sync lai neu thay doi metric hoac truy van dashboard.
+title F10 - Dashboard tong quan CMS
+start
+:Index.OnGetAsync();
+:_db.POIs.Include(MonAns).OrderBy(MucUuTien).ToListAsync();
+if (Truy van DB thanh cong?) then (Co)
+  :Tinh TongPOI = so POI dang hien thi;
+  :Tinh TongMonAn = so mon dang hoat dong;
+  :Tinh SoQuanQuaHan = POI dang hien thi nhung het han duy tri;
+  :Render dashboard CMS;
+else (Khong)
+  :Gan ErrorMessage;\nTongPOI = 0;\nTongMonAn = 0;\nSoQuanQuaHan = 0;
+endif
+stop
+@enduml

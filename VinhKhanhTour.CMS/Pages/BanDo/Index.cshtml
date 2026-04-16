@@ -1,321 +1,410 @@
 @page
 @model VinhKhanhTour.CMS.Pages.BanDo.IndexModel
 @{
-    ViewData["Title"] = "Bản đồ live";
-    ViewData["Page"]  = "bando";
+    ViewData["Title"] = "Khach hang";
+    ViewData["Page"] = "bando";
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-    .tracker-panel {
-        height: 540px;
-        overflow-y: auto;
-        border-radius: 16px;
-        border: 1px solid rgba(0,0,0,0.08);
-        background: white;
+    .customer-shell {
+        display: grid;
+        gap: 24px;
     }
-    .device-row {
-        padding: 12px 14px;
-        border-bottom: 1px solid #f3f4f6;
-        cursor: pointer;
-        transition: background 0.15s;
+
+    .customer-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 28px;
+        border-radius: 28px;
+        background:
+            linear-gradient(120deg, rgba(255,143,61,0.16), rgba(255,255,255,0.92)),
+            linear-gradient(135deg, #ffffff, #fff7ef);
+        border: 1px solid rgba(31, 41, 51, 0.08);
     }
-    .device-row:hover  { background: #fef9f0; }
-    .device-row.selected { background: #fff7ed; border-left: 3px solid #f97316; }
-    .poi-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 99px;
-        font-size: 11px;
+
+    .customer-hero h1 {
+        margin: 10px 0 8px;
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+        line-height: 1.1;
+    }
+
+    .customer-hero p {
+        margin: 0;
+        max-width: 760px;
+        color: #6b7280;
+    }
+
+    .customer-badge {
+        min-width: 180px;
+        align-self: center;
+        padding: 20px 22px;
+        border-radius: 24px;
+        background: #1f2f3d;
+        color: white;
+        text-align: center;
+        box-shadow: 0 18px 36px rgba(31, 47, 61, 0.18);
+    }
+
+    .customer-badge strong {
+        display: block;
+        font-size: 2.3rem;
+        line-height: 1;
+    }
+
+    .customer-badge span {
+        display: block;
+        margin-top: 8px;
+        color: rgba(255,255,255,0.72);
+        font-size: 0.92rem;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .summary-tile {
+        padding: 22px;
+        border-radius: 22px;
+        background: #fff;
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .summary-tile strong {
+        display: block;
+        margin-top: 10px;
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .summary-tile span {
+        color: #6b7280;
+        font-weight: 600;
+        font-size: 0.92rem;
+    }
+
+    .customer-panel {
+        padding: 24px;
+        border-radius: 28px;
+        background: rgba(255,255,255,0.88);
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+    }
+
+    .customer-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+
+    .customer-panel-head h2 {
+        margin: 6px 0 0;
+        font-size: 1.5rem;
+        font-weight: 750;
+    }
+
+    .customer-panel-head p {
+        margin: 0;
+        color: #6b7280;
+    }
+
+    .customer-table-wrap {
+        overflow-x: auto;
+    }
+
+    .customer-table {
+        width: 100%;
+        min-width: 960px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .customer-table thead th {
+        padding: 14px 16px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.83rem;
         font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .customer-table tbody td {
+        padding: 18px 16px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+        vertical-align: top;
+    }
+
+    .customer-table tbody tr:hover {
+        background: #fffaf4;
+    }
+
+    .device-cell {
+        display: grid;
+        gap: 8px;
+    }
+
+    .device-short {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 76px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+    }
+
+    .device-full {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        color: #111827;
+        font-size: 0.92rem;
+        word-break: break-all;
+    }
+
+    .mini-note {
+        color: #6b7280;
+        font-size: 0.82rem;
+    }
+
+    .status-pill,
+    .sub-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .status-online {
+        background: #e8f7ee;
+        color: #19703c;
+    }
+
+    .status-at-poi {
         background: #dcfce7;
         color: #166534;
     }
-    .poi-badge.moving { background: #f3f4f6; color: #6b7280; }
-    .sub-ok   { font-size:11px; font-weight:700; color:#16a34a; }
-    .sub-warn { font-size:11px; font-weight:700; color:#d97706; }
-    .sub-exp  { font-size:11px; font-weight:700; color:#dc2626; }
-    .stat-chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 2px 8px; border-radius: 6px;
-        font-size: 11px; font-weight: 600;
-        background: #f1f5f9; color: #475569;
-    }
-    #map { border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
-</style>
 
-<!-- Header với bộ đếm nổi bật -->
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h2 class="fw-bold mb-1">Bản đồ live</h2>
-        <p class="text-muted mb-0 small">Theo dõi khách đang sử dụng app theo thời gian thực</p>
-    </div>
-    <div class="d-flex align-items-center gap-3">
-        <div class="text-center px-4 py-2 rounded-3"
-             style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;min-width:120px">
-            <div class="fs-2 fw-bold" id="lblCount">—</div>
-            <div style="font-size:12px;opacity:0.85">khách đang online</div>
-        </div>
-        <div>
-            <div class="text-muted small" id="lblLastUpdate">Đang tải…</div>
-            <button class="btn btn-outline-secondary btn-sm mt-1 w-100"
-                    onclick="loadData()">🔄 Làm mới</button>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3">
-    <!-- Bản đồ -->
-    <div class="col-lg-8">
-        <div id="map" style="height:540px"></div>
-    </div>
-
-    <!-- Panel danh sách khách -->
-    <div class="col-lg-4">
-        <div class="tracker-panel">
-            <div class="p-3 border-bottom" style="background:#fafafa">
-                <h6 class="fw-bold mb-0">Khách đang hoạt động</h6>
-                <small class="text-muted">Cập nhật mỗi 30 giây • click để xem hành trình</small>
-            </div>
-            <div id="deviceList">
-                <div class="p-3 text-muted text-center small">Đang tải…</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal lịch sử hành trình -->
-<div class="modal fade" id="modalHistory" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalHistoryTitle">Hành trình khách</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="modalHistoryBody">
-                <div class="text-center py-4"><div class="spinner-border text-warning"></div></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-@section Scripts {
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-const CENTER   = [10.7575, 106.7000];
-const API_BASE = '@Model.ApiBaseUrl';
-const POI_DATA = @Html.Raw(Model.PoisJson);
-
-// ── Khởi tạo bản đồ ──────────────────────────────────────────────
-const map = L.map('map').setView(CENTER, 17);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
-// Icon POI (cam)
-const poiIcon = L.divIcon({
-    className: '',
-    html: `<div style="width:22px;height:22px;background:#f97316;border:3px solid white;
-                border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.28)"></div>`,
-    iconSize: [22, 22], iconAnchor: [11, 11]
-});
-
-// Vẽ POI
-POI_DATA.forEach(p => {
-    L.marker([p.lat, p.lng], { icon: poiIcon })
-        .addTo(map)
-        .bindPopup(`<strong>${p.ten}</strong><br/><small class="text-muted">${p.diaChi ?? ''}</small>`);
-});
-
-// Layer khách
-const guestLayer = L.layerGroup().addTo(map);
-let   selectedDevice = null;
-
-function makeGuestIcon(atPoi) {
-    const bg    = atPoi ? '#22c55e' : '#94a3b8';
-    const glow  = atPoi ? 'rgba(34,197,94,.35)' : 'rgba(148,163,184,.25)';
-    return L.divIcon({
-        className: '',
-        html: `<div style="width:16px;height:16px;background:${bg};border:3px solid white;
-                    border-radius:50%;box-shadow:0 0 0 4px ${glow}"></div>`,
-        iconSize: [16, 16], iconAnchor: [8, 8]
-    });
-}
-
-// ── Load dữ liệu ─────────────────────────────────────────────────
-async function loadData() {
-    try {
-        const res  = await fetch(`${API_BASE}/api/heartbeat/active`);
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-
-        // Cập nhật bộ đếm
-        document.getElementById('lblCount').textContent = data.count;
-        document.getElementById('lblLastUpdate').textContent =
-            'Cập nhật: ' + new Date().toLocaleTimeString('vi-VN');
-
-        // Vẽ lại markers
-        guestLayer.clearLayers();
-        data.items.forEach(item => {
-            const atPoi = item.poiIdHienTai != null;
-            const marker = L.marker([item.lat, item.lng], { icon: makeGuestIcon(atPoi) })
-                .addTo(guestLayer)
-                .bindPopup(buildPopup(item));
-            marker._deviceShort = item.deviceShort;
-        });
-
-        // Cập nhật danh sách bên phải
-        renderDeviceList(data.items);
-
-    } catch (e) {
-        console.error('Heartbeat error', e);
-    }
-}
-
-function subHtml(item) {
-    if (item.conLaiNgay == null)
-        return `<span class="sub-exp">Hết hạn / chưa đăng ký</span>`;
-    if (item.conLaiNgay <= 3)
-        return `<span class="sub-warn">⚠ ${item.conLaiNgay} ngày còn</span>`;
-    return `<span class="sub-ok">✓ ${item.conLaiNgay} ngày còn</span>`;
-}
-
-function buildPopup(item) {
-    const poi  = item.tenPoiHienTai || 'Đang di chuyển';
-    const time = new Date(item.lanCuoi).toLocaleTimeString('vi-VN');
-    const atPoi = !!item.poiIdHienTai;
-    return `
-        <div style="min-width:210px">
-            <div class="fw-bold mb-1" style="font-size:14px">
-                <span style="color:#22c55e">●</span> Thiết bị ${item.deviceShort}
-            </div>
-            <div class="mb-1">
-                <span style="display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;
-                      background:${atPoi ? '#dcfce7' : '#f3f4f6'};color:${atPoi ? '#166534' : '#6b7280'}">
-                    ${atPoi ? '📍' : '🚶'} ${poi}
-                </span>
-            </div>
-            <div class="d-flex gap-1 flex-wrap mb-1">
-                <span style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:5px">🏠 ${item.soQuanDaGhe} ghé</span>
-                <span style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:5px">👁 ${item.soQuanDaXem} xem</span>
-            </div>
-            <div class="mb-1">${subHtml(item)}</div>
-            <div class="text-muted" style="font-size:11px">Cập nhật: ${time}</div>
-            <button onclick="showHistory('${item.deviceShort}')"
-                    class="btn btn-sm btn-outline-primary mt-2 w-100">
-                📋 Xem hành trình
-            </button>
-        </div>`;
-}
-
-function renderDeviceList(items) {
-    const el = document.getElementById('deviceList');
-    if (!items.length) {
-        el.innerHTML = '<div class="p-3 text-muted text-center small">Chưa có khách online.</div>';
-        return;
+    .status-offline {
+        background: #f3f4f6;
+        color: #4b5563;
     }
 
-    el.innerHTML = items.map(item => {
-        const atPoi      = !!item.poiIdHienTai;
-        const poiLabel   = item.tenPoiHienTai || 'Đang di chuyển';
-        const time       = new Date(item.lanCuoi).toLocaleTimeString('vi-VN');
-        const isSelected = selectedDevice === item.deviceShort;
-        return `
-        <div class="device-row ${isSelected ? 'selected' : ''}"
-             onclick="selectDevice('${item.deviceShort}', ${item.lat}, ${item.lng})">
+    .status-empty {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
 
-            <!-- Dòng 1: tên thiết bị + hạn dùng -->
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <div class="fw-semibold" style="font-size:13px">
-                    <span style="color:#22c55e;font-size:10px">●</span>
-                    Thiết bị <span style="font-family:monospace">${item.deviceShort}</span>
-                </div>
-                <div>${subHtml(item)}</div>
-            </div>
+    .sub-active {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
 
-            <!-- Dòng 2: vị trí hiện tại -->
-            <div class="mb-1">
-                <span class="poi-badge ${atPoi ? '' : 'moving'}">
-                    ${atPoi ? '📍' : '🚶'} ${poiLabel}
-                </span>
-            </div>
+    .sub-warning {
+        background: #fff7ed;
+        color: #c2410c;
+    }
 
-            <!-- Dòng 3: stats + thời gian -->
-            <div class="d-flex gap-2 align-items-center flex-wrap mb-1">
-                <span class="stat-chip">🏠 ${item.soQuanDaGhe} ghé</span>
-                <span class="stat-chip">👁 ${item.soQuanDaXem} xem</span>
-                <span class="text-muted ms-auto" style="font-size:10px">${time}</span>
-            </div>
+    .sub-expired {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
 
-            <button onclick="event.stopPropagation();showHistory('${item.deviceShort}')"
-                    class="btn btn-sm btn-outline-secondary w-100 py-0"
-                    style="font-size:11px">📋 Xem hành trình</button>
-        </div>`;
-    }).join('');
-}
+    .poi-name {
+        font-weight: 700;
+        color: #111827;
+    }
 
-function selectDevice(short, lat, lng) {
-    selectedDevice = short;
-    map.flyTo([lat, lng], 18, { duration: 0.8 });
-    // Re-render list để highlight
-    guestLayer.eachLayer(m => {
-        if (m._deviceShort === short) m.openPopup();
-    });
-}
+    .poi-empty {
+        color: #9ca3af;
+        font-style: italic;
+    }
 
-// ── Lịch sử hành trình ───────────────────────────────────────────
-async function showHistory(deviceShort) {
-    document.getElementById('modalHistoryTitle').textContent = `Hành trình khách ${deviceShort}`;
-    document.getElementById('modalHistoryBody').innerHTML =
-        '<div class="text-center py-4"><div class="spinner-border text-warning"></div></div>';
+    .count-box {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 90px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: #f8fafc;
+        border: 1px solid rgba(148, 163, 184, 0.15);
+    }
 
-    const modal = new bootstrap.Modal(document.getElementById('modalHistory'));
-    modal.show();
+    .count-box strong {
+        font-size: 1.25rem;
+        line-height: 1;
+    }
 
-    try {
-        const res  = await fetch(`${API_BASE}/api/heartbeat/history/${deviceShort}`);
-        const data = await res.json();
+    .count-box span {
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
 
-        if (!data.lichSu?.length) {
-            document.getElementById('modalHistoryBody').innerHTML =
-                '<p class="text-muted text-center py-3">Chưa có lượt ghé thăm nào được ghi nhận.</p>';
-            return;
+    @@media (max-width: 1100px) {
+        .summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        const rows = data.lichSu.map((h, i) => `
-            <tr>
-                <td>${i + 1}</td>
-                <td><strong>${h.tenPOI}</strong></td>
-                <td class="text-muted small">${h.diaChi ?? '—'}</td>
-                <td class="text-muted small">${new Date(h.thoiGian).toLocaleTimeString('vi-VN')}</td>
-                <td>
-                    <a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank"
-                       class="btn btn-sm btn-outline-secondary py-0" style="font-size:11px">🗺 Maps</a>
-                </td>
-            </tr>`).join('');
-
-        document.getElementById('modalHistoryBody').innerHTML = `
-            <div class="d-flex gap-3 mb-3">
-                <span class="badge bg-success fs-6">${data.soDiemDaGhe} điểm đã ghé</span>
-                <span class="text-muted small align-self-center">(4 giờ gần nhất)</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead class="table-light">
-                        <tr><th>#</th><th>Địa điểm</th><th>Địa chỉ</th><th>Thời gian</th><th></th></tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>`;
-    } catch {
-        document.getElementById('modalHistoryBody').innerHTML =
-            '<p class="text-danger text-center">Lỗi tải dữ liệu.</p>';
+        .customer-hero {
+            flex-direction: column;
+        }
     }
-}
 
-// Tải lần đầu + tự động 30 giây
-loadData();
-setInterval(loadData, 30000);
-</script>
-}
+    @@media (max-width: 720px) {
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="customer-shell">
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning rounded-4">@Model.ErrorMessage</div>
+    }
+
+    <div class="customer-hero">
+        <div>
+            <div class="eyebrow">Theo doi khach hang</div>
+            <h1>Danh sach khach dang su dung app</h1>
+            <p>Trang nay chi giu cac thong tin van hanh can thiet: ma thiet bi, thoi han su dung con lai, so quan da xem, so quan da ghe, quan hien tai neu co va trang thai hoat dong.</p>
+        </div>
+        <div class="customer-badge">
+            <strong>@Model.TotalCustomers</strong>
+            <span>thiet bi da ghi nhan</span>
+        </div>
+    </div>
+
+    <div class="summary-grid">
+        <article class="summary-tile">
+            <span>Tong khach hang</span>
+            <strong>@Model.TotalCustomers</strong>
+        </article>
+        <article class="summary-tile">
+            <span>Dang hoat dong</span>
+            <strong>@Model.ActiveCustomers</strong>
+        </article>
+        <article class="summary-tile">
+            <span>Dang o quan</span>
+            <strong>@Model.CustomersAtPoi</strong>
+        </article>
+        <article class="summary-tile">
+            <span>Het han</span>
+            <strong>@Model.ExpiredCustomers</strong>
+        </article>
+    </div>
+
+    <section class="customer-panel">
+        <div class="customer-panel-head">
+            <div>
+                <div class="eyebrow">Thong tin khach hang</div>
+                <h2>Bang theo doi su dung</h2>
+            </div>
+            <p>Khong dung live map, khong can hanh trinh, chi tap trung vao thong tin quan ly.</p>
+        </div>
+
+        <div class="customer-table-wrap">
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th>Ma thiet bi</th>
+                        <th>Trang thai</th>
+                        <th>Thoi han con lai</th>
+                        <th>So quan da xem</th>
+                        <th>So quan da ghe</th>
+                        <th>Dang o quan nao</th>
+                        <th>Lan cuoi hoat dong</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Customers.Any())
+                    {
+                        @foreach (var customer in Model.Customers)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="device-cell">
+                                        <span class="device-short">@customer.DeviceShort</span>
+                                        <div class="device-full">@customer.DeviceId</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="status-pill @customer.StatusClass">@customer.StatusText</span>
+                                </td>
+                                <td>
+                                    <div class="device-cell">
+                                        <span class="sub-pill @customer.SubscriptionClass">@customer.SubscriptionText</span>
+                                        <div class="mini-note">
+                                            @(customer.ExpiresAt.HasValue
+                                                ? customer.ExpiresAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                                : "Chua co goi dang ky")
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="count-box">
+                                        <strong>@customer.ViewedPoiCount</strong>
+                                        <span>quan da xem</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="count-box">
+                                        <strong>@customer.VisitedPoiCount</strong>
+                                        <span>quan da ghe</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(customer.CurrentPoiName))
+                                    {
+                                        <div class="poi-name">@customer.CurrentPoiName</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="poi-empty">Khong co</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (customer.LastHeartbeat.HasValue)
+                                    {
+                                        <div class="device-cell">
+                                            <strong>@customer.LastHeartbeat.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</strong>
+                                            <span class="mini-note">cap nhat gan nhat</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="poi-empty">Chua ghi nhan</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                Chua co khach hang nao duoc ghi nhan trong he thong.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>

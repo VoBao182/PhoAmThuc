@@ -1,0 +1,55 @@
+@startuml
+' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUI(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync()
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
+' Note: Sequence nay chi hop le voi luong thanh toan bang QR + polling hien tai; chua xem nhu luong da chot vi ban con dang kiem tra code.
+title F05 - Thanh toan goi tra phi va cho duyet
+
+actor Guest
+participant SubscriptionPage
+participant PaymentPage
+participant PaymentStatusPage
+participant Preferences
+participant AppConfig
+participant "SubscriptionController" as SubscriptionController
+participant "VietQR / Ngan hang" as Bank
+database DB
+
+Guest -> SubscriptionPage: chon goi tra phi
+SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
+PaymentPage -> Preferences: GetDeviceId()
+PaymentPage -> PaymentPage: SetupUI()\n_tao noi dung chuyen + QR URL
+PaymentPage -> Bank: hien QR / thong tin chuyen khoan
+
+Guest -> PaymentPage: bam "Da chuyen khoan"
+PaymentPage -> AppConfig: EnsureApiBaseUrlAsync()
+PaymentPage -> SubscriptionController: POST /api/subscription/request
+SubscriptionController -> DB: insert YeuCauThanhToan(TrangThai="cho_duyet")
+DB --> SubscriptionController: YeuCauId
+SubscriptionController --> PaymentPage: 200 OK (YeuCauId)
+PaymentPage -> PaymentStatusPage: PushModalAsync(yeuCauId,...)
+
+loop moi 10 giay cho den khi co ket qua
+  PaymentStatusPage -> AppConfig: EnsureApiBaseUrlAsync()
+  PaymentStatusPage -> SubscriptionController: GET /api/subscription/request/{yeuCauId}
+  SubscriptionController -> DB: doc YeuCauThanhToan\nneu da_duyet thi tim DangKyApp con han
+  DB --> SubscriptionController: trangThai + ngayHetHan?
+  SubscriptionController --> PaymentStatusPage: JSON trang thai
+
+  alt da_duyet
+    PaymentStatusPage -> Preferences: Set(sub_ngay_het_han)
+    PaymentStatusPage -> Guest: hien ViewDaDuyet
+    break
+  else tu_choi
+    PaymentStatusPage -> Guest: hien ViewTuChoi + ly do
+    break
+  else cho_duyet
+    PaymentStatusPage -> PaymentStatusPage: cap nhat countdown 10s
+  end
+end
+@enduml

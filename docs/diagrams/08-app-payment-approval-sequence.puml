@@ -1,0 +1,43 @@
+@startuml
+' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
+' - VinhKhanhTour.API/Models/DangKyApp.cs
+' Note: Giu logic sequence theo code CMS hien tai; khong tu dong chuyen sang luong SubscriptionController approve/reject khi chua xac minh.
+title F08 - Duyet hoac tu choi thanh toan goi app
+
+actor Admin
+participant "DuyetThanhToan IndexModel" as IndexModel
+participant AppDbContext
+database DB
+
+Admin -> IndexModel: mo /DuyetThanhToan?tab=cho_duyet
+IndexModel -> AppDbContext: query YeuCauThanhToans + Count(cho_duyet)
+AppDbContext -> DB: SELECT yeu cau
+DB --> AppDbContext: danh sach
+IndexModel --> Admin: bang yeu cau
+
+alt admin duyet
+  Admin -> IndexModel: POST Approve(yeuCauId)
+  IndexModel -> AppDbContext: load YeuCauThanhToan + DangKyApp con han
+  AppDbContext -> DB: SELECT current request/subscription
+  DB --> AppDbContext: data
+  IndexModel -> IndexModel: tinh mocBatDau + hetHan moi
+  IndexModel -> AppDbContext: add DangKyApp\nupdate YeuCauThanhToan(da_duyet)
+  AppDbContext -> DB: INSERT dangkyapp + UPDATE yeucauthanhtoan
+  DB --> AppDbContext: saved
+  IndexModel --> Admin: redirect tab da_duyet
+else admin tu choi
+  Admin -> IndexModel: POST Reject(yeuCauId, lyDo)
+  IndexModel -> AppDbContext: load YeuCauThanhToan
+  AppDbContext -> DB: SELECT request
+  DB --> AppDbContext: request
+  IndexModel -> AppDbContext: update TrangThai="tu_choi"\nNgayDuyet\nGhiChuAdmin
+  AppDbContext -> DB: UPDATE yeucauthanhtoan
+  DB --> AppDbContext: saved
+  IndexModel --> Admin: redirect tab tu_choi
+end
+@enduml

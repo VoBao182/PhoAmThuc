@@ -1,0 +1,45 @@
+@startuml
+' Diagram: F01 - Kich hoat quyen su dung app (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), KiemTraSubscription()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync(), GetDeviceId()
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
+' Note: Luong dung thu va dieu huong sang PaymentPage da co trong code; nen kiem tra lai neu sau nay doi gating, ten plan hoac dieu kien mo khoa app.
+title F01 - Kich hoat quyen su dung app
+start
+:MainPage.OnAppearing();
+if (KiemTraSubscription() con han?) then (Co)
+  if (_isInitialized == false?) then (Co)
+    :LoadPoisFromApi();
+  endif
+  :EnsureGpsTrackingAsync();
+  stop
+else (Khong)
+  :EnsureSubscriptionGateAsync();
+  :Navigation.PushModalAsync(SubscriptionPage);
+
+  if (Nguoi dung chon goi dung thu?) then (Co)
+    :SubscriptionPage.OnMuaGoiClicked("thu");
+    :GetDeviceId();
+    :ActivateFreeTrialAsync();
+    :POST /api/subscription/purchase;
+    if (API thanh cong?) then (Co)
+      :Preferences.Set(sub_ngay_het_han);
+      :Preferences.Set(da_dung_thu = true);
+      :DisplayAlert thanh cong;
+      :PopModalAsync();
+    else (Khong)
+      :Hien loi tren SubscriptionPage;
+    endif
+  else (Goi tra phi)
+    :Navigation.PushModalAsync(PaymentPage);
+    note right
+      Luong chi tiet cua goi tra phi
+      duoc mo ta o F05.
+    end note
+  endif
+endif
+stop
+@enduml

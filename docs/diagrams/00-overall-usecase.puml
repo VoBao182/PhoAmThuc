@@ -1,0 +1,64 @@
+@startuml
+' Diagram: F00 - Use case tong the he thong
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs
+' - VinhKhanhTourDemo/DetailPage.xaml.cs
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs
+' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs
+' - VinhKhanhTour.API/Controllers/PoiController.cs
+' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs
+' - VinhKhanhTour.CMS/Pages/Poi/*.cshtml.cs
+' - VinhKhanhTour.CMS/Pages/ThanhToan/*.cshtml.cs
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs
+' Note: So do tong hop cap cao; giu nguyen logic hien tai va can doi chieu lai voi cac module con truoc khi dua vao bao cao.
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Khach du lich" as Guest
+actor "Quan tri vien CMS" as Admin
+actor "GPS / He thong vi tri" as GPS
+actor "Google Maps / Browser" as Maps
+actor "VietQR / Ngan hang" as Bank
+
+rectangle "VinhKhanhTour" {
+  usecase "F01\nKich hoat quyen\nsu dung app" as UC01
+  usecase "F02\nKham pha danh\nsach POI" as UC02
+  usecase "F03\nTheo doi GPS,\ngeofence, auto audio" as UC03
+  usecase "F04\nXem chi tiet POI,\nthuc don, audio, maps" as UC04
+  usecase "F05\nThanh toan goi\ntra phi va cho duyet" as UC05
+
+  usecase "F06\nQuan ly POI,\nanh, geofence,\nthuyet minh, menu" as UC06
+  usecase "F07\nGhi nhan phi duy tri\nva lich su hoa don" as UC07
+  usecase "F08\nDuyet / tu choi\nthanh toan goi app" as UC08
+  usecase "F09\nBan do live va\nhanh trinh khach" as UC09
+  usecase "F10\nDashboard tong quan CMS" as UC10
+}
+
+Guest --> UC01
+Guest --> UC02
+Guest --> UC03
+Guest --> UC04
+Guest --> UC05
+
+Admin --> UC06
+Admin --> UC07
+Admin --> UC08
+Admin --> UC09
+Admin --> UC10
+
+GPS --> UC03
+Maps --> UC04
+Maps --> UC09
+Bank --> UC05
+
+UC02 .> UC04 : <<extend>>
+UC01 .> UC05 : <<include>>
+UC08 .> UC05 : <<affects>>
+UC03 .> UC02 : <<uses POI>>
+@enduml

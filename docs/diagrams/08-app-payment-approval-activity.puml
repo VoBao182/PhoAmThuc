@@ -1,0 +1,47 @@
+@startuml
+' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
+' - VinhKhanhTour.API/Models/DangKyApp.cs
+' Note: Diagram dang bam theo luong duyet trong CMS PageModel; can doi chieu lai neu ban muon hop nhat voi approve/reject endpoint trong SubscriptionController.
+title F08 - Duyet hoac tu choi thanh toan goi app
+start
+:DuyetThanhToan/Index.OnGetAsync(tab,...);
+:Doc YeuCauThanhToans theo FilterTab;
+:Tinh SoChoDuyet;
+
+if (Admin bam Duyet?) then (Co)
+  :OnPostApproveAsync(yeuCauId);
+  :Load yeu cau;
+  if (TrangThai != cho_duyet?) then (Co)
+    :Redirect voi thong bao loi;
+  else (Hop le)
+    :Tra bang Goi de lay so ngay;
+    :Tim goi DangKyApp con han cua thiet bi;
+    :Tinh mocBatDau va hetHan moi;
+    :Them DangKyApp moi;
+    :Cap nhat YeuCauThanhToan -> da_duyet;
+    :SaveChangesAsync();
+    :Redirect ve tab da_duyet;
+  endif
+else (Khong)
+  if (Admin bam Tu choi?) then (Co)
+    :OnPostRejectAsync(yeuCauId, lyDo);
+    :Load yeu cau;
+    if (TrangThai == cho_duyet?) then (Co)
+      :Cap nhat TrangThai = tu_choi;
+      :NgayDuyet = now;
+      :GhiChuAdmin = lyDo;
+      :SaveChangesAsync();
+      :Redirect ve tab tu_choi;
+    else (Khong)
+      :Redirect voi thong bao loi;
+    endif
+  endif
+endif
+
+stop
+@enduml

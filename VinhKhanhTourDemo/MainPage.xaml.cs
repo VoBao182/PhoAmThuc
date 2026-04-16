@@ -345,7 +345,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 1,
             DiaChi = "234 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 001",
-            AnhDaiDien = "https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 2. Bò tơ — đặc sản bò nướng lá lốt
         new PoiDto
@@ -358,7 +358,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 2,
             DiaChi = "215 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 002",
-            AnhDaiDien = "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 3. Lẩu cá đuối — nét đặc trưng phố hải sản
         new PoiDto
@@ -371,7 +371,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 3,
             DiaChi = "404 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 003",
-            AnhDaiDien = "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 4. Chè — đồ ngọt giải nhiệt
         new PoiDto
@@ -384,7 +384,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 4,
             DiaChi = "180 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 004",
-            AnhDaiDien = "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 5. Hải sản nướng — mực, tôm, ghẹ
         new PoiDto
@@ -397,7 +397,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 5,
             DiaChi = "310 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 005",
-            AnhDaiDien = "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 6. Bún bò Huế — món nước đặc sắc
         new PoiDto
@@ -410,7 +410,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 6,
             DiaChi = "152 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 006",
-            AnhDaiDien = "https://images.unsplash.com/photo-1617093727343-374698b1b08d?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
         // 7. Quán nhậu — mồi nhắm đặc sắc buổi tối
         new PoiDto
@@ -423,7 +423,7 @@ public partial class MainPage : ContentPage
             MucUuTien = 7,
             DiaChi = "275 Vĩnh Khánh, Q4, TP.HCM",
             SDT    = "0909 000 007",
-            AnhDaiDien = "https://images.unsplash.com/photo-1529563021893-cc83c992d75d?auto=format&fit=crop&w=1200&q=80"
+            AnhDaiDien = null
         },
     ];
 
@@ -950,9 +950,7 @@ public partial class MainPage : ContentPage
         SheetDiaChi.Text = $"{GetText("Địa chỉ", "Address", "地址")}: {poi.DiaChi ?? GetText("Phố Vĩnh Khánh, Quận 4", "Vinh Khanh Street, District 4", "荣庆街，第4区")}";
         SheetSDT.Text = string.IsNullOrEmpty(poi.SDT) ? "" : $"Hotline: {poi.SDT}";
 
-        SheetImg.Source = string.IsNullOrEmpty(poi.AnhDaiDien)
-            ? ImageSource.FromUri(new Uri("https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400"))
-            : ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(poi.AnhDaiDien)));
+        SheetImg.Source = FoodImageCatalog.GetPoiImageSource(poi.AnhDaiDien, poi.TenPOI);
 
         SheetNearBadge.IsVisible = _currentPoi?.Id == poi.Id || _playingPoi?.Id == poi.Id;
 
@@ -1017,6 +1015,31 @@ public partial class MainPage : ContentPage
         return source.ToList();
     }
 
+    private (string Label, Color Accent) GetPoiVisualMeta(PoiDto poi)
+    {
+        var text = NormalizeSearchText(poi.TenPOI);
+
+        if (text.Contains("oc") || text.Contains("ngheu") || text.Contains("hai san"))
+            return (GetText("Hai san", "Seafood", "Hai xian"), Color.FromArgb("#0F766E"));
+
+        if (text.Contains("bo") || text.Contains("nuong"))
+            return (GetText("Nuong", "Grill", "Shao kao"), Color.FromArgb("#B45309"));
+
+        if (text.Contains("lau"))
+            return (GetText("Lau", "Hotpot", "Huo guo"), Color.FromArgb("#7C3AED"));
+
+        if (text.Contains("che") || text.Contains("tra sua"))
+            return (GetText("Trang mieng", "Dessert", "Tian pin"), Color.FromArgb("#DB2777"));
+
+        if (text.Contains("bun") || text.Contains("pho") || text.Contains("mi") || text.Contains("hu tieu"))
+            return (GetText("Mon nuoc", "Noodles", "Mian shi"), Color.FromArgb("#2563EB"));
+
+        if (text.Contains("nhau") || text.Contains("via he") || text.Contains("an vat"))
+            return (GetText("Pho dem", "Street food", "Ye shi"), Color.FromArgb("#EA580C"));
+
+        return (GetText("Quan an", "Eatery", "Can ting"), Color.FromArgb("#475569"));
+    }
+
     private void RenderPoiCards()
     {
         PoiListContainer.Children.Clear();
@@ -1063,44 +1086,113 @@ public partial class MainPage : ContentPage
 
             bool isNear = _currentPoi?.Id == poi.Id;
             bool isPlaying = _playingPoi?.Id == poi.Id;
+            var visualMeta = GetPoiVisualMeta(poi);
 
             var card = new Border
             {
-                Stroke = isNear ? Color.FromArgb("#FF6600") : Colors.Transparent,
-                StrokeThickness = isNear ? 2 : 0,
+                Stroke = isNear ? visualMeta.Accent : Color.FromArgb("#ECE7E1"),
+                StrokeThickness = isNear ? 2 : 1,
                 BackgroundColor = Colors.White,
-                StrokeShape = new RoundRectangle { CornerRadius = 15 },
+                StrokeShape = new RoundRectangle { CornerRadius = 20 },
                 Shadow = new Shadow
                 {
                     Brush = Colors.Black,
-                    Offset = new Point(0, 2),
-                    Opacity = isNear ? 0.15f : 0.08f,
-                    Radius = 8
-                }
+                    Offset = new Point(0, 4),
+                    Opacity = isNear ? 0.14f : 0.07f,
+                    Radius = 10
+                },
+                Padding = 0
             };
 
             var grid = new Grid
             {
                 RowDefinitions =
                 {
-                    new RowDefinition { Height = 160 },
+                    new RowDefinition { Height = 172 },
                     new RowDefinition { Height = GridLength.Auto }
                 }
             };
 
+            var media = new Grid();
+            Grid.SetRow(media, 0);
+
+            var imageFrame = new Border
+            {
+                Stroke = Colors.Transparent,
+                BackgroundColor = Color.FromArgb("#FFF7ED"),
+                StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(20, 20, 0, 0) }
+            };
+
             var img = new Image
             {
-                Source = string.IsNullOrEmpty(poi.AnhDaiDien)
-                    ? "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800"
-                    : AppConfig.ResolveImageUrl(poi.AnhDaiDien),
+                Source = FoodImageCatalog.GetPoiImageSource(poi.AnhDaiDien, poi.TenPOI),
                 Aspect = Aspect.AspectFill
             };
-            Grid.SetRow(img, 0);
+            imageFrame.Content = img;
+            media.Children.Add(imageFrame);
+
+            var imageShade = new BoxView
+            {
+                VerticalOptions = LayoutOptions.End,
+                HeightRequest = 88,
+                Opacity = 0.95
+            };
+            imageShade.Background = new LinearGradientBrush(
+                new GradientStopCollection
+                {
+                    new GradientStop(Colors.Transparent, 0.0f),
+                    new GradientStop(Color.FromArgb("#C2191A1A"), 1.0f)
+                },
+                new Point(0, 0),
+                new Point(0, 1));
+            media.Children.Add(imageShade);
+
+            var imageBadge = new Border
+            {
+                BackgroundColor = Color.FromRgba(
+                    visualMeta.Accent.Red,
+                    visualMeta.Accent.Green,
+                    visualMeta.Accent.Blue,
+                    0.92f),
+                Stroke = Colors.Transparent,
+                Padding = new Thickness(10, 5),
+                Margin = new Thickness(14, 14, 0, 0),
+                HorizontalOptions = LayoutOptions.Start,
+                VerticalOptions = LayoutOptions.Start,
+                StrokeShape = new RoundRectangle { CornerRadius = 999 }
+            };
+            imageBadge.Content = new Label
+            {
+                Text = visualMeta.Label,
+                FontSize = 11,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Colors.White
+            };
+            media.Children.Add(imageBadge);
+
+            var distanceChip = new Border
+            {
+                BackgroundColor = Color.FromArgb("#CC111827"),
+                Stroke = Colors.Transparent,
+                Padding = new Thickness(10, 5),
+                Margin = new Thickness(14, 0, 14, 14),
+                HorizontalOptions = LayoutOptions.Start,
+                VerticalOptions = LayoutOptions.End,
+                StrokeShape = new RoundRectangle { CornerRadius = 999 }
+            };
+            distanceChip.Content = new Label
+            {
+                Text = distanceText,
+                FontSize = 11,
+                FontAttributes = FontAttributes.Bold,
+                TextColor = Colors.White
+            };
+            media.Children.Add(distanceChip);
 
             var info = new VerticalStackLayout
             {
-                Padding = new Thickness(15),
-                Spacing = 8
+                Padding = new Thickness(16, 14, 16, 16),
+                Spacing = 9
             };
 
             if (isNear || isPlaying)
@@ -1109,7 +1201,7 @@ public partial class MainPage : ContentPage
                 {
                     Text = GetText("Đang gần - tự động phát audio", "Nearby - auto audio", "附近 - 自动语音"),
                     FontSize = 11,
-                    TextColor = Color.FromArgb("#FF6600"),
+                    TextColor = visualMeta.Accent,
                     FontAttributes = FontAttributes.Bold
                 });
             }
@@ -1119,24 +1211,29 @@ public partial class MainPage : ContentPage
                 Text = poi.TenPOI,
                 FontSize = 18,
                 FontAttributes = FontAttributes.Bold,
-                TextColor = Colors.Black
+                TextColor = Colors.Black,
+                MaxLines = 2,
+                LineBreakMode = LineBreakMode.WordWrap
             });
 
             info.Children.Add(new Label
             {
                 Text = $"{distanceText} - {poi.DiaChi ?? GetText("Phố Vĩnh Khánh", "Vinh Khanh Street", "荣庆街")}",
                 FontSize = 13,
-                TextColor = Color.FromArgb("#666666")
+                TextColor = Color.FromArgb("#666666"),
+                MaxLines = 2,
+                LineBreakMode = LineBreakMode.TailTruncation
             });
 
             var btn = new Button
             {
                 Text = GetText("Xem chi tiết", "View details", "查看详情"),
-                BackgroundColor = isNear ? Color.FromArgb("#FF6600") : Color.FromArgb("#2196F3"),
+                BackgroundColor = isNear ? visualMeta.Accent : Color.FromArgb("#1F2937"),
                 TextColor = Colors.White,
-                CornerRadius = 8,
+                CornerRadius = 10,
                 Margin = new Thickness(0, 8, 0, 0),
-                FontAttributes = FontAttributes.Bold
+                FontAttributes = FontAttributes.Bold,
+                HeightRequest = 42
             };
 
             var capturedPoi = poi;
@@ -1145,7 +1242,7 @@ public partial class MainPage : ContentPage
             info.Children.Add(btn);
             Grid.SetRow(info, 1);
 
-            grid.Children.Add(img);
+            grid.Children.Add(media);
             grid.Children.Add(info);
             card.Content = grid;
             PoiListContainer.Children.Add(card);

@@ -1,0 +1,50 @@
+@startuml
+' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: LoadPoisFromApi(), RefreshPoisInBackgroundAsync(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync()
+' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView()
+' Note: So do giu luong hien tai gom API va fallback local sample; can sync lai neu thay doi cach tim kiem, refresh hoac luu view.
+title F02 - Tai va kham pha danh sach POI
+start
+:MainPage.LoadPoisFromApi();
+:AppConfig.EnsureApiBaseUrlAsync();
+:GET /api/poi;
+if (API thanh cong?) then (Co)
+  :_pois = ket qua tu PoiController.GetAll();
+  :_isUsingFallbackData = false;
+else (Khong)
+  :CreateFallbackPois();
+  :_isUsingFallbackData = true;
+endif
+
+:LoadMap();
+:RenderPoiCards();
+:UpdateApiConnectionUi();
+
+while (Nguoi dung tiep tuc kham pha?) is (Co)
+  if (Nhap tu khoa tim kiem?) then (Co)
+    :OnSearchTextChanged();
+    :GetVisiblePois();
+    :RenderPoiCards();
+  endif
+
+  if (Bam xem chi tiet POI?) then (Co)
+    :OpenPoiDetailAsync(poi);
+    :RecordViewedPoi(poi);
+    :RecordPoiViewAsync(poi);
+    :Navigation.PushAsync(new DetailPage(poi));
+  endif
+
+  if (Den chu ky refresh nen?) then (Co)
+    :RefreshPoisInBackgroundAsync();
+    :GET /api/poi;
+    :LoadMap();
+    :RenderPoiCards();
+  endif
+endwhile (Khong)
+
+stop
+@enduml

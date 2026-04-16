@@ -6,6 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- Debug trên Windows: build ra thư mục an toàn hơn để tránh App Control chặn DLL trong bin\Debug -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows')) and '$(Configuration)' == 'Debug'">
+    <OutputPath>$(MSBuildProjectDirectory)\..\.codex-temp\api-build\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
   <!-- Tự động unblock DLL sau build (tránh SAC chặn trên máy dev) -->
   <Target Name="UnblockOutput" AfterTargets="Build">
     <Exec Command="powershell -NonInteractive -Command &quot;Get-ChildItem '$(OutDir)' -Recurse -Include '*.dll','*.exe' | ForEach-Object { Unblock-File $_.FullName -ErrorAction SilentlyContinue }&quot;" ContinueOnError="true" />

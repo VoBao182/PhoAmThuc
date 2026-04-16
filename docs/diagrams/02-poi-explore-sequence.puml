@@ -1,0 +1,46 @@
+@startuml
+' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: LoadPoisFromApi(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync()
+' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView()
+' Note: Sequence da bam theo code MainPage hien tai; chua mo rong them luong ngoai repo va khong tu suy dien event nao khac.
+title F02 - Tai va kham pha danh sach POI
+
+actor Guest
+participant MainPage
+participant AppConfig
+participant "PoiController" as PoiController
+participant "HeartbeatController" as HeartbeatController
+participant DetailPage
+database DB
+
+Guest -> MainPage: mo man Explore
+MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+MainPage -> PoiController: GET /api/poi
+PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri > now
+DB --> PoiController: danh sach POI
+PoiController --> MainPage: List<PoiDto>
+MainPage -> MainPage: LoadMap()\nRenderPoiCards()
+
+Guest -> MainPage: nhap SearchEntry
+MainPage -> MainPage: OnSearchTextChanged()\nGetVisiblePois()\nRenderPoiCards()
+
+Guest -> MainPage: bam "Xem chi tiet"
+MainPage -> MainPage: OpenPoiDetailAsync(poi)\nRecordViewedPoi(poi)
+MainPage -> HeartbeatController: POST /api/heartbeat/view
+HeartbeatController -> DB: dedup 5 phut + insert LichSuPhat(Nguon="VIEW")
+DB --> HeartbeatController: saved
+MainPage -> DetailPage: PushAsync(new DetailPage(poi))
+
+opt refresh nen 30 giay
+  MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+  MainPage -> PoiController: GET /api/poi
+  PoiController -> DB: query lai POI
+  DB --> PoiController: danh sach moi
+  PoiController --> MainPage: List<PoiDto>
+  MainPage -> MainPage: LoadMap()\nRenderPoiCards()
+end
+@enduml

@@ -1,0 +1,51 @@
+@startuml
+' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), OnPostToggleAsync()
+' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
+' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml.cs: OnGetAsync(), OnPostAsync(), UpsertBanDich()
+' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
+' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
+' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
+' Note: CMS POI pages dang co thay doi trong worktree; giu WIP va khong nang cap VERIFIED truoc khi ban chot form/menu/upload.
+title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
+start
+:Admin mo /Poi hoac /Poi/Create hoac /Poi/Edit/{id};
+
+if (Can tai anh cover / anh mon an?) then (Co)
+  :JS doUpload(file);
+  :fetch POST /api/upload;
+  :UploadController.Upload(IFormFile);
+  :Luu file vao wwwroot/uploads;
+  :Tra ve url tuong doi;
+  :Gan url vao input POI.AnhDaiDien hoac MonAns[i].HinhAnh;
+endif
+
+if (Dang tao POI moi?) then (Co)
+  :CreateModel.OnPostAsync();
+  :Tao POI.Id moi;
+  :Tao ThuyetMinh + cac BanDich vi/en/zh;
+  :Tao danh sach MonAns tu form;
+  :_db.POIs.Add(POI);
+else (Sua POI)
+  :EditModel.OnPostAsync();
+  :Load POI + MonAns + ThuyetMinhs;
+  :Cap nhat thong tin POI;
+  :UpsertBanDich("vi"|"en"|"zh");
+  :Danh dau MonAn khong con tren form -> TinhTrang=false;
+  :Them moi / cap nhat MonAn;
+endif
+
+:SaveChangesAsync();
+:Redirect ve /Poi hoac reload trang edit;
+
+if (Admin bam Hien/An trong danh sach?) then (Co)
+  :IndexModel.OnPostToggleAsync(id);
+  :poi.TrangThai = !poi.TrangThai;
+  :SaveChangesAsync();
+endif
+
+stop
+@enduml

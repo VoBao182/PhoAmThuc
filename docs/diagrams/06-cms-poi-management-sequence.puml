@@ -1,0 +1,53 @@
+@startuml
+' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
+' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml.cs: OnPostAsync(), UpsertBanDich()
+' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload()
+' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload()
+' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
+' Note: Sequence giu nguyen luong form + upload + SaveChanges; can so lai neu sau nay tach service hoac doi cach xu ly menu/thuyet minh.
+title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
+
+actor Admin
+participant "Create/Edit.cshtml JS" as JS
+participant "UploadController" as UploadController
+participant "CreateModel / EditModel" as PageModel
+participant AppDbContext
+database DB
+collections "wwwroot/uploads" as UploadStore
+
+opt upload cover hoac anh mon an
+  Admin -> JS: chon file anh
+  JS -> UploadController: fetch POST /api/upload
+  UploadController -> UploadStore: File.Create(fullPath)\nCopyToAsync(stream)
+  UploadStore --> UploadController: file saved
+  UploadController --> JS: { url: "/uploads/..." }
+  JS --> Admin: gan url vao form + previewImg()/setMonAnPreview()
+end
+
+alt tao POI moi
+  Admin -> PageModel: submit /Poi/Create
+  PageModel -> PageModel: CreateModel.OnPostAsync()\nTao POI + ThuyetMinh + BanDich + MonAns
+  PageModel -> AppDbContext: Add(POI)
+  AppDbContext -> DB: INSERT poi/thuyetminh/bandich/monan
+  DB --> AppDbContext: saved
+  AppDbContext --> PageModel: SaveChangesAsync()
+else sua POI hien co
+  Admin -> PageModel: submit /Poi/Edit/{id}
+  PageModel -> AppDbContext: load POI + MonAns + ThuyetMinhs
+  AppDbContext -> DB: SELECT data hien co
+  DB --> AppDbContext: entity graph
+  PageModel -> PageModel: cap nhat POI\nUpsertBanDich()\nadd/update/deactivate MonAns
+  AppDbContext -> DB: UPDATE + INSERT related rows
+  DB --> AppDbContext: saved
+end
+
+opt bat/tat hien thi POI
+  Admin -> PageModel: POST /Poi?handler=Toggle
+  PageModel -> AppDbContext: poi.TrangThai = !poi.TrangThai
+  AppDbContext -> DB: UPDATE poi.trangthai
+end
+@enduml

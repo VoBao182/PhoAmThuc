@@ -2,7 +2,9 @@
 @model VinhKhanhTour.CMS.Pages.Poi.EditModel
 @{
     ViewData["Title"] = "Sửa quán: " + Model.POI.TenPOI;
-    ViewData["Page"]  = "poi";
+    ViewData["Page"] = "poi";
+
+    var coverImageUrl = ImageUrlHelper.Resolve(Model.POI.AnhDaiDien, Model.ApiBaseUrl);
 }
 <script>const API_BASE = "@Model.ApiBaseUrl";</script>
 
@@ -16,8 +18,8 @@
 }
 
 <form method="post">
-    <input type="hidden" asp-for="POI.Id"/>
-    <input type="hidden" id="monan-count" name="monan-count" value="@Model.POI.MonAns.Count"/>
+    <input type="hidden" asp-for="POI.Id" />
+    <input type="hidden" id="monan-count" name="monan-count" value="@Model.POI.MonAns.Count" />
 
     <div class="grid-2" style="align-items:start;gap:24px">
         <div style="display:flex;flex-direction:column;gap:20px">
@@ -26,45 +28,45 @@
 
                 <div class="form-group">
                     <label class="form-label">Tên quán <span style="color:var(--danger)">*</span></label>
-                    <input asp-for="POI.TenPOI" class="form-input" required/>
+                    <input asp-for="POI.TenPOI" class="form-input" required />
                 </div>
 
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label">Số điện thoại</label>
-                        <input asp-for="POI.SDT" class="form-input" placeholder="028 xxxx xxxx"/>
+                        <input asp-for="POI.SDT" class="form-input" placeholder="028 xxxx xxxx" />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Thứ tự hiển thị</label>
-                        <input asp-for="POI.MucUuTien" type="number" class="form-input"/>
+                        <input asp-for="POI.MucUuTien" type="number" class="form-input" />
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Địa chỉ</label>
-                    <input asp-for="POI.DiaChi" class="form-input" placeholder="Số nhà, Phố Vĩnh Khánh, Q4"/>
+                    <input asp-for="POI.DiaChi" class="form-input" placeholder="Số nhà, Phố Vĩnh Khánh, Q4" />
                 </div>
 
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label">Vĩ độ (Lat)</label>
-                        <input asp-for="POI.ViDo" type="number" step="any" class="form-input"/>
+                        <input asp-for="POI.ViDo" type="number" step="any" class="form-input" />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Kinh độ (Lng)</label>
-                        <input asp-for="POI.KinhDo" type="number" step="any" class="form-input"/>
+                        <input asp-for="POI.KinhDo" type="number" step="any" class="form-input" />
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Bán kính geofence (m)</label>
-                    <input asp-for="POI.BanKinh" type="number" class="form-input"/>
-                    <div class="form-hint">Khoảng cách để kích hoạt thuyết minh tự động. Mặc định 10m.</div>
+                    <input asp-for="POI.BanKinh" type="number" class="form-input" />
+                    <div class="form-hint">Khoảng cách để kích hoạt thuyết minh tự động.</div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">
-                        <input type="checkbox" asp-for="POI.TrangThai" style="margin-right:6px"/>
+                        <input type="checkbox" asp-for="POI.TrangThai" style="margin-right:6px" />
                         Hiển thị trên app
                     </label>
                 </div>
@@ -77,24 +79,25 @@
                     <div style="display:flex;gap:8px;align-items:center">
                         <input asp-for="POI.AnhDaiDien" id="input-cover-url" class="form-input"
                                placeholder="https://... hoặc nhấn Chọn file"
-                               oninput="previewImg(this,'preview-cover')"/>
+                               oninput="previewImg(this,'preview-cover')" />
                         <label class="btn btn-ghost btn-sm" style="white-space:nowrap;cursor:pointer">
                             Chọn file
                             <input type="file" accept="image/*" style="display:none"
-                                   onchange="uploadImg(this,'input-cover-url','preview-cover')"/>
+                                   onchange="uploadImg(this,'input-cover-url','preview-cover')" />
                         </label>
                     </div>
                     <div id="upload-cover-status" class="form-hint"></div>
                 </div>
-                @if (!string.IsNullOrEmpty(Model.POI.AnhDaiDien))
+
+                @if (!string.IsNullOrEmpty(coverImageUrl))
                 {
-                    <img id="preview-cover" src="@Model.POI.AnhDaiDien" class="img-preview-lg"
-                         style="width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px"
-                         onerror="this.style.display='none'"/>
+                    <img id="preview-cover" src="@coverImageUrl" class="img-preview-lg"
+                         style="display:block;width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px"
+                         onerror="this.style.display='none'" />
                 }
                 else
                 {
-                    <img id="preview-cover" style="display:none;width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px"/>
+                    <img id="preview-cover" style="display:none;width:100%;height:160px;object-fit:cover;border-radius:8px;margin-top:8px" />
                 }
             </div>
         </div>
@@ -160,54 +163,53 @@
         </div>
 
         <div id="monan-list">
-            @for (int i = 0; i < Model.POI.MonAns.Count; i++)
+            @for (var i = 0; i < Model.POI.MonAns.Count; i++)
             {
-                var m = Model.POI.MonAns.ElementAt(i);
+                var mon = Model.POI.MonAns.ElementAt(i);
+                var imageUrl = ImageUrlHelper.Resolve(mon.HinhAnh, Model.ApiBaseUrl);
+
                 <div class="monan-item" id="monan-@i">
                     <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-                        @if (!string.IsNullOrEmpty(m.HinhAnh))
+                        @if (!string.IsNullOrEmpty(imageUrl))
                         {
-                            <img id="monan-img-@i" src="@m.HinhAnh" class="monan-img"
-                                 onerror="this.outerHTML='<div id=monan-img-@i class=monan-img-placeholder>AN</div>'"/>
+                            <img id="monan-img-@i" src="@imageUrl" class="monan-img"
+                                 onerror="this.outerHTML=&quot;<div id='monan-img-@i' class='monan-img-placeholder'>AN</div>&quot;" />
                         }
                         else
                         {
                             <div id="monan-img-@i" class="monan-img-placeholder">AN</div>
                         }
-                        <label style="font-size:10px;color:var(--primary);cursor:pointer;text-align:center">
+                        <label style="font-size:10px;color:var(--brand);cursor:pointer;text-align:center">
                             Đổi ảnh
                             <input type="file" accept="image/*" style="display:none"
-                                   onchange="uploadMonAnImg(this,@i)"/>
+                                   onchange="uploadMonAnImg(this,@i)" />
                         </label>
                     </div>
                     <div>
-                        <input type="hidden" name="MonAns[@i].Id" value="@m.Id"/>
-                        <input name="MonAns[@i].TenMonAn" value="@m.TenMonAn"
-                               placeholder="Tên món ăn" class="form-input" style="margin-bottom:6px" required/>
-                        <input name="MonAns[@i].MoTa" value="@m.MoTa"
-                               placeholder="Mô tả ngắn (tùy chọn)" class="form-input" style="font-size:12px"/>
-                        <input id="monan-url-@i" name="MonAns[@i].HinhAnh" value="@m.HinhAnh"
+                        <input type="hidden" name="MonAns.Index" value="@i" />
+                        <input type="hidden" name="MonAns[@i].Id" value="@mon.Id" />
+                        <input name="MonAns[@i].TenMonAn" value="@mon.TenMonAn"
+                               placeholder="Tên món ăn" class="form-input" style="margin-bottom:6px" required />
+                        <input name="MonAns[@i].MoTa" value="@mon.MoTa"
+                               placeholder="Mô tả ngắn (tùy chọn)" class="form-input" style="font-size:12px" />
+                        <input id="monan-url-@i" name="MonAns[@i].HinhAnh" value="@mon.HinhAnh"
                                placeholder="URL ảnh hoặc chọn file ở trên" class="form-input"
                                style="font-size:12px;margin-top:6px"
-                               oninput="updateMonAnImg(this,@i)"/>
+                               oninput="updateMonAnImg(this,@i)" />
                     </div>
-                    <input name="MonAns[@i].PhanLoai" value="@m.PhanLoai"
-                           placeholder="VD: Khai vị" class="form-input"/>
-                    <input name="MonAns[@i].DonGia" type="number" value="@m.DonGia"
-                           placeholder="0" class="form-input"/>
-                    <button type="button" class="remove-btn"
-                            onclick="removeMonAn(@i, '@m.Id')">×</button>
-                    <input type="hidden" name="MonAns[@i].TinhTrang" value="true"/>
+                    <input name="MonAns[@i].PhanLoai" value="@mon.PhanLoai"
+                           placeholder="VD: Khai vị" class="form-input" />
+                    <input name="MonAns[@i].DonGia" type="number" value="@mon.DonGia"
+                           placeholder="0" class="form-input" />
+                    <button type="button" class="remove-btn" onclick="removeMonAn(@i)">×</button>
+                    <input type="hidden" name="MonAns[@i].TinhTrang" value="true" />
                 </div>
             }
         </div>
 
-        @if (!Model.POI.MonAns.Any())
-        {
-            <div style="text-align:center;padding:32px;color:var(--text-muted);font-size:14px">
-                Chưa có món ăn. Nhấn "Thêm món" để bắt đầu.
-            </div>
-        }
+        <div id="monan-empty" style="@(Model.POI.MonAns.Any() ? "display:none;" : "")text-align:center;padding:32px;color:var(--text-muted);font-size:14px">
+            Chưa có món ăn. Nhấn "Thêm món" để bắt đầu.
+        </div>
     </div>
 
     <div class="flex-between mt-6">
@@ -218,112 +220,154 @@
 
 @section Scripts {
 <script>
-// ── Upload helper ─────────────────────────────────────────────
+function resolveImageUrl(url) {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return trimmed.startsWith('/') ? `${API_BASE}${trimmed}` : `${API_BASE}/${trimmed.replace(/^\/+/, '')}`;
+}
+
+function previewImg(inputEl, previewId) {
+    const url = resolveImageUrl(inputEl.value);
+    const img = document.getElementById(previewId);
+    if (!img) return;
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+    } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+    }
+}
+
 async function doUpload(file) {
     const fd = new FormData();
     fd.append('file', file);
+
     const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: fd });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Upload thất bại');
     }
+
     const data = await res.json();
-    return data.url; // đường dẫn tương đối /uploads/...
+    return data.url;
 }
 
-// Upload ảnh bìa quán
 async function uploadImg(fileInput, urlInputId, previewId) {
     const file = fileInput.files[0];
     if (!file) return;
+
     const status = document.getElementById('upload-cover-status');
     status.textContent = 'Đang tải lên...';
+
     try {
         const url = await doUpload(file);
         document.getElementById(urlInputId).value = url;
-        const preview = document.getElementById(previewId);
-        preview.src = API_BASE + url;
-        preview.style.display = 'block';
+        previewImg(document.getElementById(urlInputId), previewId);
         status.textContent = 'Tải lên thành công.';
         setTimeout(() => status.textContent = '', 3000);
     } catch (e) {
         status.textContent = e.message;
     }
+
     fileInput.value = '';
 }
 
-// Upload ảnh món ăn
+function setMonAnPreview(idx, url) {
+    const imgEl = document.getElementById(`monan-img-${idx}`);
+    if (!imgEl) return;
+
+    const resolvedUrl = resolveImageUrl(url);
+    if (!resolvedUrl) {
+        imgEl.outerHTML = `<div id="monan-img-${idx}" class="monan-img-placeholder">AN</div>`;
+        return;
+    }
+
+    imgEl.outerHTML = `<img id="monan-img-${idx}" src="${resolvedUrl}" class="monan-img"
+        onerror="this.outerHTML='<div id=&quot;monan-img-${idx}&quot; class=&quot;monan-img-placeholder&quot;>AN</div>'"/>`;
+}
+
 async function uploadMonAnImg(fileInput, idx) {
     const file = fileInput.files[0];
     if (!file) return;
+
     try {
         const url = await doUpload(file);
         const urlInput = document.getElementById(`monan-url-${idx}`);
-        if (urlInput) urlInput.value = url;
-        const imgEl = document.getElementById(`monan-img-${idx}`);
-        if (imgEl) imgEl.outerHTML =
-            `<img id="monan-img-${idx}" src="${API_BASE+url}" class="monan-img"
-                  onerror="this.outerHTML='<div id=monan-img-${idx} class=monan-img-placeholder>AN</div>'"/>`;
+        if (urlInput) {
+            urlInput.value = url;
+        }
+        setMonAnPreview(idx, url);
     } catch (e) {
         alert(e.message);
     }
+
     fileInput.value = '';
 }
 
-// ── Cập nhật preview khi dán URL ─────────────────────────────
 function updateMonAnImg(input, idx) {
-    const url = input.value.trim();
-    const imgEl = document.getElementById(`monan-img-${idx}`);
-    if (!imgEl) return;
-    if (url) {
-        const src = url.startsWith('/') ? API_BASE + url : url;
-        imgEl.outerHTML =
-            `<img id="monan-img-${idx}" src="${src}" class="monan-img"
-                  onerror="this.outerHTML='<div id=monan-img-${idx} class=monan-img-placeholder>AN</div>'"/>`;
-    }
+    setMonAnPreview(idx, input.value);
 }
 
-// ── Quản lý danh sách món ────────────────────────────────────
 let monAnIndex = @Model.POI.MonAns.Count;
 document.getElementById('monan-count').value = monAnIndex;
+
+function toggleEmptyMenuState() {
+    const empty = document.getElementById('monan-empty');
+    const container = document.getElementById('monan-list');
+    if (!empty || !container) return;
+    empty.style.display = container.children.length === 0 ? 'block' : 'none';
+}
 
 function addMonAn() {
     const container = document.getElementById('monan-list');
     const i = monAnIndex++;
     document.getElementById('monan-count').value = monAnIndex;
+
     const div = document.createElement('div');
     div.className = 'monan-item';
     div.id = `monan-${i}`;
     div.innerHTML = `
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
             <div id="monan-img-${i}" class="monan-img-placeholder">AN</div>
-            <label style="font-size:10px;color:var(--primary);cursor:pointer;text-align:center">
+            <label style="font-size:10px;color:var(--brand);cursor:pointer;text-align:center">
                 Đổi ảnh
                 <input type="file" accept="image/*" style="display:none"
                        onchange="uploadMonAnImg(this,${i})"/>
             </label>
         </div>
         <div>
-            <input type="hidden" name="MonAns[${i}].Id" value=""/>
+            <input type="hidden" name="MonAns.Index" value="${i}" />
+            <input type="hidden" name="MonAns[${i}].Id" value="" />
             <input name="MonAns[${i}].TenMonAn" placeholder="Tên món ăn"
-                   class="form-input" style="margin-bottom:6px" required/>
+                   class="form-input" style="margin-bottom:6px" required />
             <input name="MonAns[${i}].MoTa" placeholder="Mô tả ngắn"
-                   class="form-input" style="font-size:12px"/>
+                   class="form-input" style="font-size:12px" />
             <input id="monan-url-${i}" name="MonAns[${i}].HinhAnh"
                    placeholder="URL ảnh hoặc chọn file ở trên"
                    class="form-input" style="font-size:12px;margin-top:6px"
-                   oninput="updateMonAnImg(this,${i})"/>
+                   oninput="updateMonAnImg(this,${i})" />
         </div>
-        <input name="MonAns[${i}].PhanLoai" placeholder="VD: Khai vị" class="form-input"/>
-        <input name="MonAns[${i}].DonGia" type="number" placeholder="0" class="form-input"/>
-        <button type="button" class="remove-btn" onclick="removeMonAn(${i},'')">×</button>
-        <input type="hidden" name="MonAns[${i}].TinhTrang" value="true"/>
+        <input name="MonAns[${i}].PhanLoai" placeholder="VD: Khai vị" class="form-input" />
+        <input name="MonAns[${i}].DonGia" type="number" placeholder="0" class="form-input" />
+        <button type="button" class="remove-btn" onclick="removeMonAn(${i})">×</button>
+        <input type="hidden" name="MonAns[${i}].TinhTrang" value="true" />
     `;
+
     container.appendChild(div);
+    toggleEmptyMenuState();
 }
 
-function removeMonAn(idx, id) {
+function removeMonAn(idx) {
     const el = document.getElementById(`monan-${idx}`);
-    if (el) el.remove();
+    if (el) {
+        el.remove();
+    }
+    toggleEmptyMenuState();
 }
+
+toggleEmptyMenuState();
 </script>
 }

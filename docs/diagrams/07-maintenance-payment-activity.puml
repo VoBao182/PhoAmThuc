@@ -1,0 +1,49 @@
+@startuml
+' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
+' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
+' - VinhKhanhTour.CMS/Pages/ThanhToan/LichSu.cshtml.cs: OnGetAsync()
+' - VinhKhanhTour.API/Models/POI.cs
+' - VinhKhanhTour.API/Models/DangKyDichVu.cs
+' - VinhKhanhTour.API/Models/HoaDon.cs
+' Note: Luong CMS hien dang thao tac truc tiep qua PageModel/DbContext; can check lai neu sau nay chuyen sang PaymentController hoac doi quy trinh nghiep vu.
+title F07 - Ghi nhan phi duy tri va lich su hoa don POI
+start
+:ThanhToan/Index.OnGetAsync();
+:Load danh sach POI + trang thai han duy tri;
+:Tinh SoQuanDaDong / SoQuanQuaHan / SoQuanSapHan / TongThuThang;
+
+if (Admin chon mot POI de ghi nhan?) then (Co)
+  :GhiNhan.OnGetAsync(poiId);
+  :LoadPoiAsync(poiId);
+  :Hien thong tin quan + lich su gan day;
+
+  :Admin nhap soThangGiaHan, phiDuyTriThang, ghiChu;
+  if (soThangGiaHan <= 0?) then (Co)
+    :Bao loi validation;
+  else (Hop le)
+    :GhiNhan.OnPostAsync();
+    :Tinh mocGiaHan;
+    :Cap nhat poi.NgayHetHanDuyTri;
+    :poi.TrangThai = true;
+    if (Chua co DangKyDichVu?) then (Co)
+      :Tao DangKyDichVu moi;
+    else (Da co)
+      :Cap nhat PhiDuyTriThang va NgayHetHan;
+    endif
+    :Lap theo soThangGiaHan -> tao HoaDon theo tung ky;
+    :SaveChangesAsync();
+    :Redirect ve /ThanhToan voi thong bao thanh cong;
+  endif
+endif
+
+if (Admin muon xem lich su day du?) then (Co)
+  :LichSu.OnGetAsync(poiId);
+  :Truy van toan bo HoaDons cua POI;
+endif
+
+stop
+@enduml

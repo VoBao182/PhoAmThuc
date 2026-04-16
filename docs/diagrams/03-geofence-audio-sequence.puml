@@ -1,0 +1,56 @@
+@startuml
+' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit()
+' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
+' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
+' Note: Sequence nay nen duoc kiem tra lai moi khi thay doi cooldown, dieu kien vao geofence, hoac cach phat audio/TTS.
+title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
+
+actor Guest
+participant MainPage
+participant "Geolocation / GPS" as GPS
+participant "HeartbeatController" as HeartbeatController
+participant "ThuyetMinhController" as ThuyetMinhController
+participant "LogController" as LogController
+participant "TextToSpeech" as TTS
+database DB
+
+Guest -> MainPage: cho phep vi tri
+MainPage -> MainPage: EnsureGpsTrackingAsync()\nStartGpsTracking()
+
+loop moi 5 giay
+  MainPage -> GPS: GetLocationAsync()
+  GPS --> MainPage: lat/lng
+  MainPage -> MainPage: CheckGeofence(location)
+
+  opt moi 15 giay
+    MainPage -> HeartbeatController: POST /api/heartbeat
+    HeartbeatController -> DB: upsert VitriKhach
+    DB --> HeartbeatController: saved
+  end
+
+  alt vao POI moi va da qua cooldown
+    MainPage -> HeartbeatController: POST /api/heartbeat/visit
+    HeartbeatController -> DB: dedup 10 phut + insert LichSuPhat(Nguon="GPS")
+    DB --> HeartbeatController: saved
+
+    MainPage -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode
+    ThuyetMinhController -> DB: load ThuyetMinh + BanDich fallback ve "vi"
+    DB --> ThuyetMinhController: NoiDung / FileAudio
+    ThuyetMinhController --> MainPage: ThuyetMinhResponse
+
+    MainPage -> TTS: SpeakAsync(content)
+    TTS --> MainPage: da doc xong
+
+    MainPage -> LogController: POST /api/log
+    LogController -> DB: insert LichSuPhat(Nguon="GPS")
+    DB --> LogController: saved
+  else khong vao POI moi
+    MainPage -> MainPage: cap nhat highlight / card / map
+  end
+end
+@enduml

@@ -283,8 +283,7 @@ player.addEventListener('ended', emitState);
             if (_poi == null) throw new Exception("API trả về null");
 
             // Ảnh bìa
-            if (!string.IsNullOrEmpty(_poi.AnhDaiDien))
-                ImgCover.Source = ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(_poi.AnhDaiDien)));
+            ImgCover.Source = FoodImageCatalog.GetPoiImageSource(_poi.AnhDaiDien, _poi.TenPOI);
 
             LblTitle.Text    = _poi.TenPOI;
             LblTen.Text      = _poi.TenPOI;
@@ -311,11 +310,7 @@ player.addEventListener('ended', emitState);
 
     private void UseFallback(string tenPoi)
     {
-        var fallbackImg = AppConfig.ResolveImageUrl(
-            _poiBasic.AnhDaiDien
-            ?? "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800");
-
-        ImgCover.Source    = ImageSource.FromUri(new Uri(fallbackImg));
+        ImgCover.Source    = FoodImageCatalog.GetPoiImageSource(_poiBasic.AnhDaiDien, tenPoi);
         LblTitle.Text      = tenPoi;
         LblTen.Text        = tenPoi;
         LblDiaChi.Text     = "📍 " + (_poiBasic.DiaChi ?? AppStrings.DefaultAddress);
@@ -361,50 +356,58 @@ player.addEventListener('ended', emitState);
                 var card = new Border
                 {
                     BackgroundColor = Colors.White,
-                    Stroke          = Color.FromArgb("#EEEEEE"),
+                    Stroke          = Color.FromArgb("#F1E6DA"),
                     StrokeShape     = new Microsoft.Maui.Controls.Shapes.RoundRectangle
-                                      { CornerRadius = 12 },
+                                      { CornerRadius = 16 },
                     Padding = 0,
                     Shadow  = new Shadow
                     {
                         Brush  = Brush.Black,
-                        Offset = new Point(0, 2),
-                        Radius = 6,
+                        Offset = new Point(0, 4),
+                        Radius = 8,
                         Opacity = 0.06f
                     }
                 };
-
-                bool hasImg = !string.IsNullOrEmpty(mon.HinhAnh);
 
                 var grid = new Grid
                 {
                     ColumnDefinitions =
                     {
-                        new ColumnDefinition { Width = hasImg ? 90 : 0 },
+                        new ColumnDefinition { Width = 104 },
                         new ColumnDefinition { Width = GridLength.Star }
                     }
                 };
 
-                if (hasImg)
+                var imageFrame = new Border
                 {
-                    var img = new Image
+                    BackgroundColor = Color.FromArgb("#FFF7ED"),
+                    Stroke = Colors.Transparent,
+                    HeightRequest = 104,
+                    WidthRequest = 104,
+                    StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle
                     {
-                        Source       = ImageSource.FromUri(new Uri(AppConfig.ResolveImageUrl(mon.HinhAnh))),
-                        Aspect       = Aspect.AspectFill,
-                        HeightRequest = 90,
-                        WidthRequest  = 90
-                    };
-                    img.Clip = new Microsoft.Maui.Controls.Shapes.RoundRectangleGeometry(
-                        new CornerRadius(12, 0, 12, 0),
-                        new Rect(0, 0, 90, 90));
-                    Grid.SetColumn(img, 0);
-                    grid.Children.Add(img);
-                }
+                        CornerRadius = new CornerRadius(16, 0, 0, 16)
+                    }
+                };
+
+                var img = new Image
+                {
+                    Source        = FoodImageCatalog.GetDishImageSource(mon.HinhAnh, mon.TenMonAn, mon.PhanLoai),
+                    Aspect        = Aspect.AspectFill,
+                    HeightRequest = 104,
+                    WidthRequest  = 104
+                };
+                img.Clip = new Microsoft.Maui.Controls.Shapes.RoundRectangleGeometry(
+                    new CornerRadius(16, 0, 0, 16),
+                    new Rect(0, 0, 104, 104));
+                imageFrame.Content = img;
+                Grid.SetColumn(imageFrame, 0);
+                grid.Children.Add(imageFrame);
 
                 var info = new VerticalStackLayout
                 {
-                    Padding = new Thickness(12, 10),
-                    Spacing = 4
+                    Padding = new Thickness(14, 12),
+                    Spacing = 5
                 };
 
                 info.Children.Add(new Label
@@ -412,7 +415,9 @@ player.addEventListener('ended', emitState);
                     Text           = mon.TenMonAn,
                     FontSize       = 15,
                     FontAttributes = FontAttributes.Bold,
-                    TextColor      = Colors.Black
+                    TextColor      = Colors.Black,
+                    MaxLines       = 2,
+                    LineBreakMode  = LineBreakMode.WordWrap
                 });
 
                 if (!string.IsNullOrEmpty(mon.MoTa))

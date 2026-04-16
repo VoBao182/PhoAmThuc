@@ -1,0 +1,46 @@
+@startuml
+' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
+' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
+' - VinhKhanhTour.CMS/Pages/ThanhToan/LichSu.cshtml.cs: OnGetAsync()
+' Note: Sequence nay mo ta dung luong Razor PageModel hien tai, khong mo ta API PaymentController du phong de tranh suy dien vuot qua code dang chay.
+title F07 - Ghi nhan phi duy tri va lich su hoa don POI
+
+actor Admin
+participant "ThanhToan/IndexModel" as IndexModel
+participant "GhiNhanModel" as GhiNhanModel
+participant "LichSuModel" as LichSuModel
+participant AppDbContext
+database DB
+
+Admin -> IndexModel: mo /ThanhToan
+IndexModel -> AppDbContext: load POIs + DangKyDichVus + HoaDons(thang hien tai)
+AppDbContext -> DB: SELECT du lieu thanh toan POI
+DB --> AppDbContext: data
+IndexModel --> Admin: danh sach + thong ke
+
+Admin -> GhiNhanModel: mo /ThanhToan/GhiNhan?poiId=...
+GhiNhanModel -> AppDbContext: LoadPoiAsync(poiId)
+AppDbContext -> DB: SELECT POI + DangKyDichVu + 5 HoaDon gan nhat
+DB --> AppDbContext: data
+GhiNhanModel --> Admin: form ghi nhan
+
+Admin -> GhiNhanModel: submit soThangGiaHan, phi, ghiChu
+GhiNhanModel -> AppDbContext: load poi + goi hien tai
+AppDbContext -> DB: SELECT / INSERT / UPDATE
+GhiNhanModel -> GhiNhanModel: tinh mocGiaHan\ncap nhat POI + upsert DangKyDichVu\ntao HoaDon theo tung ky
+AppDbContext -> DB: SaveChanges()
+DB --> AppDbContext: saved
+GhiNhanModel --> Admin: redirect /ThanhToan?msg=...
+
+opt xem lich su day du
+  Admin -> LichSuModel: mo /ThanhToan/LichSu?poiId=...
+  LichSuModel -> AppDbContext: query HoaDons cua POI
+  AppDbContext -> DB: SELECT hoadon ORDER BY NgayThanhToan DESC
+  DB --> AppDbContext: hoa don
+  LichSuModel --> Admin: bang lich su
+end
+@enduml

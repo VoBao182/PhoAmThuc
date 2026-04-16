@@ -13,7 +13,12 @@ public class CreateModel : PageModel
 
     public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
-    [BindProperty] public POI POI { get; set; } = new();
+    [BindProperty] public POI POI { get; set; } = new()
+    {
+        TrangThai = true,
+        BanKinh = 10,
+        MucUuTien = 1
+    };
     [BindProperty] public string? ThuyetMinhVi { get; set; }
     [BindProperty] public string? ThuyetMinhEn { get; set; }
     [BindProperty] public string? ThuyetMinhZh { get; set; }
@@ -23,8 +28,10 @@ public class CreateModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        POI.Id        = Guid.NewGuid();
-        POI.TrangThai = true;
+        if (!ModelState.IsValid)
+            return Page();
+
+        POI.Id = Guid.NewGuid();
 
         // Thuyết minh
         var tm = new VinhKhanhTour.API.Models.ThuyetMinh

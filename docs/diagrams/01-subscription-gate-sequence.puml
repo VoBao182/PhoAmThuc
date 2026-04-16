@@ -1,0 +1,46 @@
+@startuml
+' Diagram: F01 - Kich hoat quyen su dung app (Sequence)
+' Status: WIP
+' Baseline: branch master, HEAD 6510344
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync()
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
+' Note: Sequence nay chi mo ta phan gate va quick trial; luong goi tra phi chi duoc noi toi PaymentPage va duoc theo doi chi tiet o F05.
+title F01 - Kich hoat quyen su dung app
+
+actor Guest
+participant MainPage
+participant Preferences
+participant SubscriptionPage
+participant PaymentPage
+participant AppConfig
+participant "SubscriptionController" as SubscriptionController
+database DB
+
+Guest -> MainPage: mo app / OnAppearing()
+MainPage -> Preferences: KiemTraSubscription()
+
+alt subscription con han
+  MainPage -> MainPage: LoadPoisFromApi()
+  MainPage -> MainPage: EnsureGpsTrackingAsync()
+else chua co / het han
+  MainPage -> SubscriptionPage: PushModalAsync()
+
+  alt chon goi dung thu
+    Guest -> SubscriptionPage: OnMuaGoiClicked("thu")
+    SubscriptionPage -> Preferences: GetDeviceId()\nneu chua co thi tao UUID moi
+    SubscriptionPage -> AppConfig: EnsureApiBaseUrlAsync()
+    SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
+    SubscriptionController -> DB: kiem tra da dung thu?\ninsert DangKyApp
+    DB --> SubscriptionController: saved
+    SubscriptionController --> SubscriptionPage: ngayHetHan
+    SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
+    SubscriptionPage --> MainPage: PopModalAsync()
+  else chon goi tra phi
+    Guest -> SubscriptionPage: OnMuaGoiClicked("ngay|tuan|thang|nam")
+    SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
+  end
+end
+@enduml
