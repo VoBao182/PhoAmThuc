@@ -154,6 +154,99 @@ public class HeartbeatController : ControllerBase
     }
 
     // -----------------------------------------------------------------------
+    // POST /api/heartbeat/sync-history
+    // Dong bo lai so POI da xem/da ghe tu app len server
+    // de CMS khong bi lech neu mot vai request fire-and-forget bi rot.
+    // -----------------------------------------------------------------------
+    [HttpPost("sync-history")]
+    public async Task<IActionResult> SyncHistory([FromBody] HistorySyncRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.MaThietBi))
+            return BadRequest(new { message = "MaThietBi không được trống." });
+
+        var maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi);
+        var ngonNgu = LichSuPhatInputNormalizer.NormalizeNgonNgu(req.NgonNgu);
+
+        var viewedPoiIds = (req.ViewedPoiIds ?? [])
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToHashSet();
+
+        var visitedPoiIds = (req.VisitedPoiIds ?? [])
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToHashSet();
+
+        var allPoiIds = viewedPoiIds.Union(visitedPoiIds).ToList();
+        if (allPoiIds.Count == 0)
+            return Ok(new { insertedViews = 0, insertedVisits = 0 });
+
+        var existingLogs = await _db.LichSuPhats
+            .AsNoTracking()
+            .Where(l => l.MaThietBi == maThietBi
+                     && l.POIId.HasValue
+                     && allPoiIds.Contains(l.POIId.Value)
+                     && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+            .Select(l => new
+            {
+                PoiId = l.POIId!.Value,
+                l.Nguon
+            })
+            .ToListAsync();
+
+        var existingViewed = existingLogs
+            .Where(x => x.Nguon == "VIEW")
+            .Select(x => x.PoiId)
+            .ToHashSet();
+
+        var existingVisited = existingLogs
+            .Where(x => x.Nguon == "GPS")
+            .Select(x => x.PoiId)
+            .ToHashSet();
+
+        var now = DateTime.UtcNow;
+        var insertedViews = 0;
+        var insertedVisits = 0;
+
+        foreach (var poiId in viewedPoiIds.Except(existingViewed))
+        {
+            _db.LichSuPhats.Add(new LichSuPhat
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = maThietBi,
+                POIId = poiId,
+                ThoiGian = now,
+                NgonNguDung = ngonNgu,
+                Nguon = "VIEW"
+            });
+            insertedViews++;
+        }
+
+        foreach (var poiId in visitedPoiIds.Except(existingVisited))
+        {
+            _db.LichSuPhats.Add(new LichSuPhat
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = maThietBi,
+                POIId = poiId,
+                ThoiGian = now,
+                NgonNguDung = ngonNgu,
+                Nguon = "GPS"
+            });
+            insertedVisits++;
+        }
+
+        if (insertedViews > 0 || insertedVisits > 0)
+            await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            insertedViews,
+            insertedVisits
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // GET /api/heartbeat/active
     // Danh sách thiết bị online kèm POI hiện tại, số quán đã ghé/xem,
     // thời hạn gói đăng ký còn lại.
@@ -294,4 +387,12 @@ public class VisitRequest
     public string MaThietBi { get; set; } = "";
     public Guid   PoiId     { get; set; }
     public string? NgonNgu  { get; set; }
+}
+
+public class HistorySyncRequest
+{
+    public string MaThietBi { get; set; } = "";
+    public List<Guid>? ViewedPoiIds { get; set; }
+    public List<Guid>? VisitedPoiIds { get; set; }
+    public string? NgonNgu { get; set; }
 }

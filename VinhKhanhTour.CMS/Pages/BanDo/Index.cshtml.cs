@@ -130,22 +130,22 @@ public class IndexModel : PageModel
             ActiveCustomers = 0;
             CustomersAtPoi = 0;
             ExpiredCustomers = 0;
-            ErrorMessage = $"Khong the tai danh sach khach hang: {ex.GetBaseException().Message}";
+            ErrorMessage = $"Không thể tải danh sách khách hàng: {ex.GetBaseException().Message}";
         }
     }
 
     private static string GetStatusText(bool isOnline, bool isAtPoi, DateTime? lastHeartbeat)
     {
         if (isAtPoi)
-            return "Dang o quan";
+            return "Đang ở quán";
 
         if (isOnline)
-            return "Dang hoat dong";
+            return "Đang hoạt động";
 
         if (lastHeartbeat.HasValue)
-            return "Khong hoat dong";
+            return "Không hoạt động";
 
-        return "Chua ghi nhan";
+        return "Chưa ghi nhận";
     }
 
     private static string GetStatusClass(bool isOnline, bool isAtPoi, DateTime? lastHeartbeat)
@@ -165,12 +165,12 @@ public class IndexModel : PageModel
     private static string GetSubscriptionText(bool hasSubscription, bool isExpired, int? remainingDays)
     {
         if (!hasSubscription)
-            return "Chua dang ky";
+            return "Chưa đăng ký";
 
         if (isExpired)
-            return "Het han";
+            return "Hết hạn";
 
-        return remainingDays == 1 ? "Con 1 ngay" : $"Con {remainingDays} ngay";
+        return remainingDays == 1 ? "Còn 1 ngày" : $"Còn {remainingDays} ngày";
     }
 
     private static string GetSubscriptionClass(bool hasSubscription, bool isExpired, int? remainingDays)

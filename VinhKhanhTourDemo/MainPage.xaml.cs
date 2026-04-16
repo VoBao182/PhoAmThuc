@@ -46,6 +46,7 @@ public partial class MainPage : ContentPage
     private Guid? _pendingHighlightPoiId;
     private string _searchText = "";
     private readonly SemaphoreSlim _speakLock = new(1, 1);
+    private readonly SemaphoreSlim _historySyncLock = new(1, 1);
     private readonly Dictionary<string, DateTime> _lastSpokenTime = new();
     private int _heartbeatTick = 0;
     private int _poiRefreshTick = 0;
@@ -77,6 +78,7 @@ public partial class MainPage : ContentPage
         }
 
         await EnsureGpsTrackingAsync();
+        _ = SyncPoiHistoryAsync();
     }
 
     private async Task<bool> EnsureSubscriptionGateAsync()
@@ -175,6 +177,7 @@ public partial class MainPage : ContentPage
     {
         RecordViewedPoi(poi);
         _ = RecordPoiViewAsync(poi);   // ghi nhận lên server để CMS thấy số quán đã xem
+        _ = SyncPoiHistoryAsync();
         UpdateCaiDatUI();
         await Navigation.PushAsync(new DetailPage(poi));
     }
@@ -270,6 +273,8 @@ public partial class MainPage : ContentPage
                 Console.WriteLine($"=== Loaded {_pois.Count} POI ===");
                 foreach (var p in _pois)
                     Console.WriteLine($"  - {p.TenPOI}: {p.ViDo}, {p.KinhDo}");
+
+                _ = SyncPoiHistoryAsync();
             }
         }
         catch (Exception ex)
@@ -564,7 +569,8 @@ public partial class MainPage : ContentPage
             string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
             var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
-            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/view", body);
+            var response = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/view", body);
+            response.EnsureSuccessStatusCode();
         }
         catch
         {
@@ -582,11 +588,64 @@ public partial class MainPage : ContentPage
             string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
             var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
-            await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/visit", body);
+            var response = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/visit", body);
+            response.EnsureSuccessStatusCode();
         }
         catch
         {
             // Fire-and-forget
+        }
+    }
+
+    private async Task SyncPoiHistoryAsync()
+    {
+        if (!await _historySyncLock.WaitAsync(0))
+            return;
+
+        try
+        {
+            var deviceId = Preferences.Get("device_id", "");
+            if (string.IsNullOrWhiteSpace(deviceId))
+                return;
+
+            static List<Guid> ParsePoiIds(HashSet<string> rawIds)
+            {
+                var result = new List<Guid>();
+                foreach (var rawId in rawIds)
+                {
+                    if (Guid.TryParse(rawId, out var poiId) && poiId != Guid.Empty)
+                        result.Add(poiId);
+                }
+
+                return result;
+            }
+
+            var viewedPoiIds = ParsePoiIds(GetSavedPoiIds(ViewedPoiIdsPreferenceKey));
+            var visitedPoiIds = ParsePoiIds(GetSavedPoiIds(VisitedPoiIdsPreferenceKey));
+
+            if (viewedPoiIds.Count == 0 && visitedPoiIds.Count == 0)
+                return;
+
+            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            var body = new
+            {
+                MaThietBi = deviceId,
+                ViewedPoiIds = viewedPoiIds,
+                VisitedPoiIds = visitedPoiIds,
+                NgonNgu = lang
+            };
+
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var response = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/sync-history", body);
+            response.EnsureSuccessStatusCode();
+        }
+        catch
+        {
+            // Silent sync retry on next refresh/open
+        }
+        finally
+        {
+            _historySyncLock.Release();
         }
     }
 
@@ -629,6 +688,7 @@ public partial class MainPage : ContentPage
             {
                 _lastSpokenTime[poiKey] = DateTime.UtcNow;
                 RecordVisitedPoi(nearest);
+                _ = SyncPoiHistoryAsync();
 
                 Console.WriteLine($"[Geofence] Speak: {nearest.TenPOI}");
                 // Ghi nhận lượt ghé thăm POI lên server (để admin theo dõi hành trình)

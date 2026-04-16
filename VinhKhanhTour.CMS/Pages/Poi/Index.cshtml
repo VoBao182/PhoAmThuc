@@ -43,19 +43,12 @@
                     @foreach (var poi in Model.POIs)
                     {
                         var activeMenuItems = poi.MonAns.Where(m => m.TinhTrang).ToList();
-                        var coverImageUrl = ImageUrlHelper.Resolve(poi.AnhDaiDien, Model.ApiBaseUrl);
+                        var coverImageUrl = ImageUrlHelper.ResolvePoi(poi.AnhDaiDien, Model.ApiBaseUrl, poi.TenPOI);
 
                         <tr>
                             <td>
-                                @if (!string.IsNullOrEmpty(coverImageUrl))
-                                {
-                                    <img src="@coverImageUrl" class="poi-avatar"
-                                         onerror="this.outerHTML='<div class=&quot;poi-avatar-placeholder&quot;>VK</div>'" />
-                                }
-                                else
-                                {
-                                    <div class="poi-avatar-placeholder">VK</div>
-                                }
+                                <img src="@coverImageUrl" class="poi-avatar"
+                                     onerror="this.onerror=null;this.src='/images/fallback/restaurant_generic.svg';" />
                             </td>
                             <td>
                                 <strong>@poi.TenPOI</strong>
@@ -68,19 +61,12 @@
                                     <div style="display:flex;flex-direction:column;gap:8px;">
                                         @foreach (var mon in activeMenuItems.Take(4))
                                         {
-                                            var dishImageUrl = ImageUrlHelper.Resolve(mon.HinhAnh, Model.ApiBaseUrl);
+                                            var dishImageUrl = ImageUrlHelper.ResolveDish(mon.HinhAnh, Model.ApiBaseUrl, mon.TenMonAn, mon.PhanLoai);
 
                                             <div style="display:flex;align-items:center;gap:10px;">
-                                                @if (!string.IsNullOrEmpty(dishImageUrl))
-                                                {
-                                                    <img src="@dishImageUrl"
-                                                         style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex:none"
-                                                         onerror="this.style.display='none'" />
-                                                }
-                                                else
-                                                {
-                                                    <div class="monan-img-placeholder" style="width:36px;height:36px;font-size:11px;flex:none">AN</div>
-                                                }
+                                                <img src="@dishImageUrl"
+                                                     style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex:none"
+                                                     onerror="this.onerror=null;this.src='/images/fallback/dish_generic.svg';" />
 
                                                 <div style="min-width:0;">
                                                     <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">

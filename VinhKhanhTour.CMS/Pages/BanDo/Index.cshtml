@@ -1,7 +1,7 @@
 @page
 @model VinhKhanhTour.CMS.Pages.BanDo.IndexModel
 @{
-    ViewData["Title"] = "Khach hang";
+    ViewData["Title"] = "Khách hàng";
     ViewData["Page"] = "bando";
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
@@ -281,31 +281,30 @@
 
     <div class="customer-hero">
         <div>
-            <div class="eyebrow">Theo doi khach hang</div>
-            <h1>Danh sach khach dang su dung app</h1>
-            <p>Trang nay chi giu cac thong tin van hanh can thiet: ma thiet bi, thoi han su dung con lai, so quan da xem, so quan da ghe, quan hien tai neu co va trang thai hoat dong.</p>
+            <div class="eyebrow">Theo dõi khách hàng</div>
+            <h1>Danh sách khách đang sử dụng app</h1>
         </div>
         <div class="customer-badge">
             <strong>@Model.TotalCustomers</strong>
-            <span>thiet bi da ghi nhan</span>
+            <span>thiết bị đã ghi nhận</span>
         </div>
     </div>
 
     <div class="summary-grid">
         <article class="summary-tile">
-            <span>Tong khach hang</span>
+            <span>Tổng khách hàng</span>
             <strong>@Model.TotalCustomers</strong>
         </article>
         <article class="summary-tile">
-            <span>Dang hoat dong</span>
+            <span>Đang hoạt động</span>
             <strong>@Model.ActiveCustomers</strong>
         </article>
         <article class="summary-tile">
-            <span>Dang o quan</span>
+            <span>Đang ở quán</span>
             <strong>@Model.CustomersAtPoi</strong>
         </article>
         <article class="summary-tile">
-            <span>Het han</span>
+            <span>Hết hạn</span>
             <strong>@Model.ExpiredCustomers</strong>
         </article>
     </div>
@@ -313,23 +312,22 @@
     <section class="customer-panel">
         <div class="customer-panel-head">
             <div>
-                <div class="eyebrow">Thong tin khach hang</div>
-                <h2>Bang theo doi su dung</h2>
+                <div class="eyebrow">Thông tin khách hàng</div>
+                <h2>Bảng theo dõi sử dụng</h2>
             </div>
-            <p>Khong dung live map, khong can hanh trinh, chi tap trung vao thong tin quan ly.</p>
         </div>
 
         <div class="customer-table-wrap">
             <table class="customer-table">
                 <thead>
                     <tr>
-                        <th>Ma thiet bi</th>
-                        <th>Trang thai</th>
-                        <th>Thoi han con lai</th>
-                        <th>So quan da xem</th>
-                        <th>So quan da ghe</th>
-                        <th>Dang o quan nao</th>
-                        <th>Lan cuoi hoat dong</th>
+                        <th>Mã thiết bị</th>
+                        <th>Trạng thái</th>
+                        <th>Thời hạn còn lại</th>
+                        <th>Số quán đã xem</th>
+                        <th>Số quán đã ghé</th>
+                        <th>Đang ở quán nào</th>
+                        <th>Lần cuối hoạt động</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -353,20 +351,20 @@
                                         <div class="mini-note">
                                             @(customer.ExpiresAt.HasValue
                                                 ? customer.ExpiresAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                                : "Chua co goi dang ky")
+                                                : "Chưa có gói đăng ký")
                                         </div>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="count-box">
                                         <strong>@customer.ViewedPoiCount</strong>
-                                        <span>quan da xem</span>
+                                        <span>quán đã xem</span>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="count-box">
                                         <strong>@customer.VisitedPoiCount</strong>
-                                        <span>quan da ghe</span>
+                                        <span>quán đã ghé</span>
                                     </div>
                                 </td>
                                 <td>
@@ -376,7 +374,7 @@
                                     }
                                     else
                                     {
-                                        <div class="poi-empty">Khong co</div>
+                                        <div class="poi-empty">Không có</div>
                                     }
                                 </td>
                                 <td>
@@ -384,12 +382,12 @@
                                     {
                                         <div class="device-cell">
                                             <strong>@customer.LastHeartbeat.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</strong>
-                                            <span class="mini-note">cap nhat gan nhat</span>
+                                            <span class="mini-note">cập nhật gần nhất</span>
                                         </div>
                                     }
                                     else
                                     {
-                                        <span class="poi-empty">Chua ghi nhan</span>
+                                        <span class="poi-empty">Chưa ghi nhận</span>
                                     }
                                 </td>
                             </tr>
@@ -399,7 +397,7 @@
                     {
                         <tr>
                             <td colspan="7" class="text-center text-muted py-4">
-                                Chua co khach hang nao duoc ghi nhan trong he thong.
+                                Chưa có khách hàng nào được ghi nhận trong hệ thống.
                             </td>
                         </tr>
                     }
