@@ -1,19 +1,19 @@
 @page
 @model VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel
 @{
-    ViewData["Title"] = "Duyệt thanh toán app";
-    ViewData["Page"]  = "duyetthanhtoan";
+    ViewData["Title"] = "Duyet thanh toan app";
+    ViewData["Page"] = "duyetthanhtoan";
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-0">Duyệt thanh toán app</h2>
-            <p class="text-muted mb-0">Xác nhận yêu cầu chuyển khoản từ khách mua gói</p>
+            <h2 class="fw-bold mb-0">Duyet thanh toan app</h2>
+            <p class="text-muted mb-0">Xac nhan yeu cau chuyen khoan tu khach mua goi</p>
         </div>
         <span class="badge bg-warning text-dark fs-6">
-            @Model.SoChoDuyet yêu cầu chờ duyệt
+            @Model.SoChoDuyet yeu cau cho duyet
         </span>
     </div>
 
@@ -24,27 +24,27 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
-    @if (!string.IsNullOrEmpty(Model.LỗiMsg))
+
+    @if (!string.IsNullOrEmpty(Model.LoiMsg))
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @Model.LỗiMsg
+            @Model.LoiMsg
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
-    <!-- Filter tabs -->
     <ul class="nav nav-tabs mb-3" id="filterTab">
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "cho_duyet" ? "active" : "")"
-               href="?tab=cho_duyet">⏳ Chờ duyệt (@Model.SoChoDuyet)</a>
+               href="?tab=cho_duyet">Cho duyet (@Model.SoChoDuyet)</a>
         </li>
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "da_duyet" ? "active" : "")"
-               href="?tab=da_duyet">✅ Đã duyệt</a>
+               href="?tab=da_duyet">Da duyet</a>
         </li>
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "tu_choi" ? "active" : "")"
-               href="?tab=tu_choi">❌ Đã từ chối</a>
+               href="?tab=tu_choi">Da tu choi</a>
         </li>
     </ul>
 
@@ -54,13 +54,13 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Thiết bị</th>
-                            <th>Gói</th>
-                            <th>Số tiền</th>
-                            <th>Nội dung CK</th>
-                            <th>Thời gian</th>
-                            <th>Ghi chú admin</th>
-                            <th>Thao tác</th>
+                            <th>Thiet bi</th>
+                            <th>Goi</th>
+                            <th>So tien</th>
+                            <th>Noi dung CK</th>
+                            <th>Thoi gian</th>
+                            <th>Ghi chu admin</th>
+                            <th>Thao tac</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,7 +68,7 @@
                         {
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    Không có yêu cầu nào.
+                                    Khong co yeu cau nao.
                                 </td>
                             </tr>
                         }
@@ -76,23 +76,32 @@
                         {
                             <tr>
                                 <td>
-                                    <span class="font-monospace small fw-semibold"
-                                          title="@yc.MaThietBi">
-                                        @(yc.MaThietBi.Length > 8 ? yc.MaThietBi[..8].ToUpper() : yc.MaThietBi.ToUpper())
+                                    <span class="font-monospace small fw-semibold" title="@yc.MaThietBi">
+                                        @(yc.MaThietBi.Length > 8 ? yc.MaThietBi[..8].ToUpperInvariant() : yc.MaThietBi.ToUpperInvariant())
                                     </span>
-                                    <div class="text-muted" style="font-size:10px">ID thiết bị</div>
+                                    <div class="text-muted" style="font-size:10px">ID thiet bi</div>
                                 </td>
                                 <td>
                                     @switch (yc.LoaiGoi)
                                     {
-                                        case "ngay":  <span class="badge bg-secondary">1 ngày</span>;   break;
-                                        case "tuan":  <span class="badge bg-info text-dark">1 tuần</span>; break;
-                                        case "thang": <span class="badge bg-primary">1 tháng</span>;   break;
-                                        case "nam":   <span class="badge bg-success">1 năm</span>;     break;
-                                        default:      <span class="badge bg-light text-dark">@yc.LoaiGoi</span>; break;
+                                        case "ngay":
+                                            <span class="badge bg-secondary">1 ngay</span>
+                                            break;
+                                        case "tuan":
+                                            <span class="badge bg-info text-dark">1 tuan</span>
+                                            break;
+                                        case "thang":
+                                            <span class="badge bg-primary">1 thang</span>
+                                            break;
+                                        case "nam":
+                                            <span class="badge bg-success">1 nam</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-light text-dark">@yc.LoaiGoi</span>
+                                            break;
                                     }
                                 </td>
-                                <td class="fw-semibold text-success">@yc.SoTien.ToString("N0")đ</td>
+                                <td class="fw-semibold text-success">@yc.SoTien.ToString("N0")d</td>
                                 <td>
                                     <code class="small">@yc.NoiDungChuyen</code>
                                 </td>
@@ -100,34 +109,37 @@
                                     @yc.NgayTao.ToLocalTime().ToString("dd/MM HH:mm")
                                     @if (yc.NgayDuyet.HasValue)
                                     {
-                                        <br /><span class="text-info">→ @yc.NgayDuyet.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                        <br />
+                                        <span class="text-info">-> @yc.NgayDuyet.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
                                     }
                                 </td>
-                                <td class="small text-muted">@(yc.GhiChuAdmin ?? "—")</td>
+                                <td class="small text-muted">@(yc.GhiChuAdmin ?? "-")</td>
                                 <td>
                                     @if (yc.TrangThai == "cho_duyet")
                                     {
                                         <form method="post" asp-page-handler="Approve" class="d-inline">
                                             <input type="hidden" name="yeuCauId" value="@yc.Id" />
-                                            <button type="submit" class="btn btn-sm btn-success me-1"
-                                                    onclick="return confirm('Xác nhận duyệt yêu cầu này?')">
-                                                ✅ Duyệt
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-success me-1"
+                                                    onclick="return confirm('Xac nhan duyet yeu cau nay?')">
+                                                Duyet
                                             </button>
                                         </form>
-                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalTuChoi"
                                                 data-id="@yc.Id">
-                                            ❌ Từ chối
+                                            Tu choi
                                         </button>
                                     }
                                     else if (yc.TrangThai == "da_duyet")
                                     {
-                                        <span class="badge bg-success">✅ Đã duyệt</span>
+                                        <span class="badge bg-success">Da duyet</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-danger">❌ Từ chối</span>
+                                        <span class="badge bg-danger">Tu choi</span>
                                     }
                                 </td>
                             </tr>
@@ -139,27 +151,28 @@
     </div>
 </div>
 
-<!-- Modal từ chối -->
 <div class="modal fade" id="modalTuChoi" tabindex="-1">
     <div class="modal-dialog">
         <form method="post" asp-page-handler="Reject">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Từ chối yêu cầu</h5>
+                    <h5 class="modal-title">Tu choi yeu cau</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="tuChoiId" name="yeuCauId" />
                     <div class="mb-3">
-                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
-                        <textarea name="lyDo" class="form-control" rows="3"
-                                  placeholder="Ví dụ: Không tìm thấy giao dịch khớp nội dung chuyển khoản..."
+                        <label class="form-label">Ly do tu choi <span class="text-danger">*</span></label>
+                        <textarea name="lyDo"
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="Vi du: Khong tim thay giao dich khop noi dung chuyen khoan..."
                                   required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-danger">Xác nhận từ chối</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huy</button>
+                    <button type="submit" class="btn btn-danger">Xac nhan tu choi</button>
                 </div>
             </div>
         </form>
@@ -168,8 +181,7 @@
 
 @section Scripts {
 <script>
-// Truyền ID vào modal
-document.getElementById('modalTuChoi').addEventListener('show.bs.modal', function(e) {
+document.getElementById('modalTuChoi').addEventListener('show.bs.modal', function (e) {
     var id = e.relatedTarget.dataset.id;
     document.getElementById('tuChoiId').value = id;
 });

@@ -21,6 +21,7 @@ var app = builder.Build();
 
 app.UseStaticFiles();
 app.UseRouting();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapRazorPages();
 app.Run();
 

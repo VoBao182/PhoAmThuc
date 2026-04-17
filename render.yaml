@@ -11,3 +11,17 @@ services:
         value: Production
       - key: SUPABASE_CONNECTION_STRING
         sync: false
+  - type: web
+    name: vinhkhanhtour-cms
+    runtime: docker
+    dockerfilePath: ./VinhKhanhTour.CMS/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: SUPABASE_CONNECTION_STRING
+        sync: false
+      - key: ApiBaseUrl
+        value: https://phoamthuc.onrender.com
