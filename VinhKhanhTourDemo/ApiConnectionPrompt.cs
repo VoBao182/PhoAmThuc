@@ -23,9 +23,13 @@ internal static class ApiConnectionPrompt
             "Nhap API URL",
             "De sau");
 
-        if (!shouldConfigure)
-            return null;
+        return shouldConfigure
+            ? await PromptForApiBaseUrlAsync(page, http)
+            : null;
+    }
 
+    public static async Task<string?> PromptForApiBaseUrlAsync(Page page, HttpClient http)
+    {
         var initialValue = AppConfig.CustomApiBaseUrl
             ?? AppConfig.LastKnownGoodApiBaseUrl
             ?? AppConfig.ApiBaseUrl;

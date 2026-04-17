@@ -41,6 +41,7 @@ public partial class PaymentPage : ContentPage
         _loaiGoi = loaiGoi;
         _deviceId = GetDeviceId();
         SetupUi();
+        UpdateApiGuide();
     }
 
     private static string GetDeviceId()
@@ -125,6 +126,29 @@ public partial class PaymentPage : ContentPage
         finally
         {
             SetLoading(false);
+            UpdateApiGuide();
+        }
+    }
+
+    private void UpdateApiGuide()
+    {
+        ApiGuideCard.IsVisible = !AppConfig.HasConfiguredHostedApiBaseUrl;
+        if (!ApiGuideCard.IsVisible)
+            return;
+
+        LblApiGuideText.Text = DeviceInfo.Platform == DevicePlatform.Android
+            ? $"Neu dang test tren dien thoai qua USB, hay bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} hoac nhap IP/public API URL truoc khi gui yeu cau."
+            : $"Hay nhap URL backend dang chay, vi du http://localhost:{AppEndpointOptions.ApiPort}.";
+        LblApiGuideStatus.Text = $"Dang uu tien: {AppConfig.ApiBaseUrl}";
+    }
+
+    private async void OnConfigureApiClicked(object? sender, EventArgs e)
+    {
+        var apiBaseUrl = await ApiConnectionPrompt.PromptForApiBaseUrlAsync(this, _http);
+        if (!string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            LblError.IsVisible = false;
+            UpdateApiGuide();
         }
     }
 

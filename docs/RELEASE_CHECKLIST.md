@@ -24,7 +24,7 @@ Render docs used for this setup:
 
 ## 2. Build the Android APK
 
-Once Render gives you a public API URL, build the APK with that URL baked in:
+If you already have a public API URL, build the APK with that URL baked in:
 
 ```powershell
 .\scripts\publish-android-release.ps1 -HostedApiBaseUrl https://your-service.onrender.com
@@ -38,6 +38,19 @@ This passes the API URL into the MAUI build so the APK no longer depends on:
 - USB
 - `adb reverse`
 - manual API URL entry
+
+If you only need a demo APK first, you can still build without a hosted backend:
+
+```powershell
+.\scripts\publish-android-release.ps1
+```
+
+In that case:
+
+- the APK is still generated normally
+- the app opens on Android release builds
+- you can enter the API URL later in the app's `Cai dat` screen
+- if no API is reachable yet, the app falls back to sample data for UI demo
 
 ## 3. Final smoke test
 

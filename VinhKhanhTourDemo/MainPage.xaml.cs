@@ -328,6 +328,9 @@ public partial class MainPage : ContentPage
 
     private void UpdateApiConnectionUi()
     {
+        if (ApiConfigCard is not null)
+            ApiConfigCard.IsVisible = AppConfig.AllowManualApiOverride;
+
         if (EntryApiBaseUrl is not null && !EntryApiBaseUrl.IsFocused)
             EntryApiBaseUrl.Text = AppConfig.CustomApiBaseUrl ?? "";
 

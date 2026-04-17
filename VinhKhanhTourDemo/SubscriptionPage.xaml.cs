@@ -28,6 +28,7 @@ public partial class SubscriptionPage : ContentPage
     {
         base.OnAppearing();
         UpdateTrialButtonState();
+        UpdateApiGuide();
     }
 
     private void UpdateTrialButtonState()
@@ -66,6 +67,28 @@ public partial class SubscriptionPage : ContentPage
         }
 
         await Navigation.PushModalAsync(new PaymentPage(loaiGoi), animated: true);
+    }
+
+    private void UpdateApiGuide()
+    {
+        ApiGuideCard.IsVisible = !AppConfig.HasConfiguredHostedApiBaseUrl;
+        if (!ApiGuideCard.IsVisible)
+            return;
+
+        LblApiGuideText.Text = DeviceInfo.Platform == DevicePlatform.Android
+            ? $"Neu dang test tren dien thoai qua USB, {AppConfig.ApiBaseUrl} chi dung khi da bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}. Neu khong, hay nhap IP may tinh hoac public API URL."
+            : $"Hay nhap public API URL hoac URL backend dang chay, vi du http://localhost:{AppEndpointOptions.ApiPort}.";
+        LblApiGuideStatus.Text = $"Dang uu tien: {AppConfig.ApiBaseUrl}";
+    }
+
+    private async void OnConfigureApiClicked(object? sender, EventArgs e)
+    {
+        var apiBaseUrl = await ApiConnectionPrompt.PromptForApiBaseUrlAsync(this, _http);
+        if (!string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            LblError.IsVisible = false;
+            UpdateApiGuide();
+        }
     }
 
     private async Task ActivateFreeTrialAsync(string deviceId)
@@ -119,6 +142,7 @@ public partial class SubscriptionPage : ContentPage
         finally
         {
             SetLoading(false);
+            UpdateApiGuide();
         }
     }
 

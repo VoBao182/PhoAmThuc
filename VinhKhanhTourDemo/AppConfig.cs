@@ -42,11 +42,6 @@ public static class AppConfig
     public static bool AllowManualApiOverride =>
         !HasConfiguredHostedApiBaseUrl;
 
-    public static bool ShouldBlockPublishedAndroidApp =>
-        DeviceInfo.Platform == DevicePlatform.Android &&
-        !IsDebugBuild &&
-        !HasConfiguredHostedApiBaseUrl;
-
     public static string? CustomApiBaseUrl =>
         AllowManualApiOverride
             ? NormalizeApiBaseUrl(Preferences.Get(CustomApiBaseUrlKey, ""))
@@ -171,15 +166,10 @@ public static class AppConfig
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
         {
-            return $"Khong ket noi duoc toi {apiBaseUrl}. Khach hang khong nen phai nhap IP may tinh. Ban can cau hinh HostedApiBaseUrl de tro toi backend public; con khi test USB local thi dung adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
+            return $"Khong ket noi duoc toi {apiBaseUrl}. Neu ban dang demo APK chua gan backend public, hay vao Cai dat de nhap API URL thu cong; con khi test USB local thi dung adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
         }
 
         return $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay va URL API dung. Chi tiet: {exception.Message}";
-    }
-
-    public static string BuildMissingHostedApiMessage()
-    {
-        return "Ban dang dong goi APK cho khach hang nhung chua cau hinh HostedApiBaseUrl. Hay deploy backend len public domain va cap nhat AppEndpointOptions.HostedApiBaseUrl truoc khi phat hanh.";
     }
 
     private static IEnumerable<string> GetCandidateApiBaseUrls()

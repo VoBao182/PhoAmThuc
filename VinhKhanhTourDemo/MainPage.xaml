@@ -523,7 +523,8 @@
                         Margin="16,0,16,0"
                         Clicked="OnReloadDataClicked"/>
 
-                <Border BackgroundColor="White"
+                <Border x:Name="ApiConfigCard"
+                        BackgroundColor="White"
                         Stroke="#F3F4F6"
                         StrokeThickness="1"
                         Margin="16,12,16,0"

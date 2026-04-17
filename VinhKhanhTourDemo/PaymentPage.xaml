@@ -9,62 +9,102 @@
     <ScrollView>
         <VerticalStackLayout Padding="24,48,24,32" Spacing="0">
 
-            <!-- Header -->
-            <Label Text="💳" FontSize="48" HorizontalOptions="Center" Margin="0,0,0,8"/>
-            <Label Text="Thanh toán chuyển khoản"
-                   FontSize="22" FontAttributes="Bold"
-                   HorizontalOptions="Center" TextColor="#1F2933"
+            <Label Text="QR"
+                   FontSize="34"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   Margin="0,0,0,8"
+                   TextColor="#E36A11"/>
+            <Label Text="Thanh toan chuyen khoan"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   TextColor="#1F2933"
                    Margin="0,0,0,4"/>
             <Label x:Name="LblTenGoi"
-                   FontSize="14" HorizontalOptions="Center"
-                   TextColor="#6B7280" Margin="0,0,0,28"/>
+                   FontSize="14"
+                   HorizontalOptions="Center"
+                   TextColor="#6B7280"
+                   Margin="0,0,0,28"/>
 
-            <!-- QR Code -->
-            <Border BackgroundColor="White" Stroke="#E5E7EB"
-                    StrokeThickness="1.5" Margin="0,0,0,20">
-                <Border.StrokeShape><RoundRectangle CornerRadius="20"/></Border.StrokeShape>
+            <Border BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1.5"
+                    Margin="0,0,0,20">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="20"/>
+                </Border.StrokeShape>
                 <VerticalStackLayout Padding="24,20" Spacing="16">
 
-                    <Label Text="Quét mã QR để chuyển khoản"
-                           FontSize="14" FontAttributes="Bold"
-                           HorizontalOptions="Center" TextColor="#1F2933"/>
+                    <Label Text="Quet ma QR de chuyen khoan"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center"
+                           TextColor="#1F2933"/>
 
-                    <!-- Ảnh QR -->
                     <Image x:Name="ImgQR"
-                           HeightRequest="220" WidthRequest="220"
+                           HeightRequest="220"
+                           WidthRequest="220"
                            HorizontalOptions="Center"
                            Aspect="AspectFit"/>
 
-                    <!-- Thông tin ngân hàng -->
-                    <Border BackgroundColor="#F9FAFB" Stroke="#E5E7EB" StrokeThickness="1">
-                        <Border.StrokeShape><RoundRectangle CornerRadius="12"/></Border.StrokeShape>
+                    <Border BackgroundColor="#F9FAFB"
+                            Stroke="#E5E7EB"
+                            StrokeThickness="1">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12"/>
+                        </Border.StrokeShape>
                         <Grid RowDefinitions="Auto,Auto,Auto,Auto" Padding="16,12" RowSpacing="8">
                             <Grid Grid.Row="0" ColumnDefinitions="*,*">
-                                <Label Grid.Column="0" Text="Ngân hàng" FontSize="12" TextColor="#6B7280"/>
-                                <Label Grid.Column="1" Text="MBBank" FontSize="12"
-                                       FontAttributes="Bold" TextColor="#1F2933"
+                                <Label Grid.Column="0"
+                                       Text="Ngan hang"
+                                       FontSize="12"
+                                       TextColor="#6B7280"/>
+                                <Label Grid.Column="1"
+                                       Text="MBBank"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="#1F2933"
                                        HorizontalOptions="End"/>
                             </Grid>
                             <Grid Grid.Row="1" ColumnDefinitions="*,*">
-                                <Label Grid.Column="0" Text="Số tài khoản" FontSize="12" TextColor="#6B7280"/>
-                                <Label x:Name="LblSoTK" Grid.Column="1" FontSize="12"
-                                       FontAttributes="Bold" TextColor="#1F2933"
+                                <Label Grid.Column="0"
+                                       Text="So tai khoan"
+                                       FontSize="12"
+                                       TextColor="#6B7280"/>
+                                <Label x:Name="LblSoTK"
+                                       Grid.Column="1"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="#1F2933"
                                        HorizontalOptions="End"/>
                             </Grid>
                             <Grid Grid.Row="2" ColumnDefinitions="*,*">
-                                <Label Grid.Column="0" Text="Số tiền" FontSize="12" TextColor="#6B7280"/>
-                                <Label x:Name="LblSoTien" Grid.Column="1" FontSize="13"
-                                       FontAttributes="Bold" TextColor="#16A34A"
+                                <Label Grid.Column="0"
+                                       Text="So tien"
+                                       FontSize="12"
+                                       TextColor="#6B7280"/>
+                                <Label x:Name="LblSoTien"
+                                       Grid.Column="1"
+                                       FontSize="13"
+                                       FontAttributes="Bold"
+                                       TextColor="#16A34A"
                                        HorizontalOptions="End"/>
                             </Grid>
                             <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
-                                <Label Grid.Column="0" Text="Nội dung CK" FontSize="12" TextColor="#6B7280"
+                                <Label Grid.Column="0"
+                                       Text="Noi dung CK"
+                                       FontSize="12"
+                                       TextColor="#6B7280"
                                        VerticalOptions="Center"/>
                                 <HorizontalStackLayout Grid.Column="1" Spacing="8" HorizontalOptions="End">
-                                    <Label x:Name="LblNoiDung" FontSize="12"
-                                           FontAttributes="Bold" TextColor="#E36A11"/>
+                                    <Label x:Name="LblNoiDung"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="#E36A11"/>
                                     <Button x:Name="BtnCopyNoiDung"
-                                            Text="📋" FontSize="12"
+                                            Text="Copy"
+                                            FontSize="12"
                                             BackgroundColor="Transparent"
                                             TextColor="#E36A11"
                                             Padding="2,0"
@@ -75,25 +115,64 @@
                         </Grid>
                     </Border>
 
-                    <Label Text="⚠️ Nhập đúng nội dung chuyển khoản để hệ thống xác nhận tự động"
-                           FontSize="12" TextColor="#92400E"
-                           HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+                    <Label Text="Nhap dung noi dung chuyen khoan de he thong xac nhan tu dong"
+                           FontSize="12"
+                           TextColor="#92400E"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"/>
 
                 </VerticalStackLayout>
             </Border>
 
-            <!-- Nút hành động -->
-            <Label x:Name="LblError" IsVisible="False"
-                   TextColor="#DC2626" FontSize="13"
-                   HorizontalOptions="Center" Margin="0,0,0,8"/>
+            <Label x:Name="LblError"
+                   IsVisible="False"
+                   TextColor="#DC2626"
+                   FontSize="13"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,0,0,8"/>
+
+            <Border x:Name="ApiGuideCard"
+                    IsVisible="False"
+                    BackgroundColor="White"
+                    Stroke="#F59E0B"
+                    StrokeThickness="1"
+                    Margin="0,0,0,12">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14"/>
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,12" Spacing="8">
+                    <Label Text="Can ket noi API de gui yeu cau thanh toan"
+                           FontSize="13"
+                           FontAttributes="Bold"
+                           TextColor="#92400E"/>
+                    <Label x:Name="LblApiGuideText"
+                           FontSize="12"
+                           TextColor="#6B7280"/>
+                    <Label x:Name="LblApiGuideStatus"
+                           FontSize="12"
+                           TextColor="#E36A11"/>
+                    <Button x:Name="BtnConfigureApi"
+                            Text="Nhap API URL"
+                            BackgroundColor="#FFF7ED"
+                            TextColor="#C2410C"
+                            CornerRadius="10"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HeightRequest="40"
+                            Clicked="OnConfigureApiClicked"/>
+                </VerticalStackLayout>
+            </Border>
 
             <ActivityIndicator x:Name="LoadingIndicator"
-                               IsRunning="False" IsVisible="False"
-                               Color="#E36A11" HorizontalOptions="Center"
+                               IsRunning="False"
+                               IsVisible="False"
+                               Color="#E36A11"
+                               HorizontalOptions="Center"
                                Margin="0,0,0,12"/>
 
             <Button x:Name="BtnDaChuyenKhoan"
-                    Text="✅ Tôi đã chuyển khoản"
+                    Text="Toi da chuyen khoan"
                     BackgroundColor="#16A34A"
                     TextColor="White"
                     CornerRadius="14"
@@ -103,7 +182,7 @@
                     Margin="0,0,0,12"
                     Clicked="OnDaChuyenKhoanClicked"/>
 
-            <Button Text="Hủy"
+            <Button Text="Huy"
                     BackgroundColor="Transparent"
                     TextColor="#6B7280"
                     FontSize="14"
