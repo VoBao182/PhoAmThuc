@@ -16,6 +16,8 @@ public static class AppConfig
     private static readonly SemaphoreSlim ResolveLock = new(1, 1);
     private static readonly TimeSpan SuccessfulProbeCacheDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan FailedProbeCacheDuration = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan HostedApiProbeTimeout = TimeSpan.FromSeconds(75);
+    private static readonly TimeSpan LocalApiProbeTimeout = TimeSpan.FromSeconds(4);
     private static string? _resolvedApiBaseUrl;
     private static DateTime _lastProbeUtc = DateTime.MinValue;
     private static bool _lastProbeSucceeded;
@@ -210,12 +212,14 @@ public static class AppConfig
 
     private static async Task<bool> ProbeApiAsync(HttpClient http, string apiBaseUrl, CancellationToken cancellationToken)
     {
+        var probeTimeout = GetProbeTimeout(apiBaseUrl);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(4));
+        timeoutCts.CancelAfter(probeTimeout);
+        using var probeHttp = CreateProbeHttpClient(probeTimeout);
 
         try
         {
-            using var response = await http.GetAsync(
+            using var response = await probeHttp.GetAsync(
                 $"{apiBaseUrl}/health",
                 HttpCompletionOption.ResponseHeadersRead,
                 timeoutCts.Token);
@@ -226,7 +230,7 @@ public static class AppConfig
         {
             try
             {
-                using var fallbackResponse = await http.GetAsync(
+                using var fallbackResponse = await probeHttp.GetAsync(
                     $"{apiBaseUrl}/api/poi",
                     HttpCompletionOption.ResponseHeadersRead,
                     timeoutCts.Token);
@@ -238,6 +242,31 @@ public static class AppConfig
                 return false;
             }
         }
+    }
+
+    private static TimeSpan GetProbeTimeout(string apiBaseUrl)
+    {
+        var normalized = NormalizeApiBaseUrl(apiBaseUrl);
+        if (!string.IsNullOrWhiteSpace(normalized) &&
+            !string.IsNullOrWhiteSpace(ConfiguredHostedApiBaseUrl) &&
+            string.Equals(normalized, ConfiguredHostedApiBaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return HostedApiProbeTimeout;
+        }
+
+        return LocalApiProbeTimeout;
+    }
+
+    private static HttpClient CreateProbeHttpClient(TimeSpan timeout)
+    {
+        return new HttpClient(new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        })
+        {
+            Timeout = timeout + TimeSpan.FromSeconds(5)
+        };
     }
 
     public static string ResolveImageUrl(string? url)

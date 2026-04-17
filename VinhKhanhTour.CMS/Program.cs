@@ -2,6 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+    .AddJsonFile(
+        $"appsettings.{builder.Environment.EnvironmentName}.Local.json",
+        optional: true,
+        reloadOnChange: true);
+
 var connectionString = GetConnectionString(builder.Configuration);
 
 builder.Services.AddRazorPages();
@@ -22,5 +29,5 @@ static string GetConnectionString(ConfigurationManager configuration)
     return Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
         ?? configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException(
-            "Missing database connection string. Set SUPABASE_CONNECTION_STRING or ConnectionStrings:DefaultConnection.");
+            "Missing database connection string. In Visual Studio, use Manage User Secrets or appsettings.Development.Local.json to set ConnectionStrings:DefaultConnection, or set SUPABASE_CONNECTION_STRING.");
 }
