@@ -8,7 +8,9 @@
   </PropertyGroup>
 
   <!-- Tự động unblock DLL sau build (tránh SAC chặn trên máy dev) -->
-  <Target Name="UnblockOutput" AfterTargets="Build">
+  <Target Name="UnblockOutput"
+          AfterTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('windows'))">
     <Exec Command="powershell -NonInteractive -Command &quot;Get-ChildItem '$(OutDir)' -Recurse -Include '*.dll','*.exe' | ForEach-Object { Unblock-File $_.FullName -ErrorAction SilentlyContinue }&quot;" ContinueOnError="true" />
   </Target>
 
