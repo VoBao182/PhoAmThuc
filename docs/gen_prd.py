@@ -4,7 +4,9 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import copy
+import copy, os
+
+PNG_DIR = os.path.join(os.path.dirname(__file__), "diagrams", "png")
 
 doc = Document()
 
@@ -144,6 +146,24 @@ def hline():
     p.paragraph_format.space_before = Pt(2)
     p.paragraph_format.space_after  = Pt(2)
 
+def add_diagram(label, png_name, width_cm=15.0):
+    """Chèn ảnh sơ đồ với caption căn giữa."""
+    path = os.path.join(PNG_DIR, png_name)
+    if not os.path.exists(path):
+        return
+    # Caption
+    cap = doc.add_paragraph()
+    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap.paragraph_format.space_before = Pt(8)
+    cap.paragraph_format.space_after  = Pt(2)
+    run = cap.add_run(label)
+    set_font(run, size=11, bold=True, italic=True, color=(89, 89, 89))
+    # Ảnh
+    pic = doc.add_paragraph()
+    pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pic.paragraph_format.space_after = Pt(10)
+    pic.add_run().add_picture(path, width=Cm(width_cm))
+
 # ══════════════════════════════════════════════════════════════════════════════
 # COVER PAGE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -231,7 +251,6 @@ heading2("2.3 Chủ quán (POI Owner)")
 bullet("Đặc điểm: Đăng ký dịch vụ hướng dẫn cho quán của mình.")
 bullet("Nhu cầu: Cập nhật thực đơn, nội dung thuyết minh, thanh toán phí duy trì hàng tháng.")
 
-# ══════════════════════════════════════════════════════════════════════════════
 # 3. KIẾN TRÚC HỆ THỐNG
 # ══════════════════════════════════════════════════════════════════════════════
 heading1("3. KIẾN TRÚC HỆ THỐNG")
@@ -317,6 +336,9 @@ table(
 # ══════════════════════════════════════════════════════════════════════════════
 heading1("6. YÊU CẦU CHỨC NĂNG")
 
+heading2("6.0 Tổng quan use case")
+add_diagram("Hình 0 – Use case tổng thể hệ thống VinhKhanhTour", "00-overall-usecase.png", width_cm=15.0)
+
 # F01
 heading2("F01 – Khởi động & Subscription Gate")
 para("Mỗi lần mở app, kiểm tra xem thiết bị có gói hợp lệ không.", size=12)
@@ -330,6 +352,8 @@ for s in [
 para("Điều kiện biên:", size=12, bold=True)
 bullet("Gói miễn phí 'thu': chỉ được dùng 1 lần/thiết bị (kiểm tra flag da_dung_thu)")
 bullet("Gói trả phí: cần trải qua luồng QR → admin duyệt")
+add_diagram("Hình 1a – F01: Sơ đồ tuần tự – Kích hoạt quyền sử dụng app", "01-subscription-gate-sequence.png")
+add_diagram("Hình 1b – F01: Sơ đồ hoạt động – Kích hoạt quyền sử dụng app", "01-subscription-gate-activity.png", width_cm=11.0)
 
 # F02
 heading2("F02 – Danh sách & Tìm kiếm POI")
@@ -340,6 +364,8 @@ para("Tính năng:", size=12, bold=True)
 bullet("Tìm kiếm văn bản: lọc theo tên POI (normalize dấu tiếng Việt)")
 bullet("Sắp xếp theo MucUuTien")
 bullet("Hiển thị ảnh đại diện, tên, địa chỉ, số điện thoại")
+add_diagram("Hình 2a – F02: Sơ đồ tuần tự – Tải và khám phá danh sách POI", "02-poi-explore-sequence.png")
+add_diagram("Hình 2b – F02: Sơ đồ hoạt động – Tải và khám phá danh sách POI", "02-poi-explore-activity.png", width_cm=11.0)
 
 # F03
 heading2("F03 – Tự động phát thuyết minh (Geofence + Audio)")
@@ -356,6 +382,8 @@ for s in [
 ]:
     bullet(s)
 para("Heartbeat GPS: POST /api/heartbeat mỗi 15 giây với {Lat, Lng, PoiIdHienTai}", size=12, italic=True)
+add_diagram("Hình 3a – F03: Sơ đồ tuần tự – Theo dõi GPS, geofence và tự động phát thuyết minh", "03-geofence-audio-sequence.png")
+add_diagram("Hình 3b – F03: Sơ đồ hoạt động – Theo dõi GPS, geofence và tự động phát thuyết minh", "03-geofence-audio-activity.png", width_cm=11.0)
 
 # F04
 heading2("F04 – Chi tiết POI")
@@ -367,6 +395,8 @@ for s in [
     "Ghi log: POST /api/heartbeat/view khi mở trang (Nguon='VIEW')",
 ]:
     bullet(s)
+add_diagram("Hình 4a – F04: Sơ đồ tuần tự – Xem chi tiết POI, thực đơn, audio guide và chỉ đường", "04-poi-detail-sequence.png")
+add_diagram("Hình 4b – F04: Sơ đồ hoạt động – Xem chi tiết POI, thực đơn, audio guide và chỉ đường", "04-poi-detail-activity.png", width_cm=11.0)
 
 # F05
 heading2("F05 – Thanh toán QR & Phê duyệt")
@@ -388,18 +418,31 @@ for s in [
     "Nút 'Từ chối' → modal nhập lý do → POST /api/subscription/reject/{id}",
 ]:
     bullet(s)
+add_diagram("Hình 5a – F05: Sơ đồ tuần tự – Thanh toán gói trả phí và chờ duyệt", "05-paid-plan-sequence.png")
+add_diagram("Hình 5b – F05: Sơ đồ hoạt động – Thanh toán gói trả phí và chờ duyệt", "05-paid-plan-activity.png", width_cm=11.0)
+add_diagram("Hình 5c – F05: Sơ đồ tuần tự – Duyệt / từ chối thanh toán (Admin CMS)", "08-app-payment-approval-sequence.png")
+add_diagram("Hình 5d – F05: Sơ đồ hoạt động – Duyệt / từ chối thanh toán (Admin CMS)", "08-app-payment-approval-activity.png", width_cm=11.0)
 
 # F06
-heading2("F06 – Bản đồ Live & Theo dõi khách")
-para("CMS hiển thị bản đồ Leaflet với vị trí khách đang online và các POI.", size=12)
+heading2("F06 – Theo dõi khách hàng & Trạng thái sử dụng (CMS)")
+para("CMS hiển thị bảng tổng hợp tất cả thiết bị đã sử dụng app, trạng thái gói và hành trình tham quan — render server-side, không cần JavaScript realtime.", size=12)
+para("Dữ liệu tổng hợp từ 4 nguồn:", size=12, bold=True)
 for s in [
-    "POI: icon camera màu theo trạng thái duy trì",
-    "Khách online (heartbeat ≤ 2 phút): dot xanh tại tọa độ GPS",
-    "Tooltip: Device ID, POI hiện tại, số quán đã ghé/xem, thời gian còn lại",
-    "Click thiết bị → popup lịch sử POI đã ghé (4 giờ gần nhất)",
-    "Auto-refresh: 30 giây",
+    "DangKyApps → hạn gói hiện tại của từng thiết bị",
+    "VitriKhachs → thời điểm heartbeat cuối (xác định online/offline, ngưỡng 2 phút)",
+    "LichSuPhat (Nguon=GPS) → số POI đã ghé thực tế",
+    "LichSuPhat (Nguon=VIEW) → số POI đã xem chi tiết",
 ]:
     bullet(s)
+para("Thống kê hiển thị:", size=12, bold=True)
+for s in [
+    "TotalCustomers, ActiveCustomers, CustomersAtPoi, ExpiredCustomers",
+    "Trạng thái từng thiết bị: GetStatusText() / GetSubscriptionText()",
+    "Cột: Device ID, POI đang ở, số ghé, số xem, hạn gói, trạng thái",
+]:
+    bullet(s)
+add_diagram("Hình 6a – F06: Sơ đồ tuần tự – Theo dõi khách hàng và trạng thái sử dụng", "09-live-map-sequence.png")
+add_diagram("Hình 6b – F06: Sơ đồ hoạt động – Theo dõi khách hàng và trạng thái sử dụng", "09-live-map-activity.png", width_cm=11.0)
 
 # F07
 heading2("F07 – Quản lý POI (CMS)")
@@ -416,6 +459,8 @@ table(
 )
 hline()
 para("Upload ảnh: POST /api/upload — tối đa 5MB, định dạng: .jpg, .jpeg, .png, .webp, .gif", size=12, italic=True)
+add_diagram("Hình 7a – F07: Sơ đồ tuần tự – Quản lý POI, ảnh, thuyết minh và menu", "06-cms-poi-management-sequence.png")
+add_diagram("Hình 7b – F07: Sơ đồ hoạt động – Quản lý POI, ảnh, thuyết minh và menu", "06-cms-poi-management-activity.png", width_cm=11.0)
 
 # F08
 heading2("F08 – Quản lý Phí Duy Trì POI")
@@ -428,6 +473,21 @@ for s in [
     "Cảnh báo: Dashboard hiển thị số quán quá hạn; POI quá hạn bị ẩn khỏi app",
 ]:
     bullet(s)
+add_diagram("Hình 8a – F08: Sơ đồ tuần tự – Ghi nhận phí duy trì và lịch sử hóa đơn POI", "07-maintenance-payment-sequence.png")
+add_diagram("Hình 8b – F08: Sơ đồ hoạt động – Ghi nhận phí duy trì và lịch sử hóa đơn POI", "07-maintenance-payment-activity.png", width_cm=11.0)
+
+# F09
+heading2("F09 – Dashboard tổng quan CMS")
+para("Trang chủ CMS hiển thị các chỉ số tổng quan hệ thống, tải khi admin mở trang.", size=12)
+for s in [
+    "_db.POIs.Include(MonAns).OrderBy(MucUuTien).ToListAsync()",
+    "TongPOI — số POI đang hiển thị (TrangThai = true)",
+    "TongMonAn — số món ăn đang hoạt động trên toàn hệ thống",
+    "SoQuanQuaHan — POI đang hiển thị nhưng đã hết hạn duy trì",
+]:
+    bullet(s)
+add_diagram("Hình 9a – F09: Sơ đồ tuần tự – Dashboard tổng quan CMS", "10-dashboard-sequence.png")
+add_diagram("Hình 9b – F09: Sơ đồ hoạt động – Dashboard tổng quan CMS", "10-dashboard-activity.png", width_cm=11.0)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 7. YÊU CẦU PHI CHỨC NĂNG

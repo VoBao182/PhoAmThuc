@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs

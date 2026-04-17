@@ -221,12 +221,12 @@ public static class AppConfig
     private static async Task<bool> ProbeApiAsync(HttpClient http, string apiBaseUrl, CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(2));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(4));
 
         try
         {
             using var response = await http.GetAsync(
-                $"{apiBaseUrl}/api/poi",
+                $"{apiBaseUrl}/health",
                 HttpCompletionOption.ResponseHeadersRead,
                 timeoutCts.Token);
 
@@ -234,7 +234,19 @@ public static class AppConfig
         }
         catch
         {
-            return false;
+            try
+            {
+                using var fallbackResponse = await http.GetAsync(
+                    $"{apiBaseUrl}/api/poi",
+                    HttpCompletionOption.ResponseHeadersRead,
+                    timeoutCts.Token);
+
+                return fallbackResponse.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F00 - Use case tong the he thong
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs

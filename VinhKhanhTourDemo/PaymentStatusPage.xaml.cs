@@ -4,19 +4,20 @@ using System.Text.Json;
 namespace VinhKhanhTourDemo;
 
 /// <summary>
-/// Trang chờ admin duyệt yêu cầu thanh toán.
-/// Polling API /api/subscription/request/{id} mỗi 10 giây.
-/// Khi được duyệt → lưu ngày hết hạn vào Preferences → hiện thành công.
+/// Trang cho admin duyet yeu cau thanh toan.
+/// Polling API /api/subscription/request/{id} moi 10 giay.
+/// Khi duoc duyet thi luu ngay het han vao Preferences va hien thanh cong.
 /// </summary>
 public partial class PaymentStatusPage : ContentPage
 {
-
     private readonly HttpClient _http = new(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
-    { Timeout = TimeSpan.FromSeconds(10) };
+    {
+        Timeout = TimeSpan.FromSeconds(10)
+    };
 
     private readonly string _yeuCauId;
     private readonly string _loaiGoi;
@@ -27,7 +28,7 @@ public partial class PaymentStatusPage : ContentPage
     {
         InitializeComponent();
         _yeuCauId = yeuCauId;
-        _loaiGoi  = loaiGoi;
+        _loaiGoi = loaiGoi;
         LblNoiDungRef.Text = noiDung;
     }
 
@@ -49,13 +50,13 @@ public partial class PaymentStatusPage : ContentPage
         while (!ct.IsCancellationRequested)
         {
             await PollStatusAsync();
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested)
+                break;
 
-            // Đếm ngược 10 giây
             for (_countdownSec = 10; _countdownSec > 0 && !ct.IsCancellationRequested; _countdownSec--)
             {
                 MainThread.BeginInvokeOnMainThread(() =>
-                    LblDemGiay.Text = $"Kiểm tra lại sau {_countdownSec}s…");
+                    LblDemGiay.Text = $"Kiem tra lai sau {_countdownSec}s...");
                 await Task.Delay(1000, ct).ContinueWith(_ => { });
             }
         }
@@ -67,72 +68,88 @@ public partial class PaymentStatusPage : ContentPage
         {
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
             var res = await _http.GetAsync($"{apiBaseUrl}/api/subscription/request/{_yeuCauId}");
-            if (!res.IsSuccessStatusCode) return;
+            if (!res.IsSuccessStatusCode)
+                return;
 
-            var json     = await res.Content.ReadFromJsonAsync<JsonElement>();
-            var trangthai = json.GetProperty("trangThai").GetString() ?? "";
+            var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+            var trangThai = json.GetProperty("trangThai").GetString() ?? "";
 
-            if (trangthai == "da_duyet")
+            if (trangThai == "da_duyet")
             {
                 _pollCts?.Cancel();
                 var ngayHetHanStr = json.TryGetProperty("ngayHetHan", out var nh)
-                    ? nh.GetString() ?? "" : "";
+                    ? nh.GetString() ?? ""
+                    : "";
                 MainThread.BeginInvokeOnMainThread(() => ShowSuccess(ngayHetHanStr));
             }
-            else if (trangthai == "tu_choi")
+            else if (trangThai == "tu_choi")
             {
                 _pollCts?.Cancel();
-                var lyDo = json.TryGetProperty("ghiChuAdmin", out var gc) ? gc.GetString() : null;
+                var lyDo = json.TryGetProperty("ghiChuAdmin", out var gc)
+                    ? gc.GetString()
+                    : null;
                 MainThread.BeginInvokeOnMainThread(() => ShowRejected(lyDo));
             }
         }
         catch
         {
-            // Bỏ qua lỗi mạng — tiếp tục polling
+            // Bo qua loi mang va tiep tuc polling.
         }
     }
 
     private void ShowSuccess(string ngayHetHanStr)
     {
-        // Lưu ngày hết hạn vào Preferences để app hoạt động offline
         if (!string.IsNullOrEmpty(ngayHetHanStr))
             Preferences.Set("sub_ngay_het_han", ngayHetHanStr);
 
         ViewChoDuyet.IsVisible = false;
-        ViewDaDuyet.IsVisible  = true;
+        ViewDaDuyet.IsVisible = true;
 
-        if (DateTime.TryParse(ngayHetHanStr, null,
-            System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan))
+        if (DateTime.TryParse(
+                ngayHetHanStr,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var hetHan))
         {
             var soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
-            LblHetHan.Text = $"Gói của bạn có hiệu lực đến {hetHan.ToLocalTime():dd/MM/yyyy}\n(còn {soNgay} ngày)";
+            LblHetHan.Text = $"Goi cua ban co hieu luc den {hetHan.ToLocalTime():dd/MM/yyyy}\n(con {soNgay} ngay)";
         }
     }
 
     private void ShowRejected(string? lyDo)
     {
         ViewChoDuyet.IsVisible = false;
-        ViewTuChoi.IsVisible   = true;
+        ViewTuChoi.IsVisible = true;
         LblLyDo.Text = string.IsNullOrEmpty(lyDo)
-            ? "Admin không tìm thấy giao dịch khớp. Kiểm tra lại nội dung chuyển khoản."
+            ? "Admin khong tim thay giao dich khop. Kiem tra lai noi dung chuyen khoan."
             : lyDo;
     }
 
     private async void OnBatDauClicked(object? sender, EventArgs? e)
     {
-        // Đóng toàn bộ modal stack (PaymentStatusPage + PaymentPage + SubscriptionPage)
-        if (Navigation.ModalStack.Count > 0)
-            await Navigation.PopToRootAsync(animated: true);
-        await Shell.Current.GoToAsync("//MainPage");
+        await ClosePaymentFlowAsync(closeSubscriptionPage: true);
     }
 
     private async void OnThuLaiClicked(object? sender, EventArgs? e)
-        => await Navigation.PopModalAsync();   // về PaymentPage
+    {
+        if (Navigation.ModalStack.Count > 0)
+            await Navigation.PopModalAsync();
+    }
 
     private async void OnDongClicked(object? sender, EventArgs? e)
     {
-        // Đóng cả PaymentPage + PaymentStatusPage
-        await Navigation.PopModalAsync();
-        await Navigation.PopModalAsync();
+        await ClosePaymentFlowAsync(closeSubscriptionPage: false);
+    }
+
+    private async Task ClosePaymentFlowAsync(bool closeSubscriptionPage)
+    {
+        _pollCts?.Cancel();
+
+        var modalsToClose = closeSubscriptionPage ? 3 : 2;
+        for (var i = 0; i < modalsToClose && Navigation.ModalStack.Count > 0; i++)
+            await Navigation.PopModalAsync();
+
+        if (Navigation.NavigationStack.Count > 1)
+            await Navigation.PopToRootAsync(animated: false);
     }
 }

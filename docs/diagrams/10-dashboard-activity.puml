@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan CMS (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync()
 ' Note: Luong don gian va da doi chieu truc tiep voi code IndexModel hien tai; chi can sync lai neu thay doi metric hoac truy van dashboard.

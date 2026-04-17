@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()

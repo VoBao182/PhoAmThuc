@@ -1,14 +1,22 @@
 @startuml
 ' Diagram: F01 - Kich hoat quyen su dung app (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
+' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow(), BuildMissingConfigurationPage()
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), KiemTraSubscription()
-' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync(), GetDeviceId()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateTrialButtonState(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), GetDeviceId()
+' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
-' Note: Luong dung thu va dieu huong sang PaymentPage da co trong code; nen kiem tra lai neu sau nay doi gating, ten plan hoac dieu kien mo khoa app.
+' Note: Da cap nhat theo baseline hien tai co them nhanh chan app neu Android phat hanh chua cau hinh HostedApiBaseUrl, va prompt ket noi API truoc khi kich hoat goi dung thu.
 title F01 - Kich hoat quyen su dung app
 start
+:App.CreateWindow();
+if (ShouldBlockPublishedAndroidApp?) then (Co)
+  :BuildMissingConfigurationPage();
+  stop
+endif
+
 :MainPage.OnAppearing();
 if (KiemTraSubscription() con han?) then (Co)
   if (_isInitialized == false?) then (Co)
@@ -24,14 +32,15 @@ else (Khong)
     :SubscriptionPage.OnMuaGoiClicked("thu");
     :GetDeviceId();
     :ActivateFreeTrialAsync();
-    :POST /api/subscription/purchase;
-    if (API thanh cong?) then (Co)
+    :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();
+    if (Tim thay API dung va reachable?) then (Co)
+      :POST /api/subscription/purchase;
       :Preferences.Set(sub_ngay_het_han);
       :Preferences.Set(da_dung_thu = true);
       :DisplayAlert thanh cong;
       :PopModalAsync();
     else (Khong)
-      :Hien loi tren SubscriptionPage;
+      :Hien loi / DisplayAlert tren SubscriptionPage;
     endif
   else (Goi tra phi)
     :Navigation.PushModalAsync(PaymentPage);

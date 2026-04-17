@@ -1,24 +1,33 @@
 @startuml
 ' Diagram: F01 - Kich hoat quyen su dung app (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
+' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow(), BuildMissingConfigurationPage()
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync()
-' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync(), UpdateTrialButtonState()
+' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
-' Note: Sequence nay chi mo ta phan gate va quick trial; luong goi tra phi chi duoc noi toi PaymentPage va duoc theo doi chi tiet o F05.
+' Note: Da bo sung nhanh bootstrap chan app va prompt ket noi API truoc khi goi purchase cho trial.
 title F01 - Kich hoat quyen su dung app
 
 actor Guest
+participant App
 participant MainPage
 participant Preferences
 participant SubscriptionPage
 participant PaymentPage
+participant ApiConnectionPrompt
 participant AppConfig
 participant "SubscriptionController" as SubscriptionController
 database DB
 
+Guest -> App: mo ung dung
+App -> AppConfig: ShouldBlockPublishedAndroidApp?
+alt Android phat hanh chua cau hinh public API
+  App -> Guest: BuildMissingConfigurationPage()
+else vao app binh thuong
 Guest -> MainPage: mo app / OnAppearing()
 MainPage -> Preferences: KiemTraSubscription()
 
@@ -31,16 +40,25 @@ else chua co / het han
   alt chon goi dung thu
     Guest -> SubscriptionPage: OnMuaGoiClicked("thu")
     SubscriptionPage -> Preferences: GetDeviceId()\nneu chua co thi tao UUID moi
-    SubscriptionPage -> AppConfig: EnsureApiBaseUrlAsync()
-    SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
-    SubscriptionController -> DB: kiem tra da dung thu?\ninsert DangKyApp
-    DB --> SubscriptionController: saved
-    SubscriptionController --> SubscriptionPage: ngayHetHan
-    SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
-    SubscriptionPage --> MainPage: PopModalAsync()
+    SubscriptionPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
+    ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
+    AppConfig --> ApiConnectionPrompt: apiBaseUrl?
+    alt ket noi API thanh cong
+      ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
+      SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
+      SubscriptionController -> DB: kiem tra da dung thu?\ninsert DangKyApp
+      DB --> SubscriptionController: saved
+      SubscriptionController --> SubscriptionPage: ngayHetHan
+      SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
+      SubscriptionPage --> MainPage: PopModalAsync()
+    else khong tim thay API dung
+      ApiConnectionPrompt --> SubscriptionPage: null
+      SubscriptionPage -> Guest: hien loi / DisplayAlert
+    end
   else chon goi tra phi
     Guest -> SubscriptionPage: OnMuaGoiClicked("ngay|tuan|thang|nam")
     SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
   end
+end
 end
 @enduml

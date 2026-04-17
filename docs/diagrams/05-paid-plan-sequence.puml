@@ -1,13 +1,14 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
-' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUI(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Sequence nay chi hop le voi luong thanh toan bang QR + polling hien tai; chua xem nhu luong da chot vi ban con dang kiem tra code.
+' Note: Da cap nhat theo luong co prompt ket noi API truoc khi tao yeu cau thanh toan; polling giu nguyen.
 title F05 - Thanh toan goi tra phi va cho duyet
 
 actor Guest
@@ -15,6 +16,7 @@ participant SubscriptionPage
 participant PaymentPage
 participant PaymentStatusPage
 participant Preferences
+participant ApiConnectionPrompt
 participant AppConfig
 participant "SubscriptionController" as SubscriptionController
 participant "VietQR / Ngan hang" as Bank
@@ -23,16 +25,20 @@ database DB
 Guest -> SubscriptionPage: chon goi tra phi
 SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
 PaymentPage -> Preferences: GetDeviceId()
-PaymentPage -> PaymentPage: SetupUI()\n_tao noi dung chuyen + QR URL
+PaymentPage -> PaymentPage: SetupUi()\n_tao noi dung chuyen + QR URL
 PaymentPage -> Bank: hien QR / thong tin chuyen khoan
 
 Guest -> PaymentPage: bam "Da chuyen khoan"
-PaymentPage -> AppConfig: EnsureApiBaseUrlAsync()
-PaymentPage -> SubscriptionController: POST /api/subscription/request
-SubscriptionController -> DB: insert YeuCauThanhToan(TrangThai="cho_duyet")
-DB --> SubscriptionController: YeuCauId
-SubscriptionController --> PaymentPage: 200 OK (YeuCauId)
-PaymentPage -> PaymentStatusPage: PushModalAsync(yeuCauId,...)
+PaymentPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
+ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
+AppConfig --> ApiConnectionPrompt: apiBaseUrl?
+alt ket noi API thanh cong
+  ApiConnectionPrompt --> PaymentPage: apiBaseUrl
+  PaymentPage -> SubscriptionController: POST /api/subscription/request
+  SubscriptionController -> DB: insert YeuCauThanhToan(TrangThai="cho_duyet")
+  DB --> SubscriptionController: YeuCauId
+  SubscriptionController --> PaymentPage: 200 OK (YeuCauId)
+  PaymentPage -> PaymentStatusPage: PushModalAsync(yeuCauId,...)
 
 loop moi 10 giay cho den khi co ket qua
   PaymentStatusPage -> AppConfig: EnsureApiBaseUrlAsync()
@@ -51,5 +57,9 @@ loop moi 10 giay cho den khi co ket qua
   else cho_duyet
     PaymentStatusPage -> PaymentStatusPage: cap nhat countdown 10s
   end
+end
+else khong tim thay API dung
+  ApiConnectionPrompt --> PaymentPage: null
+  PaymentPage -> Guest: hien loi ket noi
 end
 @enduml

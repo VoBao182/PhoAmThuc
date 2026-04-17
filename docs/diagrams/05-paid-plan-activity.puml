@@ -1,17 +1,18 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
-' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUI(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: OnAppearing(), StartPollingAsync(), PollStatusAsync(), ShowSuccess(), ShowRejected()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Luong thanh toan app phu thuoc vao quy trinh duyet thu cong; can kiem tra lai neu doi polling, QR content hoac cach dong modal.
+' Note: Da bo sung prompt ket noi API truoc khi tao yeu cau thanh toan; luong polling va duyet thu cong duoc giu nguyen.
 title F05 - Thanh toan goi tra phi va cho duyet
 start
 :SubscriptionPage.OnMuaGoiClicked(loaiGoi != "thu");
 :Navigation.PushModalAsync(PaymentPage);
-:PaymentPage.SetupUI();
+:PaymentPage.SetupUi();
 :Tao _noiDungChuyen = "VKT <GOI> <SHORTID>";
 :Sinh URL VietQR va hien QR;
 
@@ -21,8 +22,9 @@ endif
 
 if (Nguoi dung bam "Da chuyen khoan"?) then (Co)
   :OnDaChuyenKhoanClicked();
-  :POST /api/subscription/request;
-  if (Tao yeu cau thanh cong?) then (Co)
+  :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();
+  if (Tim thay API dung va reachable?) then (Co)
+    :POST /api/subscription/request;
     :PushModalAsync(PaymentStatusPage);
     while (Trang thai van la cho_duyet?) is (Co)
       :PollStatusAsync();

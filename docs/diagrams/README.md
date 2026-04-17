@@ -11,7 +11,7 @@ Bo tep nay duoc trich tu code hien co trong 3 phan he thong:
 - `Chuc nang`: muc tieu nghiep vu co gia tri doc lap, co actor ro rang va co the dua vao use case.
 - `Task`: thao tac nho nam ben trong chuc nang, thuong la cac buoc giao dien, goi ham, goi API, luu DB, polling, upload, render...
 
-Vi du: `Mua goi tra phi` la chuc nang. Cac task con ben trong no gom `SetupUI()`, tao noi dung chuyen khoan, `POST /api/subscription/request`, polling trang thai, luu `Preferences`.
+Vi du: `Mua goi tra phi` la chuc nang. Cac task con ben trong no gom `SetupUi()`, tao noi dung chuyen khoan, prompt ket noi API, `POST /api/subscription/request`, polling trang thai, luu `Preferences`.
 
 ## Cac chuc nang da mo hinh hoa
 
@@ -21,11 +21,11 @@ Vi du: `Mua goi tra phi` la chuc nang. Cac task con ben trong no gom `SetupUI()`
 | F02 | Tai va kham pha danh sach POI | Khach du lich | `LoadPoisFromApi()`, `RefreshPoisInBackgroundAsync()`, `RenderPoiCards()`, `OnSearchTextChanged()`, `OpenPoiDetailAsync()` | `VinhKhanhTourDemo/MainPage.xaml.cs`, `VinhKhanhTour.API/Controllers/PoiController.cs`, `VinhKhanhTour.API/Controllers/HeartbeatController.cs` | `02-poi-explore-activity.puml`, `02-poi-explore-sequence.puml` |
 | F03 | Theo doi GPS, geofence va tu dong phat thuyet minh | Khach du lich | `EnsureGpsTrackingAsync()`, `StartGpsTracking()`, `CheckGeofence()`, `SendHeartbeatAsync()`, `RecordPoiVisitAsync()`, `SpeakPoiAsync()`, `LogPlaybackAsync()` | `VinhKhanhTourDemo/MainPage.xaml.cs`, `VinhKhanhTour.API/Controllers/HeartbeatController.cs`, `ThuyetMinhController.cs`, `LogController.cs` | `03-geofence-audio-activity.puml`, `03-geofence-audio-sequence.puml` |
 | F04 | Xem chi tiet POI, thuc don, audio guide va chi duong | Khach du lich | `DetailPage.LoadDetail()`, `RenderMenu()`, `ConfigureAudioPlayer()`, `OnNgheClicked()`, `OnMapClicked()` | `VinhKhanhTourDemo/DetailPage.xaml.cs`, `VinhKhanhTour.API/Controllers/PoiController.cs` | `04-poi-detail-activity.puml`, `04-poi-detail-sequence.puml` |
-| F05 | Thanh toan goi tra phi va cho duyet | Khach du lich | `PaymentPage.SetupUI()`, `OnDaChuyenKhoanClicked()`, `PaymentStatusPage.StartPollingAsync()`, `PollStatusAsync()` | `VinhKhanhTourDemo/PaymentPage.xaml.cs`, `PaymentStatusPage.xaml.cs`, `SubscriptionController.cs` | `05-paid-plan-activity.puml`, `05-paid-plan-sequence.puml` |
+| F05 | Thanh toan goi tra phi va cho duyet | Khach du lich | `PaymentPage.SetupUi()`, `ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync()`, `OnDaChuyenKhoanClicked()`, `PaymentStatusPage.StartPollingAsync()`, `PollStatusAsync()` | `VinhKhanhTourDemo/PaymentPage.xaml.cs`, `ApiConnectionPrompt.cs`, `PaymentStatusPage.xaml.cs`, `SubscriptionController.cs` | `05-paid-plan-activity.puml`, `05-paid-plan-sequence.puml` |
 | F06 | Quan ly POI, anh, geofence, thuyet minh va menu tren CMS | Quan tri vien CMS | `Poi/Index`, `Poi/Create`, `Poi/Edit`, `UpsertBanDich()`, `doUpload()`, `uploadImg()`, `uploadMonAnImg()` | `VinhKhanhTour.CMS/Pages/Poi/*.cshtml*`, `VinhKhanhTour.API/Controllers/UploadController.cs` | `06-cms-poi-management-activity.puml`, `06-cms-poi-management-sequence.puml` |
 | F07 | Ghi nhan phi duy tri va xem lich su hoa don POI | Quan tri vien CMS | `ThanhToan/Index.OnGetAsync()`, `GhiNhan.OnGetAsync()`, `GhiNhan.OnPostAsync()`, `LichSu.OnGetAsync()` | `VinhKhanhTour.CMS/Pages/ThanhToan/*.cshtml.cs`, cac model `POI`, `DangKyDichVu`, `HoaDon` | `07-maintenance-payment-activity.puml`, `07-maintenance-payment-sequence.puml` |
 | F08 | Duyet hoac tu choi thanh toan goi app | Quan tri vien CMS | `DuyetThanhToan/Index.OnGetAsync()`, `OnPostApproveAsync()`, `OnPostRejectAsync()` | `VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs`, model `YeuCauThanhToan`, `DangKyApp` | `08-app-payment-approval-activity.puml`, `08-app-payment-approval-sequence.puml` |
-| F09 | Giam sat khach dang online va xem hanh trinh live | Quan tri vien CMS | `BanDo/Index.OnGetAsync()`, JS `loadData()`, `showHistory()`, API `GetActive()`, `GetHistory()` | `VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml*`, `HeartbeatController.cs` | `09-live-map-activity.puml`, `09-live-map-sequence.puml` |
+| F09 | Theo doi khach hang, trang thai su dung va hanh trinh | Quan tri vien CMS | `BanDo/Index.OnGetAsync()`, `GetStatusText()`, `GetSubscriptionText()`, truy van `DangKyApps`, `VitriKhachs`, `LichSuPhats` | `VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml*`, `AppDbContext`, cac model lien quan | `09-live-map-activity.puml`, `09-live-map-sequence.puml` |
 | F10 | Xem dashboard tong quan CMS | Quan tri vien CMS | `Index.OnGetAsync()`, tinh `TongPOI`, `TongMonAn`, `SoQuanQuaHan` | `VinhKhanhTour.CMS/Pages/Index.cshtml.cs` | `10-dashboard-activity.puml`, `10-dashboard-sequence.puml` |
 
 ## Tep use case tong the
@@ -43,4 +43,3 @@ Vi du: `Mua goi tra phi` la chuc nang. Cac task con ben trong no gom `SetupUI()`
 
 - Mo cac tep `.puml` bang PlantUML extension trong VS Code/IntelliJ, hoac
 - copy noi dung vao bat ky PlantUML renderer nao de xuat PNG/SVG.
-

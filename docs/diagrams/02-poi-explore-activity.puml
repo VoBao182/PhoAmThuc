@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RefreshPoisInBackgroundAsync(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()

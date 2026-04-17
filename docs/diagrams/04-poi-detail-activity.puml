@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD 6510344
+' Baseline: branch master, HEAD a5fde70
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), UseFallback(), ConfigureAudioPlayer(), RenderMenu(), OnNgheClicked(), OnMapClicked()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
