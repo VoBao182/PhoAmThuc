@@ -23,7 +23,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VinhKhanhTour.API\VinhKhanhTour.API.csproj" />
+    <Compile Include="..\VinhKhanhTour.API\Data\AppDBContext.cs" Link="Shared\Data\AppDBContext.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\BanDich.cs" Link="Shared\Models\BanDich.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\DangKyApp.cs" Link="Shared\Models\DangKyApp.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\DangKyDichVu.cs" Link="Shared\Models\DangKyDichVu.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\HoaDon.cs" Link="Shared\Models\HoaDon.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\LichSuPhat.cs" Link="Shared\Models\LichSuPhat.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\MonAn.cs" Link="Shared\Models\MonAn.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\POI.cs" Link="Shared\Models\POI.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\TaiKhoan.cs" Link="Shared\Models\TaiKhoan.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\ThuyetMinh.cs" Link="Shared\Models\ThuyetMinh.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\VitriKhach.cs" Link="Shared\Models\VitriKhach.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Models\YeuCauThanhToan.cs" Link="Shared\Models\YeuCauThanhToan.cs" />
   </ItemGroup>
 
 </Project>
