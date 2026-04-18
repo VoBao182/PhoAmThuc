@@ -13,7 +13,7 @@ namespace VinhKhanhTourDemo
         {
             try
             {
-                var navPage = new NavigationPage(new MainPage())
+                var navPage = new NavigationPage(new LaunchPage())
                 {
                     BarBackgroundColor = Color.FromArgb("#FF5722"),
                     BarTextColor = Colors.White

@@ -154,6 +154,13 @@ public partial class PaymentStatusPage : ContentPage
         while (navigation.ModalStack.Count > modalsToLeave)
             await navigation.PopModalAsync();
 
+        if (closeSubscriptionPage && navigation.NavigationStack.LastOrDefault() is SubscriptionPage subscriptionPage)
+        {
+            await navigation.PushAsync(new MainPage(), animated: false);
+            navigation.RemovePage(subscriptionPage);
+            return;
+        }
+
         if (navigation.NavigationStack.Count > 1)
             await navigation.PopToRootAsync(animated: false);
     }

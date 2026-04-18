@@ -132,7 +132,7 @@ public partial class SubscriptionPage : ContentPage
                 "Ban da kich hoat goi dung thu 3 ngay.",
                 "Bat dau");
 
-            await Navigation.PopModalAsync();
+            await ExitSubscriptionGateAsync();
         }
         catch (Exception ex)
         {
@@ -155,5 +155,22 @@ public partial class SubscriptionPage : ContentPage
         BtnMuaTuan.IsEnabled = !loading;
         BtnMuaThang.IsEnabled = !loading;
         BtnMuaNam.IsEnabled = !loading;
+    }
+
+    private async Task ExitSubscriptionGateAsync()
+    {
+        var rootNavigation = Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation ?? Navigation;
+
+        if (rootNavigation.ModalStack.Count > 0)
+        {
+            await rootNavigation.PopModalAsync();
+            return;
+        }
+
+        if (Navigation.NavigationStack.LastOrDefault() == this)
+        {
+            await Navigation.PushAsync(new MainPage(), animated: false);
+            Navigation.RemovePage(this);
+        }
     }
 }

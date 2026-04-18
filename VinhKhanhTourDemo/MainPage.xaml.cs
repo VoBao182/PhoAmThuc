@@ -43,6 +43,7 @@ public partial class MainPage : ContentPage
     private bool _isInitialized;
     private bool _isMapReady;
     private bool _mapRequested;
+    private bool _uiPrepared;
     private WebView? _mapWebView;
     private Location? _pendingMapLocation;
     private Guid? _pendingHighlightPoiId;
@@ -61,8 +62,6 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
-        ApplyLocalizedUiText();
-        UpdateCaiDatUI();
     }
 
     protected override async void OnAppearing()
@@ -70,6 +69,12 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
         try
         {
+        if (!_uiPrepared)
+        {
+            _uiPrepared = true;
+            ApplyLocalizedUiText();
+            UpdateCaiDatUI();
+        }
 
         // Kiểm tra gói đăng ký — nếu chưa có hoặc hết hạn → hiện modal mua gói
         if (await EnsureSubscriptionGateAsync())
