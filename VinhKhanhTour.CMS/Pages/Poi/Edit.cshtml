@@ -10,6 +10,22 @@
     const API_BASE = "@Model.ApiBaseUrl";
     const POI_FALLBACK_IMAGE = "@Html.Raw(ImageUrlHelper.ResolvePoi(null, Model.ApiBaseUrl, Model.POI.TenPOI))";
     const DISH_FALLBACK_IMAGE = "@Html.Raw(ImageUrlHelper.ResolveDish(null, Model.ApiBaseUrl, null, null))";
+    const RESTAURANT_GENERIC_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantGenericPhoto)";
+    const RESTAURANT_SEAFOOD_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantSeafoodPhoto)";
+    const RESTAURANT_BEEF_GRILL_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantBeefGrillPhoto)";
+    const RESTAURANT_HOTPOT_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantHotpotPhoto)";
+    const RESTAURANT_DESSERT_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantDessertPhoto)";
+    const RESTAURANT_NOODLE_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantNoodlePhoto)";
+    const RESTAURANT_SIDEWALK_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.RestaurantSidewalkPhoto)";
+    const DISH_GENERIC_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishGenericPhoto)";
+    const DISH_SEAFOOD_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishSeafoodPhoto)";
+    const DISH_BEEF_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishBeefPhoto)";
+    const DISH_GRILL_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishGrillPhoto)";
+    const DISH_HOTPOT_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishHotpotPhoto)";
+    const DISH_NOODLE_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishNoodlePhoto)";
+    const DISH_DESSERT_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishDessertPhoto)";
+    const DISH_DRINK_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishDrinkPhoto)";
+    const DISH_SALAD_IMAGE = "@Html.Raw(VinhKhanhTour.Shared.SharedImageCatalog.DishSaladPhoto)";
 </script>
 
 @if (TempData["Success"] != null)
@@ -218,11 +234,73 @@ function resolveImageUrl(url) {
     return trimmed.startsWith('/') ? `${API_BASE}${trimmed}` : `${API_BASE}/${trimmed.replace(/^\/+/, '')}`;
 }
 
+function normalizeVietnamese(value) {
+    return (value || '')
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'd')
+        .toLowerCase();
+}
+
+function containsAny(source, keywords) {
+    return keywords.some(keyword => source.includes(keyword));
+}
+
+function getPoiFallbackImage(name) {
+    const text = normalizeVietnamese(name);
+    if (containsAny(text, ['oc', 'ngheu', 'hai san', 'seafood'])) return RESTAURANT_SEAFOOD_IMAGE;
+    if (containsAny(text, ['bo', 'be', 'nuong'])) return RESTAURANT_BEEF_GRILL_IMAGE;
+    if (containsAny(text, ['lau', 'hotpot'])) return RESTAURANT_HOTPOT_IMAGE;
+    if (containsAny(text, ['che', 'dessert', 'tra sua', 'sweet'])) return RESTAURANT_DESSERT_IMAGE;
+    if (containsAny(text, ['bun', 'pho', 'mi', 'hu tieu', 'noodle'])) return RESTAURANT_NOODLE_IMAGE;
+    if (containsAny(text, ['nhau', 'via he', 'an vat', 'sidewalk'])) return RESTAURANT_SIDEWALK_IMAGE;
+    return RESTAURANT_GENERIC_IMAGE;
+}
+
+function getDishFallbackImage(name, category) {
+    const text = normalizeVietnamese(`${name || ''} ${category || ''}`);
+    if (containsAny(text, ['oc', 'ngheu', 'so diep', 'so huyet', 'muc', 'ghe', 'tom', 'hai san', 'seafood'])) return DISH_SEAFOOD_IMAGE;
+    if (containsAny(text, ['bun', 'pho', 'hu tieu', 'mi', 'noodle'])) return DISH_NOODLE_IMAGE;
+    if (containsAny(text, ['che', 'tau hu', 'khuc bach', 'sua tuoi', 'dessert', 'sweet'])) return DISH_DESSERT_IMAGE;
+    if (containsAny(text, ['tra', 'nuoc', 'drink', 'uong'])) return DISH_DRINK_IMAGE;
+    if (containsAny(text, ['lau', 'hotpot'])) return DISH_HOTPOT_IMAGE;
+    if (containsAny(text, ['goi', 'salad', 'ngo sen'])) return DISH_SALAD_IMAGE;
+    if (containsAny(text, ['bo', 'be', 'la lot'])) return DISH_BEEF_IMAGE;
+    if (containsAny(text, ['nuong', 'sa te', 'kho muc', 'long'])) return DISH_GRILL_IMAGE;
+    return DISH_GENERIC_IMAGE;
+}
+
+function getCurrentPoiName() {
+    return document.getElementById('POI_TenPOI')?.value || '';
+}
+
+function getMonAnRow(idx) {
+    return document.getElementById(`monan-${idx}`);
+}
+
+function getMonAnField(row, suffix) {
+    return row?.querySelector(`input[name="MonAns[${row.id.replace('monan-', '')}].${suffix}"]`);
+}
+
+function getDishFallbackForIndex(idx) {
+    const row = getMonAnRow(idx);
+    const name = getMonAnField(row, 'TenMonAn')?.value || '';
+    const category = getMonAnField(row, 'PhanLoai')?.value || '';
+    return getDishFallbackImage(name, category);
+}
+
 function previewImg(inputEl, previewId) {
     const url = resolveImageUrl(inputEl.value);
     const img = document.getElementById(previewId);
     if (!img) return;
-    img.src = url || POI_FALLBACK_IMAGE;
+    const fallback = getPoiFallbackImage(getCurrentPoiName());
+    img.onerror = () => {
+        img.onerror = null;
+        img.src = fallback;
+    };
+    img.src = url || fallback;
     img.style.display = 'block';
 }
 
@@ -265,8 +343,9 @@ function setMonAnPreview(idx, url) {
     if (!imgEl) return;
 
     const resolvedUrl = resolveImageUrl(url);
-    imgEl.outerHTML = `<img id="monan-img-${idx}" src="${resolvedUrl || DISH_FALLBACK_IMAGE}" class="monan-img"
-        onerror="this.onerror=null;this.src='${DISH_FALLBACK_IMAGE}'"/>`;
+    const fallback = getDishFallbackForIndex(idx);
+    imgEl.outerHTML = `<img id="monan-img-${idx}" src="${resolvedUrl || fallback}" class="monan-img"
+        onerror="this.onerror=null;this.src='${fallback}'"/>`;
 }
 
 async function uploadMonAnImg(fileInput, idx) {
@@ -289,6 +368,63 @@ async function uploadMonAnImg(fileInput, idx) {
 
 function updateMonAnImg(input, idx) {
     setMonAnPreview(idx, input.value);
+}
+
+function refreshCoverFallback() {
+    const input = document.getElementById('input-cover-url');
+    if (input) {
+        previewImg(input, 'preview-cover');
+    }
+}
+
+function refreshDishFallback(idx) {
+    const input = document.getElementById(`monan-url-${idx}`);
+    setMonAnPreview(idx, input?.value || '');
+}
+
+function wireMonAnRow(row) {
+    if (!row) return;
+
+    const idx = row.id.replace('monan-', '');
+    const nameInput = getMonAnField(row, 'TenMonAn');
+    const categoryInput = getMonAnField(row, 'PhanLoai');
+
+    if (nameInput && !nameInput.dataset.smartFallbackBound) {
+        nameInput.dataset.smartFallbackBound = '1';
+        nameInput.addEventListener('input', () => refreshDishFallback(idx));
+    }
+
+    if (categoryInput && !categoryInput.dataset.smartFallbackBound) {
+        categoryInput.dataset.smartFallbackBound = '1';
+        categoryInput.addEventListener('input', () => refreshDishFallback(idx));
+    }
+
+    refreshDishFallback(idx);
+}
+
+function initializeSmartFallbacks() {
+    const poiNameInput = document.getElementById('POI_TenPOI');
+    if (poiNameInput && !poiNameInput.dataset.smartFallbackBound) {
+        poiNameInput.dataset.smartFallbackBound = '1';
+        poiNameInput.addEventListener('input', refreshCoverFallback);
+    }
+
+    refreshCoverFallback();
+
+    document.querySelectorAll('[id^="monan-"]').forEach(row => {
+        if (row.classList.contains('monan-item')) {
+            wireMonAnRow(row);
+        }
+    });
+
+    const container = document.getElementById('monan-list');
+    if (container && !container.dataset.smartObserverBound) {
+        container.dataset.smartObserverBound = '1';
+        const observer = new MutationObserver(() => {
+            container.querySelectorAll('.monan-item').forEach(wireMonAnRow);
+        });
+        observer.observe(container, { childList: true });
+    }
 }
 
 let monAnIndex = @Model.POI.MonAns.Count;
@@ -350,5 +486,6 @@ function removeMonAn(idx) {
 }
 
 toggleEmptyMenuState();
+initializeSmartFallbacks();
 </script>
 }

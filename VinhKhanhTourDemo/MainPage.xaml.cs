@@ -53,8 +53,8 @@ public partial class MainPage : ContentPage
     private bool _subscriptionModalOpen;
     private bool _isUsingFallbackData;
     private string? _lastDataLoadError;
-    private const int HEARTBEAT_EVERY_TICKS   = 3;   // mỗi 3 lần GPS poll = 15 giây
-    private const int POI_REFRESH_EVERY_TICKS = 6;   // mỗi 6 lần GPS poll = 30 giây (đủ nhanh để test)
+    private const int HEARTBEAT_EVERY_TICKS   = 2;   // mỗi 2 lần GPS poll = 10 giây
+    private const int POI_REFRESH_EVERY_TICKS = 4;   // mỗi 4 lần GPS poll = 20 giây
 
     public MainPage()
     {
