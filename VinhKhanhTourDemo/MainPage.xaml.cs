@@ -42,6 +42,8 @@ public partial class MainPage : ContentPage
     private CancellationTokenSource? _gpsCts;
     private bool _isInitialized;
     private bool _isMapReady;
+    private bool _mapRequested;
+    private WebView? _mapWebView;
     private Location? _pendingMapLocation;
     private Guid? _pendingHighlightPoiId;
     private string _searchText = "";
@@ -66,6 +68,8 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        try
+        {
 
         // Kiểm tra gói đăng ký — nếu chưa có hoặc hết hạn → hiện modal mua gói
         if (await EnsureSubscriptionGateAsync())
@@ -79,6 +83,15 @@ public partial class MainPage : ContentPage
 
         await EnsureGpsTrackingAsync();
         _ = SyncPoiHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Startup] OnAppearing failed: {ex}");
+            await DisplayAlertAsync(
+                "Loi khoi dong",
+                "Ung dung gap loi trong luc mo. Ban hay thu lai bang APK moi nhat.",
+                "OK");
+        }
     }
 
     private async Task<bool> EnsureSubscriptionGateAsync()
@@ -301,7 +314,7 @@ public partial class MainPage : ContentPage
             }
         }
 
-        LoadMap();
+        RefreshMapIfNeeded();
         RenderPoiCards();
         UpdateApiConnectionUi();
     }
@@ -561,7 +574,7 @@ public partial class MainPage : ContentPage
             _isUsingFallbackData = false;
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                LoadMap();
+                RefreshMapIfNeeded();
                 RenderPoiCards();
             });
         }
@@ -828,6 +841,9 @@ public partial class MainPage : ContentPage
 
     private void LoadMap()
     {
+        var mapWebView = EnsureMapWebView();
+        _isMapReady = false;
+
         string latStr = "10.758955";
         string lngStr = "106.701831";
 
@@ -912,11 +928,31 @@ public partial class MainPage : ContentPage
 </body>
 </html>";
 
-        MapWebView.Source = new HtmlWebViewSource { Html = html };
-        MapWebView.Navigating -= OnMapNavigating;
-        MapWebView.Navigating += OnMapNavigating;
-        MapWebView.Navigated -= OnMapNavigated;
-        MapWebView.Navigated += OnMapNavigated;
+        mapWebView.Source = new HtmlWebViewSource { Html = html };
+    }
+
+    private void RefreshMapIfNeeded()
+    {
+        if (_mapRequested || DeviceInfo.Platform != DevicePlatform.Android)
+            LoadMap();
+    }
+
+    private WebView EnsureMapWebView()
+    {
+        if (_mapWebView != null)
+            return _mapWebView;
+
+        _mapWebView = new WebView
+        {
+            HorizontalOptions = LayoutOptions.Fill,
+            VerticalOptions = LayoutOptions.Fill
+        };
+        _mapWebView.Navigating += OnMapNavigating;
+        _mapWebView.Navigated += OnMapNavigated;
+
+        MapHost.Children.Clear();
+        MapHost.Children.Add(_mapWebView);
+        return _mapWebView;
     }
 
     private IEnumerable<PoiVisualPosition> GetPoiVisualPositions()
@@ -978,7 +1014,7 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        MapWebView.Eval($"highlightPoi('{poiId}'); true;");
+        _mapWebView?.Eval($"highlightPoi('{poiId}'); true;");
     }
 
     private void ClearHighlight()
@@ -989,7 +1025,7 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        MapWebView.Eval("clearHighlight(); true;");
+        _mapWebView?.Eval("clearHighlight(); true;");
     }
 
     private void UpdateUserLocationOnMap(Location loc)
@@ -1002,7 +1038,7 @@ public partial class MainPage : ContentPage
 
         string lat = loc.Latitude.ToString(CultureInfo.InvariantCulture);
         string lng = loc.Longitude.ToString(CultureInfo.InvariantCulture);
-        MapWebView.Eval($"updateUserLocation({lat},{lng}); true;");
+        _mapWebView?.Eval($"updateUserLocation({lat},{lng}); true;");
     }
 
     private async void OnMapNavigating(object? sender, WebNavigatingEventArgs e)
@@ -1379,6 +1415,8 @@ public partial class MainPage : ContentPage
         ViewBanDo.IsVisible = true;
         ViewCaiDat.IsVisible = false;
         SearchBarRow.IsVisible = false;
+        _mapRequested = true;
+        RefreshMapIfNeeded();
         SetTabActive("bando");
     }
 

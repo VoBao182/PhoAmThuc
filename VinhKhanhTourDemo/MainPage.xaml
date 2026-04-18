@@ -172,9 +172,21 @@
         </ScrollView>
 
         <Grid x:Name="ViewBanDo" Grid.Row="3" IsVisible="False">
-            <WebView x:Name="MapWebView"
-                     HorizontalOptions="Fill"
-                     VerticalOptions="Fill"/>
+            <Grid x:Name="MapHost"
+                  HorizontalOptions="Fill"
+                  VerticalOptions="Fill">
+                <VerticalStackLayout HorizontalOptions="Center"
+                                     VerticalOptions="Center"
+                                     Spacing="10">
+                    <ActivityIndicator IsRunning="True"
+                                       Color="#FF5722"
+                                       HorizontalOptions="Center"/>
+                    <Label Text="Ban do se tai khi mo tab nay"
+                           FontSize="14"
+                           TextColor="#777777"
+                           HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </Grid>
 
             <Border x:Name="MapPoiSheet"
                     IsVisible="False"
