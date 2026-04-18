@@ -35,6 +35,7 @@
     <Compile Include="..\VinhKhanhTour.API\Models\ThuyetMinh.cs" Link="Shared\Models\ThuyetMinh.cs" />
     <Compile Include="..\VinhKhanhTour.API\Models\VitriKhach.cs" Link="Shared\Models\VitriKhach.cs" />
     <Compile Include="..\VinhKhanhTour.API\Models\YeuCauThanhToan.cs" Link="Shared\Models\YeuCauThanhToan.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Utils\SharedImageCatalog.cs" Link="Shared\Utils\SharedImageCatalog.cs" />
   </ItemGroup>
 
 </Project>

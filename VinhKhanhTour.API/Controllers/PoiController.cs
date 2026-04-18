@@ -13,15 +13,14 @@ public class PoiController : ControllerBase
     public PoiController(AppDbContext db) => _db = db;
 
     // GET /api/poi — lấy POI đang hoạt động
-    // Chỉ hiện quán có NgayHetHanDuyTri còn hạn (null hoặc quá hạn → ẩn)
+    // POI chưa cấu hình hạn duy trì vẫn được hiện để app không bị thiếu dữ liệu seed/demo.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var now = DateTime.UtcNow;
         var pois = await _db.POIs
             .Where(p => p.TrangThai
-                     && p.NgayHetHanDuyTri.HasValue
-                     && p.NgayHetHanDuyTri > now)
+                     && (!p.NgayHetHanDuyTri.HasValue || p.NgayHetHanDuyTri > now))
             .OrderBy(p => p.MucUuTien)
             .Select(p => new {
                 p.Id,

@@ -16,7 +16,7 @@ public partial class PaymentStatusPage : ContentPage
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
     {
-        Timeout = TimeSpan.FromSeconds(10)
+        Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
     private readonly string _yeuCauId;
@@ -132,8 +132,9 @@ public partial class PaymentStatusPage : ContentPage
 
     private async void OnThuLaiClicked(object? sender, EventArgs? e)
     {
-        if (Navigation.ModalStack.Count > 0)
-            await Navigation.PopModalAsync();
+        var navigation = GetRootNavigation();
+        if (navigation.ModalStack.Count > 0)
+            await navigation.PopModalAsync();
     }
 
     private async void OnDongClicked(object? sender, EventArgs? e)
@@ -145,11 +146,18 @@ public partial class PaymentStatusPage : ContentPage
     {
         _pollCts?.Cancel();
 
-        var modalsToClose = closeSubscriptionPage ? 3 : 2;
-        for (var i = 0; i < modalsToClose && Navigation.ModalStack.Count > 0; i++)
-            await Navigation.PopModalAsync();
+        var navigation = GetRootNavigation();
+        var modalsToLeave = closeSubscriptionPage
+            ? 0
+            : navigation.ModalStack.FirstOrDefault() is SubscriptionPage ? 1 : 0;
 
-        if (Navigation.NavigationStack.Count > 1)
-            await Navigation.PopToRootAsync(animated: false);
+        while (navigation.ModalStack.Count > modalsToLeave)
+            await navigation.PopModalAsync();
+
+        if (navigation.NavigationStack.Count > 1)
+            await navigation.PopToRootAsync(animated: false);
     }
+
+    private INavigation GetRootNavigation()
+        => Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation ?? Navigation;
 }

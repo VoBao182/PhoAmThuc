@@ -11,7 +11,7 @@ public partial class SubscriptionPage : ContentPage
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
     {
-        Timeout = TimeSpan.FromSeconds(15)
+        Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
     private const string PrefDeviceId = "device_id";

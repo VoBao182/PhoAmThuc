@@ -141,6 +141,7 @@
                        Grid.Column="1"
                        Placeholder="Tìm quán ăn, địa chỉ..."
                        FontSize="15"
+                       TextColor="#111111"
                        PlaceholderColor="#AAAAAA"
                        VerticalOptions="Center"
                        TextChanged="OnSearchTextChanged"/>

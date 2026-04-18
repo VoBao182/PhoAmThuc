@@ -8,13 +8,19 @@ namespace VinhKhanhTour.CMS.Pages;
 public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
-    public IndexModel(AppDbContext db) => _db = db;
+    private readonly IConfiguration _config;
+    public IndexModel(AppDbContext db, IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
 
     public List<POI> POIs        { get; set; } = [];
     public int TongPOI           { get; set; }
     public int TongMonAn         { get; set; }
     public int SoQuanQuaHan      { get; set; }
     public string? ErrorMessage  { get; private set; }
+    public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
     public async Task OnGetAsync()
     {

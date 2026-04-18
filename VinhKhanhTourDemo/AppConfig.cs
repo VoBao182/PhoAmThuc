@@ -19,6 +19,8 @@ public static class AppConfig
     private static readonly TimeSpan FailedProbeCacheDuration = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan HostedApiProbeTimeout = TimeSpan.FromSeconds(75);
     private static readonly TimeSpan LocalApiProbeTimeout = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan HostedApiRequestTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan LocalApiRequestTimeout = TimeSpan.FromSeconds(15);
     private static string? _resolvedApiBaseUrl;
     private static DateTime _lastProbeUtc = DateTime.MinValue;
     private static bool _lastProbeSucceeded;
@@ -44,6 +46,11 @@ public static class AppConfig
 
     public static bool AllowManualApiOverride =>
         !HasConfiguredHostedApiBaseUrl;
+
+    public static TimeSpan PreferredApiRequestTimeout =>
+        HasConfiguredHostedApiBaseUrl
+            ? HostedApiRequestTimeout
+            : LocalApiRequestTimeout;
 
     public static string? CustomApiBaseUrl =>
         AllowManualApiOverride

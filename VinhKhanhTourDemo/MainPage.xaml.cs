@@ -832,17 +832,19 @@ public partial class MainPage : ContentPage
         string lngStr = "106.701831";
 
         var markersJs = new System.Text.StringBuilder();
-        foreach (var poi in _pois)
+        foreach (var poiVisual in GetPoiVisualPositions())
         {
-            string lat = poi.ViDo.ToString(CultureInfo.InvariantCulture);
-            string lng = poi.KinhDo.ToString(CultureInfo.InvariantCulture);
-            string poiId = poi.Id.ToString();
+            string lat = poiVisual.DisplayViDo.ToString(CultureInfo.InvariantCulture);
+            string lng = poiVisual.DisplayKinhDo.ToString(CultureInfo.InvariantCulture);
+            string circleLat = poiVisual.Poi.ViDo.ToString(CultureInfo.InvariantCulture);
+            string circleLng = poiVisual.Poi.KinhDo.ToString(CultureInfo.InvariantCulture);
+            string poiId = poiVisual.Poi.Id.ToString();
             string cleanId = poiId.Replace("-", "");
 
             markersJs.Append($@"
-                L.circle([{lat},{lng}], {{
+                L.circle([{circleLat},{circleLng}], {{
                     pane:'poiCircles',
-                    radius: {poi.BanKinh}, color:'#FF6600',
+                    radius: {poiVisual.Poi.BanKinh}, color:'#FF6600',
                     fillColor:'#FF6600', fillOpacity:0.15, weight:2
                 }}).addTo(map);
                 var icon_{cleanId} = L.divIcon({{
@@ -916,6 +918,40 @@ public partial class MainPage : ContentPage
         MapWebView.Navigated -= OnMapNavigated;
         MapWebView.Navigated += OnMapNavigated;
     }
+
+    private IEnumerable<PoiVisualPosition> GetPoiVisualPositions()
+    {
+        foreach (var group in _pois.GroupBy(p => $"{p.ViDo:F6}|{p.KinhDo:F6}"))
+        {
+            var poisAtSameLocation = group.ToList();
+            if (poisAtSameLocation.Count == 1)
+            {
+                var poi = poisAtSameLocation[0];
+                yield return new PoiVisualPosition(poi, poi.ViDo, poi.KinhDo);
+                continue;
+            }
+
+            // Spread overlapping markers in a small ring so the map shows each POI separately.
+            const double radiusMeters = 14d;
+            for (var index = 0; index < poisAtSameLocation.Count; index++)
+            {
+                var poi = poisAtSameLocation[index];
+                var angle = (2 * Math.PI * index) / poisAtSameLocation.Count;
+                var latOffset = (radiusMeters / 111_320d) * Math.Cos(angle);
+                var lngDivisor = 111_320d * Math.Cos(poi.ViDo * Math.PI / 180d);
+                var lngOffset = lngDivisor == 0d
+                    ? 0d
+                    : (radiusMeters / lngDivisor) * Math.Sin(angle);
+
+                yield return new PoiVisualPosition(
+                    poi,
+                    poi.ViDo + latOffset,
+                    poi.KinhDo + lngOffset);
+            }
+        }
+    }
+
+    private sealed record PoiVisualPosition(PoiDto Poi, double DisplayViDo, double DisplayKinhDo);
 
     private void OnMapNavigated(object? sender, WebNavigatedEventArgs e)
     {

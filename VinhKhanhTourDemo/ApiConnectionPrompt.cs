@@ -5,17 +5,11 @@ internal static class ApiConnectionPrompt
     public static async Task<string?> EnsureConnectedApiBaseUrlAsync(Page page, HttpClient http)
     {
         var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(http);
-        if (await AppConfig.CanReachApiBaseUrlAsync(http, apiBaseUrl))
+        if (AppConfig.HasConfiguredHostedApiBaseUrl)
             return apiBaseUrl;
 
-        if (AppConfig.HasConfiguredHostedApiBaseUrl)
-        {
-            await page.DisplayAlertAsync(
-                "Khong ket noi duoc",
-                AppConfig.BuildConnectionErrorMessage(new HttpRequestException("Unable to reach API.")),
-                "OK");
-            return null;
-        }
+        if (await AppConfig.CanReachApiBaseUrlAsync(http, apiBaseUrl))
+            return apiBaseUrl;
 
         var shouldConfigure = await page.DisplayAlertAsync(
             "Khong ket noi duoc",

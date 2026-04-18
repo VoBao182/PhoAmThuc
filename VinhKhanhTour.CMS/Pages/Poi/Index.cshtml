@@ -44,11 +44,12 @@
                     {
                         var activeMenuItems = poi.MonAns.Where(m => m.TinhTrang).ToList();
                         var coverImageUrl = ImageUrlHelper.ResolvePoi(poi.AnhDaiDien, Model.ApiBaseUrl, poi.TenPOI);
+                        var coverFallbackUrl = ImageUrlHelper.ResolvePoi(null, Model.ApiBaseUrl, poi.TenPOI);
 
                         <tr>
                             <td>
                                 <img src="@coverImageUrl" class="poi-avatar"
-                                     onerror="this.onerror=null;this.src='/images/fallback/restaurant_generic.svg';" />
+                                     onerror="this.onerror=null;this.src='@coverFallbackUrl';" />
                             </td>
                             <td>
                                 <strong>@poi.TenPOI</strong>
@@ -62,11 +63,12 @@
                                         @foreach (var mon in activeMenuItems.Take(4))
                                         {
                                             var dishImageUrl = ImageUrlHelper.ResolveDish(mon.HinhAnh, Model.ApiBaseUrl, mon.TenMonAn, mon.PhanLoai);
+                                            var dishFallbackUrl = ImageUrlHelper.ResolveDish(null, Model.ApiBaseUrl, mon.TenMonAn, mon.PhanLoai);
 
                                             <div style="display:flex;align-items:center;gap:10px;">
                                                 <img src="@dishImageUrl"
                                                      style="width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex:none"
-                                                     onerror="this.onerror=null;this.src='/images/fallback/dish_generic.svg';" />
+                                                     onerror="this.onerror=null;this.src='@dishFallbackUrl';" />
 
                                                 <div style="min-width:0;">
                                                     <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">

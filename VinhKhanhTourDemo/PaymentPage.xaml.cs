@@ -20,7 +20,7 @@ public partial class PaymentPage : ContentPage
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
     {
-        Timeout = TimeSpan.FromSeconds(15)
+        Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
     private static readonly Dictionary<string, (decimal Gia, string Ten, int SoNgay)> GoiInfo = new()

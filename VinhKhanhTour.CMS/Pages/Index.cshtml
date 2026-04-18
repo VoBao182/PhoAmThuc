@@ -1,5 +1,6 @@
 @page
 @model IndexModel
+@using VinhKhanhTour.CMS.Utils
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["Page"] = "dashboard";
@@ -66,17 +67,12 @@
             {
                 @foreach (var p in Model.POIs)
                 {
+                    var coverImageUrl = ImageUrlHelper.ResolvePoi(p.AnhDaiDien, Model.ApiBaseUrl, p.TenPOI);
+                    var coverFallbackUrl = ImageUrlHelper.ResolvePoi(null, Model.ApiBaseUrl, p.TenPOI);
                     <article class="poi-dashboard-card">
                         <div class="poi-cover">
-                            @if (!string.IsNullOrEmpty(p.AnhDaiDien))
-                            {
-                                <img src="@p.AnhDaiDien" alt="@p.TenPOI" class="poi-cover-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                                <div class="poi-cover-fallback" style="display:none;">VK</div>
-                            }
-                            else
-                            {
-                                <div class="poi-cover-fallback">VK</div>
-                            }
+                            <img src="@coverImageUrl" alt="@p.TenPOI" class="poi-cover-img"
+                                 onerror="this.onerror=null;this.src='@coverFallbackUrl';" />
                         </div>
 
                         <div class="poi-card-body">
