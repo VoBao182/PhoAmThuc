@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 
@@ -131,6 +132,15 @@ public static class AppConfig
 
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
             return null;
+
+        if (uri.Scheme == Uri.UriSchemeHttp && ShouldPreferHttps(uri))
+        {
+            uri = new UriBuilder(uri)
+            {
+                Scheme = Uri.UriSchemeHttps,
+                Port = -1
+            }.Uri;
+        }
 
         return uri.GetLeftPart(UriPartial.Authority);
     }
@@ -300,5 +310,17 @@ public static class AppConfig
         _lastProbeUtc = DateTime.UtcNow;
         _lastProbeSucceeded = true;
         Preferences.Set(LastGoodApiBaseUrlKey, normalized);
+    }
+
+    private static bool ShouldPreferHttps(Uri uri)
+    {
+        if (uri.IsLoopback)
+            return false;
+
+        var host = uri.Host;
+        if (string.IsNullOrWhiteSpace(host))
+            return false;
+
+        return !IPAddress.TryParse(host, out _);
     }
 }
