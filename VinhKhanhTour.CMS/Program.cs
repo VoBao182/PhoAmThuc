@@ -15,7 +15,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         connectionString,
-        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
+        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps => new ResilientExecutionStrategy(deps))));
 
 var app = builder.Build();
 

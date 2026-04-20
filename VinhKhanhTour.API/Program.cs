@@ -24,7 +24,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         connectionString,
-        npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
+        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps => new ResilientExecutionStrategy(deps))));
 
 // Cho phép MAUI app gọi API
 builder.Services.AddCors(options =>

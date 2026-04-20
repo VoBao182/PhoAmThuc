@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Compile Include="..\VinhKhanhTour.API\Data\AppDBContext.cs" Link="Shared\Data\AppDBContext.cs" />
+    <Compile Include="..\VinhKhanhTour.API\Data\ResilientExecutionStrategy.cs" Link="Shared\Data\ResilientExecutionStrategy.cs" />
     <Compile Include="..\VinhKhanhTour.API\Models\BanDich.cs" Link="Shared\Models\BanDich.cs" />
     <Compile Include="..\VinhKhanhTour.API\Models\DangKyApp.cs" Link="Shared\Models\DangKyApp.cs" />
     <Compile Include="..\VinhKhanhTour.API\Models\DangKyDichVu.cs" Link="Shared\Models\DangKyDichVu.cs" />
