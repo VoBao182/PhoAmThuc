@@ -23,6 +23,60 @@
     <div class="alert alert-warning">@Model.ErrorMessage</div>
 }
 
+<form method="get" class="card mb-4" style="padding:16px;">
+    <div style="display:grid;grid-template-columns:2fr repeat(4, minmax(150px, 1fr)) auto;gap:12px;align-items:end;">
+        <div>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Tim kiem</label>
+            <input name="search" value="@Model.Search" class="form-input" placeholder="Ten quan, dia chi, SDT..." />
+        </div>
+        <div>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Trang thai</label>
+            <select name="status" class="form-input">
+                <option value="all" selected="@(Model.StatusFilter == "all")">Tat ca</option>
+                <option value="visible" selected="@(Model.StatusFilter == "visible")">Dang hien</option>
+                <option value="hidden" selected="@(Model.StatusFilter == "hidden")">Dang an</option>
+                <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Con han</option>
+                <option value="expired" selected="@(Model.StatusFilter == "expired")">Het han</option>
+                <option value="no-expiry" selected="@(Model.StatusFilter == "no-expiry")">Chua co han</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Han duy tri</label>
+            <select name="expiry" class="form-input">
+                <option value="all" selected="@(Model.ExpiryFilter == "all")">Tat ca</option>
+                <option value="active" selected="@(Model.ExpiryFilter == "active")">Con han</option>
+                <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sap het han 7 ngay</option>
+                <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Da het han</option>
+                <option value="none" selected="@(Model.ExpiryFilter == "none")">Chua co han</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Sap xep</label>
+            <select name="sort" class="form-input">
+                <option value="priority" selected="@(Model.SortBy == "priority")">Uu tien</option>
+                <option value="name" selected="@(Model.SortBy == "name")">Ten A-Z</option>
+                <option value="expiry" selected="@(Model.SortBy == "expiry")">Han con lai</option>
+                <option value="menu" selected="@(Model.SortBy == "menu")">So mon dang hien</option>
+                <option value="status" selected="@(Model.SortBy == "status")">Trang thai</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Huong</label>
+            <select name="dir" class="form-input">
+                <option value="asc" selected="@(Model.SortDir == "asc")">Thap len cao / A-Z</option>
+                <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuong thap / Z-A</option>
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary">Loc</button>
+            <a href="/Poi" class="btn btn-ghost">Xoa</a>
+        </div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+        Dang hien thi <strong>@Model.POIs.Count</strong> POI theo bo loc hien tai.
+    </div>
+</form>
+
 <div class="card">
     <div class="table-wrap">
         <table>
@@ -33,6 +87,7 @@
                     <th>Địa chỉ</th>
                     <th>Món ăn trong quán</th>
                     <th>Ưu tiên</th>
+                    <th>Hạn duy trì</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
                 </tr>
@@ -99,6 +154,20 @@
                                 }
                             </td>
                             <td style="font-size:13px">@poi.MucUuTien</td>
+                            <td style="font-size:13px">
+                                @if (poi.NgayHetHanDuyTri.HasValue)
+                                {
+                                    var remainingDays = VinhKhanhTour.CMS.Pages.Poi.IndexModel.GetRemainingDays(poi);
+                                    <strong>@poi.NgayHetHanDuyTri.Value.ToLocalTime().ToString("dd/MM/yyyy")</strong>
+                                    <div style="font-size:12px;color:@(remainingDays < 0 ? "#dc2626" : remainingDays <= 7 ? "#d97706" : "var(--text-muted)")">
+                                        @(remainingDays < 0 ? $"Qua han {Math.Abs(remainingDays)} ngay" : $"Con {remainingDays + 1} ngay")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--text-muted)">Chua co han</span>
+                                }
+                            </td>
                             <td>
                                 <span class="status-dot @(poi.TrangThai ? "dot-on" : "dot-off")"></span>
                                 @(poi.TrangThai ? "Hiện" : "Ẩn")
@@ -121,7 +190,7 @@
                 else
                 {
                     <tr>
-                        <td colspan="7" style="padding:24px;text-align:center;color:var(--text-muted);">
+                        <td colspan="8" style="padding:24px;text-align:center;color:var(--text-muted);">
                             Chưa tải được dữ liệu POI. Kiểm tra kết nối database/API rồi thử lại.
                         </td>
                     </tr>

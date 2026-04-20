@@ -12,9 +12,19 @@
             <h2 class="fw-bold mb-0">Duyet thanh toan app</h2>
             <p class="text-muted mb-0">Xac nhan yeu cau chuyen khoan tu khach mua goi</p>
         </div>
-        <span class="badge bg-warning text-dark fs-6">
+        <span id="pendingCountBadge" class="badge bg-warning text-dark fs-6">
             @Model.SoChoDuyet yeu cau cho duyet
         </span>
+    </div>
+
+    <div id="paymentPendingAlert"
+         class="alert alert-warning alert-dismissible fade show d-none"
+         role="alert"
+         aria-live="polite">
+        <strong>Co yeu cau thanh toan moi.</strong>
+        <span id="paymentPendingAlertText">Trang se tu cap nhat.</span>
+        <a href="?tab=cho_duyet" class="alert-link ms-2">Mo danh sach cho duyet</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
     @if (!string.IsNullOrEmpty(Model.ThongBao))
@@ -50,6 +60,9 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
+            <div class="px-3 py-2 border-bottom bg-light small text-muted">
+                Trang tu kiem tra yeu cau moi moi 5 giay. Khi co thay doi, he thong se thong bao va tai lai neu admin khong dang thao tac.
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
@@ -181,9 +194,112 @@
 
 @section Scripts {
 <script>
-document.getElementById('modalTuChoi').addEventListener('show.bs.modal', function (e) {
-    var id = e.relatedTarget.dataset.id;
-    document.getElementById('tuChoiId').value = id;
-});
+(function () {
+    var rejectModal = document.getElementById('modalTuChoi');
+    if (rejectModal) {
+        rejectModal.addEventListener('show.bs.modal', function (e) {
+            var id = e.relatedTarget.dataset.id;
+            document.getElementById('tuChoiId').value = id;
+        });
+    }
+
+    document.addEventListener('submit', function () {
+        document.body.dataset.paymentSubmitting = '1';
+    });
+
+    var snapshotUrl = '@Url.Page(null, "PendingSnapshot")';
+    var currentTitle = document.title;
+    var lastCount = Number('@Model.SoChoDuyet');
+    var lastLatestId = '@Model.LatestPendingId';
+    var storageKey = 'vktPendingPaymentNotice';
+    var alertBox = document.getElementById('paymentPendingAlert');
+    var alertText = document.getElementById('paymentPendingAlertText');
+    var pendingBadge = document.getElementById('pendingCountBadge');
+
+    function isAdminEditing() {
+        return document.body.dataset.paymentSubmitting === '1'
+            || document.querySelector('.modal.show, textarea:focus, input:focus') !== null;
+    }
+
+    function normalizeSnapshot(data) {
+        return {
+            count: Number(data.count ?? data.Count ?? 0),
+            latestId: data.latestId ?? data.LatestId ?? '',
+            latestTransferContent: data.latestTransferContent ?? data.LatestTransferContent ?? '',
+            latestDeviceShort: data.latestDeviceShort ?? data.LatestDeviceShort ?? ''
+        };
+    }
+
+    function updateBadge(count) {
+        if (pendingBadge) {
+            pendingBadge.textContent = count + ' yeu cau cho duyet';
+        }
+
+        document.title = count > 0 ? '(' + count + ') ' + currentTitle : currentTitle;
+    }
+
+    function showPendingNotice(snapshot) {
+        if (!alertBox || !alertText) return;
+
+        var detail = snapshot.latestTransferContent
+            ? ' Gan nhat: ' + snapshot.latestTransferContent
+            : '';
+        var device = snapshot.latestDeviceShort
+            ? ' (' + snapshot.latestDeviceShort + ')'
+            : '';
+
+        alertText.textContent = 'Dang co ' + snapshot.count + ' yeu cau cho duyet' + device + '.' + detail;
+        alertBox.classList.remove('d-none');
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Vinh Khanh Tour', {
+                body: 'Co ' + snapshot.count + ' yeu cau thanh toan cho duyet.'
+            });
+        }
+    }
+
+    var queuedCount = Number(sessionStorage.getItem(storageKey) || '0');
+    if (queuedCount > 0) {
+        showPendingNotice({ count: queuedCount, latestTransferContent: '', latestDeviceShort: '' });
+        sessionStorage.removeItem(storageKey);
+    }
+
+    async function pollPendingPayments() {
+        try {
+            var response = await fetch(snapshotUrl, {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
+            if (!response.ok) return;
+
+            var snapshot = normalizeSnapshot(await response.json());
+            var hasChanged = snapshot.count !== lastCount || snapshot.latestId !== lastLatestId;
+            var hasNewPending = snapshot.count > lastCount;
+
+            updateBadge(snapshot.count);
+
+            if (hasNewPending) {
+                showPendingNotice(snapshot);
+            }
+
+            if (hasChanged) {
+                lastCount = snapshot.count;
+                lastLatestId = snapshot.latestId;
+                sessionStorage.setItem(storageKey, String(snapshot.count));
+
+                if (!isAdminEditing()) {
+                    window.location.reload();
+                } else {
+                    showPendingNotice(snapshot);
+                }
+            }
+        } catch {
+            // Bo qua loi mang tam thoi; lan poll tiep theo se thu lai.
+        }
+    }
+
+    updateBadge(lastCount);
+    window.setInterval(pollPendingPayments, 5000);
+})();
 </script>
 }

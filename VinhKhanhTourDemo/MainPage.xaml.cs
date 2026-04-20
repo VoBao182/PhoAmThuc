@@ -24,6 +24,11 @@ public partial class MainPage : ContentPage
     private const int COOLDOWN_MINUTES = 10;
     private const string ViewedPoiIdsPreferenceKey = "viewed_poi_ids";
     private const string VisitedPoiIdsPreferenceKey = "visited_poi_ids";
+    private const string SubscriptionExpiryPreferenceKey = "sub_ngay_het_han";
+    private const string UsedTrialPreferenceKey = "da_dung_thu";
+    private const int ViewedPoiExperience = 50;
+    private const int VisitedPoiExperience = 100;
+    private const int ExperiencePerLevel = 500;
 
     private readonly HttpClient _http = new(new HttpClientHandler
     {
@@ -86,6 +91,7 @@ public partial class MainPage : ContentPage
             await LoadPoisFromApi();
         }
 
+        await RestorePoiHistoryAsync();
         await EnsureGpsTrackingAsync();
         _ = SyncPoiHistoryAsync();
         }
@@ -104,13 +110,16 @@ public partial class MainPage : ContentPage
         if (KiemTraSubscription())
             return false;
 
+        if (await RestoreSubscriptionStateAsync() && KiemTraSubscription())
+            return false;
+
         if (_subscriptionModalOpen)
             return true;
 
         _subscriptionModalOpen = true;
         try
         {
-            bool hetHan = Preferences.ContainsKey("sub_ngay_het_han");
+            bool hetHan = Preferences.ContainsKey(SubscriptionExpiryPreferenceKey);
             await Task.Yield();
             await Navigation.PushModalAsync(new SubscriptionPage(hetHan), animated: false);
             return true;
@@ -123,12 +132,60 @@ public partial class MainPage : ContentPage
 
     private static bool KiemTraSubscription()
     {
-        var hetHanStr = Preferences.Get("sub_ngay_het_han", "");
+        var hetHanStr = Preferences.Get(SubscriptionExpiryPreferenceKey, "");
         if (string.IsNullOrEmpty(hetHanStr)) return false;
         if (!DateTime.TryParse(hetHanStr, null,
                 System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan))
             return false;
         return hetHan > DateTime.UtcNow;
+    }
+
+    private async Task<bool> RestoreSubscriptionStateAsync()
+    {
+        try
+        {
+            var deviceId = DeviceIdentity.GetDeviceId();
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var url = $"{apiBaseUrl}/api/subscription/status/{Uri.EscapeDataString(deviceId)}";
+            var status = await _http.GetFromJsonAsync<SubscriptionStatusResponse>(url);
+            if (status == null)
+                return false;
+
+            if (status.DaDungThu)
+                Preferences.Set(UsedTrialPreferenceKey, true);
+
+            if (status.NgayHetHan.HasValue)
+                Preferences.Set(SubscriptionExpiryPreferenceKey, status.NgayHetHan.Value.ToString("O"));
+
+            return status.CoDangKy && status.NgayHetHan.HasValue && status.NgayHetHan.Value > DateTime.UtcNow;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task RestorePoiHistoryAsync()
+    {
+        try
+        {
+            var deviceId = DeviceIdentity.GetDeviceId();
+            var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
+            var url = $"{apiBaseUrl}/api/heartbeat/profile/{Uri.EscapeDataString(deviceId)}";
+            var profile = await _http.GetFromJsonAsync<UserExperienceProfileResponse>(url);
+            if (profile == null)
+                return;
+
+            var changedViews = MergeSavedPoiIds(ViewedPoiIdsPreferenceKey, profile.ViewedPoiIds);
+            var changedVisits = MergeSavedPoiIds(VisitedPoiIdsPreferenceKey, profile.VisitedPoiIds);
+
+            if (changedViews || changedVisits)
+                MainThread.BeginInvokeOnMainThread(UpdateCaiDatUI);
+        }
+        catch
+        {
+            // Neu API chua san sang, app van dung du lieu local va thu lai sau.
+        }
     }
 
     private static HashSet<string> GetSavedPoiIds(string preferenceKey)
@@ -145,6 +202,25 @@ public partial class MainPage : ContentPage
     private static void SavePoiIds(string preferenceKey, HashSet<string> poiIds)
     {
         Preferences.Set(preferenceKey, string.Join('|', poiIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private static bool MergeSavedPoiIds(string preferenceKey, IEnumerable<Guid>? poiIds)
+    {
+        if (poiIds == null)
+            return false;
+
+        var savedPoiIds = GetSavedPoiIds(preferenceKey);
+        var changed = false;
+        foreach (var poiId in poiIds)
+        {
+            if (poiId != Guid.Empty && savedPoiIds.Add(poiId.ToString()))
+                changed = true;
+        }
+
+        if (changed)
+            SavePoiIds(preferenceKey, savedPoiIds);
+
+        return changed;
     }
 
     private static int GetSavedPoiCount(string preferenceKey) => GetSavedPoiIds(preferenceKey).Count;
@@ -297,6 +373,7 @@ public partial class MainPage : ContentPage
                 foreach (var p in _pois)
                     Console.WriteLine($"  - {p.TenPOI}: {p.ViDo}, {p.KinhDo}");
 
+                _ = RestorePoiHistoryAsync();
                 _ = SyncPoiHistoryAsync();
             }
         }
@@ -544,7 +621,7 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            var deviceId = Preferences.Get("device_id", "");
+            var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrEmpty(deviceId)) return;
 
             var body = new
@@ -594,7 +671,7 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            var deviceId = Preferences.Get("device_id", "");
+            var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrEmpty(deviceId)) return;
 
             string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
@@ -613,7 +690,7 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            var deviceId = Preferences.Get("device_id", "");
+            var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrEmpty(deviceId)) return;
 
             string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
@@ -635,7 +712,7 @@ public partial class MainPage : ContentPage
 
         try
         {
-            var deviceId = Preferences.Get("device_id", "");
+            var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrWhiteSpace(deviceId))
                 return;
 
@@ -831,6 +908,7 @@ public partial class MainPage : ContentPage
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
             await _http.PostAsJsonAsync($"{apiBaseUrl}/api/log", new
             {
+                MaThietBi = DeviceIdentity.GetDeviceId(),
                 POIId = poiId,
                 NgonNguDung = langCode,
                 ThoiGian = DateTime.UtcNow,
@@ -1442,7 +1520,7 @@ public partial class MainPage : ContentPage
         string lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
 
         // Avatar initials — 2 ký tự đầu của device ID
-        var deviceId = Preferences.Get("device_id", "");
+        var deviceId = DeviceIdentity.GetDeviceId();
         var initials = string.IsNullOrEmpty(deviceId) ? "VK"
             : deviceId[..Math.Min(2, deviceId.Length)].ToUpper();
         LblUserName.Text = initials;
@@ -1459,7 +1537,7 @@ public partial class MainPage : ContentPage
         };
 
         // Gói đăng ký: hiển thị số ngày còn lại
-        var hetHanStr = Preferences.Get("sub_ngay_het_han", "");
+        var hetHanStr = Preferences.Get(SubscriptionExpiryPreferenceKey, "");
         if (!string.IsNullOrEmpty(hetHanStr) &&
             DateTime.TryParse(hetHanStr, null,
                 System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan) &&
@@ -1478,15 +1556,21 @@ public partial class MainPage : ContentPage
         // Mã thiết bị (8 ký tự đầu của UUID)
         LblUserPhone.Text = string.IsNullOrEmpty(deviceId)
             ? "—"
-            : deviceId[..Math.Min(8, deviceId.Length)].ToUpper();
+            : DeviceIdentity.GetShortDeviceId();
+
+        if (LblRecoveryCode is not null)
+            LblRecoveryCode.Text = DeviceIdentity.BuildRecoveryPayload();
+
+        if (ImgDeviceQr is not null)
+            ImgDeviceQr.Source = ImageSource.FromUri(new Uri(DeviceIdentity.BuildQrCodeUrl()));
 
         // Số quán đã ghé (đọc từ LichSuPhat qua bộ nhớ local — cập nhật khi reload)
         var viewedPoiCount = GetSavedPoiCount(ViewedPoiIdsPreferenceKey);
         var visitedPoiCount = GetSavedPoiCount(VisitedPoiIdsPreferenceKey);
-        var totalXp = (viewedPoiCount * 50) + (visitedPoiCount * 100);
-        var currentLevel = Math.Max(1, (totalXp / 500) + 1);
-        var xpInCurrentLevel = totalXp % 500;
-        var xpProgress = Math.Clamp(xpInCurrentLevel / 500d, 0d, 1d);
+        var totalXp = (viewedPoiCount * ViewedPoiExperience) + (visitedPoiCount * VisitedPoiExperience);
+        var currentLevel = Math.Max(1, (totalXp / ExperiencePerLevel) + 1);
+        var xpInCurrentLevel = totalXp % ExperiencePerLevel;
+        var xpProgress = Math.Clamp(xpInCurrentLevel / (double)ExperiencePerLevel, 0d, 1d);
 
         if (LblStatQuanXemV2 is not null)
             LblStatQuanXemV2.Text = viewedPoiCount.ToString();
@@ -1498,7 +1582,7 @@ public partial class MainPage : ContentPage
             LblStatQuanXem.Text = viewedPoiCount.ToString();
 
         if (LblXpProgress is not null)
-            LblXpProgress.Text = $"XP: {xpInCurrentLevel} / 500";
+            LblXpProgress.Text = $"XP: {xpInCurrentLevel} / {ExperiencePerLevel}";
 
         if (ProfileXpBar is not null)
             ProfileXpBar.Progress = xpProgress;
@@ -1509,6 +1593,52 @@ public partial class MainPage : ContentPage
             $"美食探索者·{currentLevel}级");
 
         UpdateApiConnectionUi();
+    }
+
+    private async void OnCopyDeviceCodeClicked(object? sender, EventArgs e)
+    {
+        await Clipboard.SetTextAsync(DeviceIdentity.BuildRecoveryPayload());
+        if (BtnCopyDeviceCode is not null)
+        {
+            BtnCopyDeviceCode.Text = "Da copy";
+            await Task.Delay(1500);
+            BtnCopyDeviceCode.Text = "Copy ma";
+        }
+    }
+
+    private async void OnRestoreDeviceCodeClicked(object? sender, EventArgs e)
+    {
+        var code = await DisplayPromptAsync(
+            GetText("Khoi phuc du lieu", "Restore data", "恢复数据"),
+            GetText(
+                "Nhap ma khoi phuc da luu hoac noi dung quet tu QR.",
+                "Enter the saved recovery code or QR content.",
+                "输入已保存的恢复码或二维码内容。"),
+            GetText("Khoi phuc", "Restore", "恢复"),
+            GetText("Huy", "Cancel", "取消"),
+            "VKT-DEVICE:...");
+
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        if (!DeviceIdentity.TrySetDeviceIdOverride(code, out _))
+        {
+            await DisplayAlertAsync(
+                GetText("Ma khong hop le", "Invalid code", "无效代码"),
+                GetText("Ma khoi phuc khong dung dinh dang.", "The recovery code format is invalid.", "恢复码格式无效。"),
+                "OK");
+            return;
+        }
+
+        await RestoreSubscriptionStateAsync();
+        await RestorePoiHistoryAsync();
+        _ = SyncPoiHistoryAsync();
+        UpdateCaiDatUI();
+
+        await DisplayAlertAsync(
+            GetText("Da khoi phuc", "Restored", "已恢复"),
+            GetText("Ung dung da dung ma thiet bi nay de dong bo goi va kinh nghiem.", "The app is now using this device code to sync subscription and experience.", "应用已使用此设备码同步订阅和经验。"),
+            "OK");
     }
 
     private async void OnGiaHanClicked(object? sender, EventArgs? e)
@@ -1622,4 +1752,23 @@ public class ThuyetMinhResponse
     public string NoiDung { get; set; } = "";
     public string? FileAudio { get; set; }
     public string NgonNgu { get; set; } = "vi";
+}
+
+public sealed class SubscriptionStatusResponse
+{
+    public bool CoDangKy { get; set; }
+    public DateTime? NgayHetHan { get; set; }
+    public int SoNgayConLai { get; set; }
+    public string? LoaiGoi { get; set; }
+    public bool DaDungThu { get; set; }
+}
+
+public sealed class UserExperienceProfileResponse
+{
+    public List<Guid> ViewedPoiIds { get; set; } = [];
+    public List<Guid> VisitedPoiIds { get; set; } = [];
+    public int ViewedPoiCount { get; set; }
+    public int VisitedPoiCount { get; set; }
+    public int ExperiencePoints { get; set; }
+    public int Level { get; set; }
 }

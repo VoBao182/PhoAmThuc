@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
@@ -7,6 +8,9 @@ namespace VinhKhanhTour.CMS.Pages.BanDo;
 public class IndexModel : PageModel
 {
     private static readonly TimeSpan OnlineThreshold = TimeSpan.FromMinutes(2);
+    private const int ViewedPoiExperience = 50;
+    private const int VisitedPoiExperience = 100;
+    private const int ExperiencePerLevel = 500;
 
     private readonly AppDbContext _db;
 
@@ -20,10 +24,28 @@ public class IndexModel : PageModel
     public int ActiveCustomers { get; private set; }
     public int CustomersAtPoi { get; private set; }
     public int ExpiredCustomers { get; private set; }
+    public int TotalExperiencePoints { get; private set; }
+    public int HighestCustomerLevel { get; private set; }
     public string? ErrorMessage { get; private set; }
+    public string Search { get; private set; } = "";
+    public string StatusFilter { get; private set; } = "all";
+    public string ExpiryFilter { get; private set; } = "all";
+    public string SortBy { get; private set; } = "last";
+    public string SortDir { get; private set; } = "desc";
 
-    public async Task OnGetAsync()
+    public async Task OnGetAsync(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? expiry,
+        [FromQuery] string? sort,
+        [FromQuery] string? dir)
     {
+        Search = (search ?? "").Trim();
+        StatusFilter = NormalizeOption(status, "all");
+        ExpiryFilter = NormalizeOption(expiry, "all");
+        SortBy = NormalizeOption(sort, "last");
+        SortDir = string.Equals(dir, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
+
         try
         {
             var now = DateTime.UtcNow;
@@ -78,7 +100,7 @@ public class IndexModel : PageModel
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            Customers = deviceIds
+            var rows = deviceIds
                 .Select(deviceId =>
                 {
                     subscriptionMap.TryGetValue(deviceId, out var expiresAt);
@@ -95,6 +117,9 @@ public class IndexModel : PageModel
                     var remainingDays = hasSubscription && expiresAt >= now
                         ? Math.Max(1, (int)(expiresAt - now).TotalDays + 1)
                         : (int?)null;
+                    var experiencePoints = (viewedCount * ViewedPoiExperience) + (visitedCount * VisitedPoiExperience);
+                    var level = Math.Max(1, (experiencePoints / ExperiencePerLevel) + 1);
+                    var experienceInCurrentLevel = experiencePoints % ExperiencePerLevel;
 
                     return new CustomerActivityRow
                     {
@@ -104,6 +129,10 @@ public class IndexModel : PageModel
                         RemainingDays = remainingDays,
                         ViewedPoiCount = viewedCount,
                         VisitedPoiCount = visitedCount,
+                        ExperiencePoints = experiencePoints,
+                        Level = level,
+                        ExperienceInCurrentLevel = experienceInCurrentLevel,
+                        ExperienceProgressPercent = (int)Math.Round(experienceInCurrentLevel * 100d / ExperiencePerLevel),
                         CurrentPoiName = isAtPoi ? location!.TenPoiHienTai : null,
                         LastHeartbeat = lastHeartbeat,
                         StatusText = GetStatusText(isOnline, isAtPoi, lastHeartbeat),
@@ -112,16 +141,17 @@ public class IndexModel : PageModel
                         SubscriptionClass = GetSubscriptionClass(hasSubscription, isExpired, remainingDays)
                     };
                 })
-                .OrderByDescending(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff)
-                .ThenByDescending(x => x.CurrentPoiName != null)
-                .ThenByDescending(x => x.ExpiresAt)
-                .ThenBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            Customers = ApplySort(ApplyExpiryFilter(ApplyStatusFilter(ApplySearchFilter(rows), now), now), now, onlineCutoff)
                 .ToList();
 
             TotalCustomers = Customers.Count;
             ActiveCustomers = Customers.Count(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff);
             CustomersAtPoi = Customers.Count(x => x.CurrentPoiName != null);
             ExpiredCustomers = Customers.Count(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now);
+            TotalExperiencePoints = Customers.Sum(x => x.ExperiencePoints);
+            HighestCustomerLevel = Customers.Count == 0 ? 0 : Customers.Max(x => x.Level);
         }
         catch (Exception ex)
         {
@@ -130,8 +160,95 @@ public class IndexModel : PageModel
             ActiveCustomers = 0;
             CustomersAtPoi = 0;
             ExpiredCustomers = 0;
+            TotalExperiencePoints = 0;
+            HighestCustomerLevel = 0;
             ErrorMessage = $"Không thể tải danh sách khách hàng: {ex.GetBaseException().Message}";
         }
+    }
+
+    private static string NormalizeOption(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
+
+    private IEnumerable<CustomerActivityRow> ApplySearchFilter(IEnumerable<CustomerActivityRow> customers)
+    {
+        if (string.IsNullOrWhiteSpace(Search))
+            return customers;
+
+        return customers.Where(x =>
+            x.DeviceId.Contains(Search, StringComparison.OrdinalIgnoreCase) ||
+            x.DeviceShort.Contains(Search, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(x.CurrentPoiName) && x.CurrentPoiName.Contains(Search, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private IEnumerable<CustomerActivityRow> ApplyStatusFilter(IEnumerable<CustomerActivityRow> customers, DateTime now)
+        => StatusFilter switch
+        {
+            "online" => customers.Where(x => IsOnline(x)),
+            "at-poi" => customers.Where(x => x.CurrentPoiName != null),
+            "offline" => customers.Where(x => x.LastHeartbeat.HasValue && !IsOnline(x)),
+            "never" => customers.Where(x => !x.LastHeartbeat.HasValue),
+            "active-sub" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now),
+            "expired" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now),
+            "no-sub" => customers.Where(x => !x.ExpiresAt.HasValue),
+            _ => customers
+        };
+
+    private IEnumerable<CustomerActivityRow> ApplyExpiryFilter(IEnumerable<CustomerActivityRow> customers, DateTime now)
+        => ExpiryFilter switch
+        {
+            "active" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now),
+            "expiring7" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now && x.ExpiresAt.Value <= now.AddDays(7)),
+            "expired" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now),
+            "none" => customers.Where(x => !x.ExpiresAt.HasValue),
+            _ => customers
+        };
+
+    private IEnumerable<CustomerActivityRow> ApplySort(
+        IEnumerable<CustomerActivityRow> customers,
+        DateTime now,
+        DateTime onlineCutoff)
+    {
+        var descending = SortDir == "desc";
+        IOrderedEnumerable<CustomerActivityRow> ordered = SortBy switch
+        {
+            "expiry" => descending
+                ? customers.OrderByDescending(x => GetRemainingDaysSortValue(x, now))
+                : customers.OrderBy(x => GetRemainingDaysSortValue(x, now)),
+            "experience" => descending
+                ? customers.OrderByDescending(x => x.ExperiencePoints)
+                : customers.OrderBy(x => x.ExperiencePoints),
+            "viewed" => descending
+                ? customers.OrderByDescending(x => x.ViewedPoiCount)
+                : customers.OrderBy(x => x.ViewedPoiCount),
+            "visited" => descending
+                ? customers.OrderByDescending(x => x.VisitedPoiCount)
+                : customers.OrderBy(x => x.VisitedPoiCount),
+            "device" => descending
+                ? customers.OrderByDescending(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
+                : customers.OrderBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase),
+            "current" => descending
+                ? customers.OrderByDescending(x => x.CurrentPoiName ?? "", StringComparer.CurrentCultureIgnoreCase)
+                : customers.OrderBy(x => x.CurrentPoiName ?? "", StringComparer.CurrentCultureIgnoreCase),
+            _ => descending
+                ? customers.OrderByDescending(x => x.LastHeartbeat ?? DateTime.MinValue)
+                : customers.OrderBy(x => x.LastHeartbeat ?? DateTime.MinValue)
+        };
+
+        return ordered
+            .ThenByDescending(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff)
+            .ThenByDescending(x => x.CurrentPoiName != null)
+            .ThenBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsOnline(CustomerActivityRow customer)
+        => customer.LastHeartbeat.HasValue && customer.LastHeartbeat.Value >= DateTime.UtcNow.Subtract(OnlineThreshold);
+
+    private static int GetRemainingDaysSortValue(CustomerActivityRow customer, DateTime now)
+    {
+        if (!customer.ExpiresAt.HasValue)
+            return int.MinValue;
+
+        return (int)Math.Floor((customer.ExpiresAt.Value - now).TotalDays);
     }
 
     private static string GetStatusText(bool isOnline, bool isAtPoi, DateTime? lastHeartbeat)
@@ -192,6 +309,10 @@ public class IndexModel : PageModel
         public int? RemainingDays { get; init; }
         public int ViewedPoiCount { get; init; }
         public int VisitedPoiCount { get; init; }
+        public int ExperiencePoints { get; init; }
+        public int Level { get; init; }
+        public int ExperienceInCurrentLevel { get; init; }
+        public int ExperienceProgressPercent { get; init; }
         public string? CurrentPoiName { get; init; }
         public DateTime? LastHeartbeat { get; init; }
         public string StatusText { get; init; } = "";

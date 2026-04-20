@@ -21,6 +21,9 @@ public class LogController : ControllerBase
             var log = new LichSuPhat
             {
                 Id           = Guid.NewGuid(),
+                MaThietBi    = string.IsNullOrWhiteSpace(req.MaThietBi)
+                    ? null
+                    : LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi),
                 POIId        = req.POIId,
                 NgonNguDung  = LichSuPhatInputNormalizer.NormalizeNgonNgu(req.NgonNguDung),
                 ThoiGian     = req.ThoiGian ?? DateTime.UtcNow,
@@ -42,6 +45,7 @@ public class LogController : ControllerBase
 
 public class LogRequest
 {
+    public string?   MaThietBi   { get; set; }
     public Guid?     POIId       { get; set; }
     public string?   NgonNguDung { get; set; }
     public DateTime? ThoiGian    { get; set; }

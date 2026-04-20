@@ -27,6 +27,7 @@ public class IndexModel : PageModel
 
     public List<YeuCauViewModel> DanhSach { get; set; } = [];
     public int SoChoDuyet { get; set; }
+    public string LatestPendingId { get; set; } = "";
     public string FilterTab { get; set; } = "cho_duyet";
     public string? ThongBao { get; set; }
     public string? LoiMsg { get; set; }
@@ -48,6 +49,13 @@ public class IndexModel : PageModel
         try
         {
             SoChoDuyet = await _db.YeuCauThanhToans.CountAsync(y => y.TrangThai == "cho_duyet");
+            var latestPendingId = await _db.YeuCauThanhToans
+                .AsNoTracking()
+                .Where(y => y.TrangThai == "cho_duyet")
+                .OrderByDescending(y => y.NgayTao)
+                .Select(y => (Guid?)y.Id)
+                .FirstOrDefaultAsync();
+            LatestPendingId = latestPendingId?.ToString("N") ?? "";
 
             DanhSach = await _db.YeuCauThanhToans
                 .AsNoTracking()
@@ -70,9 +78,46 @@ public class IndexModel : PageModel
         catch (Exception ex)
         {
             SoChoDuyet = 0;
+            LatestPendingId = "";
             DanhSach = [];
             LoiMsg ??= $"Khong the tai danh sach duyet thanh toan: {ex.GetBaseException().Message}";
         }
+    }
+
+    public async Task<JsonResult> OnGetPendingSnapshotAsync()
+    {
+        var pendingQuery = _db.YeuCauThanhToans
+            .AsNoTracking()
+            .Where(y => y.TrangThai == "cho_duyet");
+
+        var count = await pendingQuery.CountAsync();
+        var latest = await pendingQuery
+            .OrderByDescending(y => y.NgayTao)
+            .Select(y => new
+            {
+                y.Id,
+                y.NgayTao,
+                y.NoiDungChuyen,
+                y.MaThietBi
+            })
+            .FirstOrDefaultAsync();
+
+        var latestDeviceShort = "";
+        if (!string.IsNullOrWhiteSpace(latest?.MaThietBi))
+        {
+            latestDeviceShort = latest.MaThietBi.Length > 8
+                ? latest.MaThietBi[..8].ToUpperInvariant()
+                : latest.MaThietBi.ToUpperInvariant();
+        }
+
+        return new JsonResult(new
+        {
+            Count = count,
+            LatestId = latest == null ? "" : latest.Id.ToString("N"),
+            LatestCreatedAt = latest?.NgayTao,
+            LatestTransferContent = latest?.NoiDungChuyen ?? "",
+            LatestDeviceShort = latestDeviceShort
+        });
     }
 
     public async Task<IActionResult> OnPostApproveAsync(Guid yeuCauId)

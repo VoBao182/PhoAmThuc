@@ -65,7 +65,7 @@
 
     .summary-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 16px;
     }
 
@@ -123,7 +123,7 @@
 
     .customer-table {
         width: 100%;
-        min-width: 960px;
+        min-width: 1120px;
         border-collapse: separate;
         border-spacing: 0;
     }
@@ -259,6 +259,41 @@
         font-weight: 600;
     }
 
+    .xp-card {
+        display: grid;
+        gap: 7px;
+        min-width: 150px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+        border: 1px solid rgba(249, 115, 22, 0.18);
+    }
+
+    .xp-card strong {
+        color: #9a3412;
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+
+    .xp-card span {
+        color: #c2410c;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .xp-track {
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(194, 65, 12, 0.15);
+    }
+
+    .xp-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #f97316, #ea580c);
+    }
+
     @@media (max-width: 1100px) {
         .summary-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -310,7 +345,67 @@
             <span>Hết hạn</span>
             <strong>@Model.ExpiredCustomers</strong>
         </article>
+        <article class="summary-tile">
+            <span>Tong XP</span>
+            <strong>@Model.TotalExperiencePoints.ToString("N0")</strong>
+        </article>
     </div>
+
+    <form method="get" class="customer-panel" style="padding:18px;">
+        <div style="display:grid;grid-template-columns:2fr repeat(4, minmax(150px, 1fr)) auto;gap:12px;align-items:end;">
+            <div>
+                <label class="mini-note" style="font-weight:700;">Tim kiem</label>
+                <input name="search" value="@Model.Search" class="form-control" placeholder="Ma thiet bi, quan hien tai..." />
+            </div>
+            <div>
+                <label class="mini-note" style="font-weight:700;">Trang thai</label>
+                <select name="status" class="form-select">
+                    <option value="all" selected="@(Model.StatusFilter == "all")">Tat ca</option>
+                    <option value="online" selected="@(Model.StatusFilter == "online")">Dang hoat dong</option>
+                    <option value="at-poi" selected="@(Model.StatusFilter == "at-poi")">Dang o quan</option>
+                    <option value="offline" selected="@(Model.StatusFilter == "offline")">Khong hoat dong</option>
+                    <option value="never" selected="@(Model.StatusFilter == "never")">Chua heartbeat</option>
+                    <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Con goi</option>
+                    <option value="expired" selected="@(Model.StatusFilter == "expired")">Het han</option>
+                    <option value="no-sub" selected="@(Model.StatusFilter == "no-sub")">Chua co goi</option>
+                </select>
+            </div>
+            <div>
+                <label class="mini-note" style="font-weight:700;">Han su dung</label>
+                <select name="expiry" class="form-select">
+                    <option value="all" selected="@(Model.ExpiryFilter == "all")">Tat ca</option>
+                    <option value="active" selected="@(Model.ExpiryFilter == "active")">Con han</option>
+                    <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sap het han 7 ngay</option>
+                    <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Da het han</option>
+                    <option value="none" selected="@(Model.ExpiryFilter == "none")">Chua co han</option>
+                </select>
+            </div>
+            <div>
+                <label class="mini-note" style="font-weight:700;">Sap xep</label>
+                <select name="sort" class="form-select">
+                    <option value="last" selected="@(Model.SortBy == "last")">Lan cuoi hoat dong</option>
+                    <option value="expiry" selected="@(Model.SortBy == "expiry")">Han con lai</option>
+                    <option value="experience" selected="@(Model.SortBy == "experience")">Kinh nghiem</option>
+                    <option value="viewed" selected="@(Model.SortBy == "viewed")">So quan da xem</option>
+                    <option value="visited" selected="@(Model.SortBy == "visited")">So quan da ghe</option>
+                    <option value="device" selected="@(Model.SortBy == "device")">Ma thiet bi</option>
+                    <option value="current" selected="@(Model.SortBy == "current")">Quan hien tai</option>
+                </select>
+            </div>
+            <div>
+                <label class="mini-note" style="font-weight:700;">Huong</label>
+                <select name="dir" class="form-select">
+                    <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuong thap / moi nhat</option>
+                    <option value="asc" selected="@(Model.SortDir == "asc")">Thap len cao / cu nhat</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Loc</button>
+                <a href="/BanDo" class="btn btn-light">Xoa</a>
+            </div>
+        </div>
+        <div class="mini-note" style="margin-top:10px;">Dang hien thi <strong>@Model.Customers.Count</strong> khach hang theo bo loc hien tai.</div>
+    </form>
 
     <section class="customer-panel">
         <div class="customer-panel-head">
@@ -330,6 +425,7 @@
                         <th>Thời hạn còn lại</th>
                         <th>Số quán đã xem</th>
                         <th>Số quán đã ghé</th>
+                        <th>Kinh nghiệm</th>
                         <th>Đang ở quán nào</th>
                         <th>Lần cuối hoạt động</th>
                     </tr>
@@ -372,6 +468,15 @@
                                     </div>
                                 </td>
                                 <td>
+                                    <div class="xp-card">
+                                        <strong>Lv @customer.Level - @customer.ExperiencePoints.ToString("N0") XP</strong>
+                                        <span>@customer.ExperienceInCurrentLevel / 500 XP cấp hiện tại</span>
+                                        <div class="xp-track" aria-hidden="true">
+                                            <div class="xp-fill" style="width:@customer.ExperienceProgressPercent%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
                                     @if (!string.IsNullOrWhiteSpace(customer.CurrentPoiName))
                                     {
                                         <div class="poi-name">@customer.CurrentPoiName</div>
@@ -400,7 +505,7 @@
                     else
                     {
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 Chưa có khách hàng nào được ghi nhận trong hệ thống.
                             </td>
                         </tr>

@@ -495,6 +495,56 @@
                             </VerticalStackLayout>
                         </Grid>
 
+                        <VerticalStackLayout Padding="16,0,16,12" Spacing="10">
+                            <Border BackgroundColor="#FFF7ED"
+                                    Stroke="#FED7AA"
+                                    StrokeThickness="1"
+                                    Padding="12">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="14"/>
+                                </Border.StrokeShape>
+                                <VerticalStackLayout Spacing="10">
+                                    <Label Text="Ma khoi phuc du lieu"
+                                           FontSize="12"
+                                           TextColor="#C2410C"
+                                           FontAttributes="Bold"/>
+                                    <Label x:Name="LblRecoveryCode"
+                                           Text="VKT-DEVICE:"
+                                           FontSize="11"
+                                           TextColor="#7C2D12"
+                                           LineBreakMode="CharacterWrap"/>
+                                    <Image x:Name="ImgDeviceQr"
+                                           HeightRequest="150"
+                                           WidthRequest="150"
+                                           HorizontalOptions="Center"
+                                           Aspect="AspectFit"/>
+                                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                                        <Button x:Name="BtnCopyDeviceCode"
+                                                Grid.Column="0"
+                                                Text="Copy ma"
+                                                BackgroundColor="#FFEDD5"
+                                                TextColor="#C2410C"
+                                                CornerRadius="12"
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                Clicked="OnCopyDeviceCodeClicked"/>
+                                        <Button x:Name="BtnRestoreDeviceCode"
+                                                Grid.Column="1"
+                                                Text="Nhap ma cu"
+                                                BackgroundColor="#1F2937"
+                                                TextColor="White"
+                                                CornerRadius="12"
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                Clicked="OnRestoreDeviceCodeClicked"/>
+                                    </Grid>
+                                    <Label Text="Neu cai lai tren cung thiet bi, app se tu nhan lai ma nay. Neu can ho tro du lieu cu, hay luu ma/QR truoc khi xoa app."
+                                           FontSize="11"
+                                           TextColor="#9A3412"/>
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout>
+
                         <BoxView HeightRequest="0.5" Color="#F3F4F6" Margin="16,0"/>
 
                         <!-- Chế độ (hidden label kept for code compat) -->

@@ -48,6 +48,10 @@ public class SubscriptionController : ControllerBase
     [HttpGet("status/{maThietBi}")]
     public async Task<IActionResult> GetStatus(string maThietBi)
     {
+        maThietBi = maThietBi.Trim();
+        if (string.IsNullOrWhiteSpace(maThietBi))
+            return BadRequest(new { message = "MaThietBi khÃ´ng Ä‘Æ°á»£c trá»‘ng." });
+
         var now = DateTime.UtcNow;
         var goi = await _db.DangKyApps
             .AsNoTracking()
@@ -91,13 +95,14 @@ public class SubscriptionController : ControllerBase
         if (!Goi.TryGetValue(req.LoaiGoi, out var info))
             return BadRequest(new { message = "Loại gói không hợp lệ. Chọn: thu, ngay, thang, nam." });
 
+        var maThietBi = req.MaThietBi.Trim();
         var now = DateTime.UtcNow;
 
         // Gói dùng thử: mỗi thiết bị chỉ được 1 lần
         if (info.MienPhi)
         {
             bool daDung = await _db.DangKyApps
-                .AnyAsync(d => d.MaThietBi == req.MaThietBi && d.LoaiGoi == "thu");
+                .AnyAsync(d => d.MaThietBi == maThietBi && d.LoaiGoi == "thu");
             if (daDung)
                 return BadRequest(new { message = "Thiết bị này đã sử dụng gói dùng thử." });
         }
@@ -107,7 +112,7 @@ public class SubscriptionController : ControllerBase
         if (!info.MienPhi)
         {
             var goiHienTai = await _db.DangKyApps
-                .Where(d => d.MaThietBi == req.MaThietBi && d.NgayHetHan > now)
+                .Where(d => d.MaThietBi == maThietBi && d.NgayHetHan > now)
                 .OrderByDescending(d => d.NgayHetHan)
                 .FirstOrDefaultAsync();
             hetHan = (goiHienTai?.NgayHetHan ?? now).AddDays(info.SoNgay);
@@ -120,7 +125,7 @@ public class SubscriptionController : ControllerBase
         _db.DangKyApps.Add(new DangKyApp
         {
             Id         = Guid.NewGuid(),
-            MaThietBi  = req.MaThietBi.Trim(),
+            MaThietBi  = maThietBi,
             LoaiGoi    = req.LoaiGoi,
             NgayBatDau = now,
             NgayHetHan = hetHan,
@@ -154,13 +159,14 @@ public class SubscriptionController : ControllerBase
             return BadRequest(new { message = "Loại gói không hợp lệ. Chọn: ngay, tuan, thang, nam." });
 
         // Tạo mã nội dung chuyển khoản dễ nhận diện
-        var shortId = req.MaThietBi[..Math.Min(6, req.MaThietBi.Length)].ToUpper();
+        var maThietBi = req.MaThietBi.Trim();
+        var shortId = maThietBi[..Math.Min(6, maThietBi.Length)].ToUpper();
         var noiDung = $"VKT {req.LoaiGoi.ToUpper()} {shortId}";
 
         var yc = new VinhKhanhTour.API.Models.YeuCauThanhToan
         {
             Id            = Guid.NewGuid(),
-            MaThietBi     = req.MaThietBi.Trim(),
+            MaThietBi     = maThietBi,
             LoaiGoi       = req.LoaiGoi,
             SoTien        = info.Gia,
             NoiDungChuyen = noiDung,

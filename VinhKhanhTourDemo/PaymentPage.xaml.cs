@@ -39,20 +39,9 @@ public partial class PaymentPage : ContentPage
     {
         InitializeComponent();
         _loaiGoi = loaiGoi;
-        _deviceId = GetDeviceId();
+        _deviceId = DeviceIdentity.GetDeviceId();
         SetupUi();
         UpdateApiGuide();
-    }
-
-    private static string GetDeviceId()
-    {
-        var id = Preferences.Get("device_id", "");
-        if (!string.IsNullOrEmpty(id))
-            return id;
-
-        id = Guid.NewGuid().ToString("N");
-        Preferences.Set("device_id", id);
-        return id;
     }
 
     private void SetupUi()

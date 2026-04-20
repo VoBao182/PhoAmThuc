@@ -29,8 +29,21 @@ public class HeartbeatController : ControllerBase
     private readonly AppDbContext _db;
     private const int OnlineMinutes = 2;
     private const int SessionHours  = 4;   // lịch sử trong 4h gần nhất
+    private const int ViewedPoiExperience = 50;
+    private const int VisitedPoiExperience = 100;
+    private const int ExperiencePerLevel = 500;
 
     public HeartbeatController(AppDbContext db) => _db = db;
+
+    private static (int ExperiencePoints, int Level, int ExperienceInCurrentLevel, int ExperienceToNextLevel)
+        CalculateExperience(int viewedPoiCount, int visitedPoiCount)
+    {
+        var experiencePoints = (viewedPoiCount * ViewedPoiExperience) + (visitedPoiCount * VisitedPoiExperience);
+        var level = Math.Max(1, (experiencePoints / ExperiencePerLevel) + 1);
+        var experienceInCurrentLevel = experiencePoints % ExperiencePerLevel;
+
+        return (experiencePoints, level, experienceInCurrentLevel, ExperiencePerLevel - experienceInCurrentLevel);
+    }
 
     // -----------------------------------------------------------------------
     // POST /api/heartbeat
@@ -247,6 +260,62 @@ public class HeartbeatController : ControllerBase
     }
 
     // -----------------------------------------------------------------------
+    // GET /api/heartbeat/profile/{maThietBi}
+    // Tra ve lich su da dong bo de app/CMS khoi phuc kinh nghiem sau khi cai lai.
+    // -----------------------------------------------------------------------
+    [HttpGet("profile/{maThietBi}")]
+    public async Task<IActionResult> GetExperienceProfile(string maThietBi)
+    {
+        if (string.IsNullOrWhiteSpace(maThietBi))
+            return BadRequest(new { message = "MaThietBi không được trống." });
+
+        var normalizedDeviceId = LichSuPhatInputNormalizer.NormalizeMaThietBi(maThietBi);
+        var logs = await _db.LichSuPhats
+            .AsNoTracking()
+            .Where(l => l.MaThietBi == normalizedDeviceId
+                     && l.POIId.HasValue
+                     && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+            .Select(l => new
+            {
+                PoiId = l.POIId!.Value,
+                l.Nguon,
+                l.ThoiGian
+            })
+            .ToListAsync();
+
+        var viewedPoiIds = logs
+            .Where(l => l.Nguon == "VIEW")
+            .Select(l => l.PoiId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToList();
+
+        var visitedPoiIds = logs
+            .Where(l => l.Nguon == "GPS")
+            .Select(l => l.PoiId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToList();
+
+        var xp = CalculateExperience(viewedPoiIds.Count, visitedPoiIds.Count);
+
+        return Ok(new
+        {
+            MaThietBi = normalizedDeviceId,
+            ViewedPoiIds = viewedPoiIds,
+            VisitedPoiIds = visitedPoiIds,
+            ViewedPoiCount = viewedPoiIds.Count,
+            VisitedPoiCount = visitedPoiIds.Count,
+            xp.ExperiencePoints,
+            xp.Level,
+            xp.ExperienceInCurrentLevel,
+            xp.ExperienceToNextLevel,
+            ExperiencePerLevel,
+            LastActivityAt = logs.Count == 0 ? (DateTime?)null : logs.Max(l => l.ThoiGian)
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // GET /api/heartbeat/active
     // Danh sách thiết bị online kèm POI hiện tại, số quán đã ghé/xem,
     // thời hạn gói đăng ký còn lại.
@@ -314,6 +383,7 @@ public class HeartbeatController : ControllerBase
             var soGhe   = gheMap.TryGetValue(v.MaThietBi, out int gc) ? gc : 0;
             var soXem   = xemMap.TryGetValue(v.MaThietBi, out int xc) ? xc : 0;
             var hasHan  = subMap.TryGetValue(v.MaThietBi, out DateTime hh) && hh > now;
+            var xp = CalculateExperience(soXem, soGhe);
             return new
             {
                 v.Lat,
@@ -324,6 +394,11 @@ public class HeartbeatController : ControllerBase
                 TenPoiHienTai = v.TenPoiHienTai ?? "Đang di chuyển",
                 SoQuanDaGhe   = soGhe,
                 SoQuanDaXem   = soXem,
+                xp.ExperiencePoints,
+                xp.Level,
+                xp.ExperienceInCurrentLevel,
+                xp.ExperienceToNextLevel,
+                ExperiencePerLevel,
                 NgayHetHan    = hasHan ? hh : (DateTime?)null,
                 ConLaiNgay    = hasHan ? (int?)Math.Max(1, (int)(hh - now).TotalDays + 1) : null
             };

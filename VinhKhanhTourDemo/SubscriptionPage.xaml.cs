@@ -14,7 +14,6 @@ public partial class SubscriptionPage : ContentPage
         Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
-    private const string PrefDeviceId = "device_id";
     private const string PrefNgayHetHan = "sub_ngay_het_han";
     private const string PrefDaDungThu = "da_dung_thu";
 
@@ -41,24 +40,13 @@ public partial class SubscriptionPage : ContentPage
             : Color.FromArgb("#22C55E");
     }
 
-    private static string GetDeviceId()
-    {
-        var id = Preferences.Get(PrefDeviceId, "");
-        if (!string.IsNullOrEmpty(id))
-            return id;
-
-        id = Guid.NewGuid().ToString("N");
-        Preferences.Set(PrefDeviceId, id);
-        return id;
-    }
-
     private async void OnMuaGoiClicked(object? sender, EventArgs? e)
     {
         if (sender is not Button btn)
             return;
 
         var loaiGoi = btn.CommandParameter?.ToString() ?? "thang";
-        var deviceId = GetDeviceId();
+        var deviceId = DeviceIdentity.GetDeviceId();
 
         if (loaiGoi == "thu")
         {
