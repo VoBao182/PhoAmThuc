@@ -56,7 +56,7 @@ public class HeartbeatController : ControllerBase
     // Body: { MaThietBi, Lat, Lng, PoiIdHienTai?, TenPoiHienTai? }
     // -----------------------------------------------------------------------
     [HttpPost]
-    public async Task<IActionResult> SendHeartbeat([FromBody] HeartbeatRequest req)
+    public async Task<IActionResult> SendHeartbeat([FromBody] HeartbeatRequest req, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.MaThietBi))
             return BadRequest(new { message = "MaThietBi không được trống." });
@@ -65,32 +65,41 @@ public class HeartbeatController : ControllerBase
 
         var now = DateTime.UtcNow;
 
-        var existing = await _db.VitriKhachs
-            .FirstOrDefaultAsync(v => v.MaThietBi == maThietBi);
-
-        if (existing == null)
+        try
         {
-            _db.VitriKhachs.Add(new VitriKhach
+            var existing = await _db.VitriKhachs
+                .FirstOrDefaultAsync(v => v.MaThietBi == maThietBi, cancellationToken);
+
+            if (existing == null)
             {
-                Id               = Guid.NewGuid(),
-                MaThietBi        = maThietBi,
-                Lat              = req.Lat,
-                Lng              = req.Lng,
-                LanCuoiHeartbeat = now,
-                PoiIdHienTai     = req.PoiIdHienTai,
-                TenPoiHienTai    = req.TenPoiHienTai
-            });
+                _db.VitriKhachs.Add(new VitriKhach
+                {
+                    Id               = Guid.NewGuid(),
+                    MaThietBi        = maThietBi,
+                    Lat              = req.Lat,
+                    Lng              = req.Lng,
+                    LanCuoiHeartbeat = now,
+                    PoiIdHienTai     = req.PoiIdHienTai,
+                    TenPoiHienTai    = req.TenPoiHienTai
+                });
+            }
+            else
+            {
+                existing.Lat              = req.Lat;
+                existing.Lng              = req.Lng;
+                existing.LanCuoiHeartbeat = now;
+                existing.PoiIdHienTai     = req.PoiIdHienTai;
+                existing.TenPoiHienTai    = req.TenPoiHienTai;
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
         }
-        else
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
         {
-            existing.Lat              = req.Lat;
-            existing.Lng              = req.Lng;
-            existing.LanCuoiHeartbeat = now;
-            existing.PoiIdHienTai     = req.PoiIdHienTai;
-            existing.TenPoiHienTai    = req.TenPoiHienTai;
+            _logger.LogWarning(ex, "Bo qua heartbeat do ket noi bi huy hoac dispose cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(new { message = "SKIPPED", skipped = true, reason = "disposed", ServerTime = now });
         }
 
-        await _db.SaveChangesAsync();
         return Ok(new { message = "OK", ServerTime = now });
     }
 
@@ -100,7 +109,7 @@ public class HeartbeatController : ControllerBase
     // Body: { MaThietBi, PoiId, NgonNgu? }
     // -----------------------------------------------------------------------
     [HttpPost("visit")]
-    public async Task<IActionResult> RecordVisit([FromBody] VisitRequest req)
+    public async Task<IActionResult> RecordVisit([FromBody] VisitRequest req, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.MaThietBi) || req.PoiId == Guid.Empty)
             return BadRequest(new { message = "MaThietBi và PoiId không được trống." });
@@ -110,10 +119,20 @@ public class HeartbeatController : ControllerBase
 
         // Tránh ghi trùng nếu khách đứng lại — chỉ ghi nếu POI này chưa được ghi trong 10 phút gần nhất
         var cutoff = DateTime.UtcNow.AddMinutes(-10);
-        bool daCo = await _db.LichSuPhats
-            .AnyAsync(l => l.MaThietBi == maThietBi
-                        && l.POIId == req.PoiId
-                        && l.ThoiGian >= cutoff);
+        bool daCo;
+        try
+        {
+            daCo = await _db.LichSuPhats
+                .AnyAsync(l => l.MaThietBi == maThietBi
+                            && l.POIId == req.PoiId
+                            && l.ThoiGian >= cutoff,
+                    cancellationToken);
+        }
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
+        {
+            _logger.LogWarning(ex, "Bo qua ghi nhan ghe POI do ket noi bi huy hoac dispose cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(new { recorded = false, skipped = true, reason = "disposed" });
+        }
 
         if (!daCo)
         {
@@ -126,7 +145,15 @@ public class HeartbeatController : ControllerBase
                 NgonNguDung = ngonNgu,
                 Nguon       = LichSuPhatInputNormalizer.NormalizeNguon("app-geofence")
             });
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (IsCancellationOrDisposed(ex))
+            {
+                _logger.LogWarning(ex, "Bo qua luu ghe POI do ket noi bi huy hoac dispose cho thiet bi {DeviceId}.", maThietBi);
+                return Ok(new { recorded = false, skipped = true, reason = "disposed" });
+            }
         }
 
         return Ok(new { recorded = !daCo });
@@ -138,7 +165,7 @@ public class HeartbeatController : ControllerBase
     // Body: { MaThietBi, PoiId, NgonNgu? }
     // -----------------------------------------------------------------------
     [HttpPost("view")]
-    public async Task<IActionResult> RecordView([FromBody] VisitRequest req)
+    public async Task<IActionResult> RecordView([FromBody] VisitRequest req, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.MaThietBi) || req.PoiId == Guid.Empty)
             return BadRequest(new { message = "MaThietBi và PoiId không được trống." });
@@ -148,11 +175,21 @@ public class HeartbeatController : ControllerBase
 
         // Dedup 5 phút — tránh ghi trùng khi khách bấm xem nhiều lần liên tiếp
         var cutoff = DateTime.UtcNow.AddMinutes(-5);
-        bool daCo = await _db.LichSuPhats
-            .AnyAsync(l => l.MaThietBi == maThietBi
-                        && l.POIId == req.PoiId
-                        && l.Nguon == "VIEW"
-                        && l.ThoiGian >= cutoff);
+        bool daCo;
+        try
+        {
+            daCo = await _db.LichSuPhats
+                .AnyAsync(l => l.MaThietBi == maThietBi
+                            && l.POIId == req.PoiId
+                            && l.Nguon == "VIEW"
+                            && l.ThoiGian >= cutoff,
+                    cancellationToken);
+        }
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
+        {
+            _logger.LogWarning(ex, "Bo qua ghi nhan xem POI do ket noi bi huy hoac dispose cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(new { recorded = false, skipped = true, reason = "disposed" });
+        }
 
         if (!daCo)
         {
@@ -165,7 +202,15 @@ public class HeartbeatController : ControllerBase
                 NgonNguDung = ngonNgu,
                 Nguon       = "VIEW"
             });
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (IsCancellationOrDisposed(ex))
+            {
+                _logger.LogWarning(ex, "Bo qua luu xem POI do ket noi bi huy hoac dispose cho thiet bi {DeviceId}.", maThietBi);
+                return Ok(new { recorded = false, skipped = true, reason = "disposed" });
+            }
         }
 
         return Ok(new { recorded = !daCo });
@@ -177,7 +222,7 @@ public class HeartbeatController : ControllerBase
     // de CMS khong bi lech neu mot vai request fire-and-forget bi rot.
     // -----------------------------------------------------------------------
     [HttpPost("sync-history")]
-    public async Task<IActionResult> SyncHistory([FromBody] HistorySyncRequest req)
+    public async Task<IActionResult> SyncHistory([FromBody] HistorySyncRequest req, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(req.MaThietBi))
             return BadRequest(new { message = "MaThietBi không được trống." });
@@ -199,18 +244,35 @@ public class HeartbeatController : ControllerBase
         if (allPoiIds.Count == 0)
             return Ok(new { insertedViews = 0, insertedVisits = 0 });
 
-        var existingLogs = await _db.LichSuPhats
-            .AsNoTracking()
-            .Where(l => l.MaThietBi == maThietBi
-                     && l.POIId.HasValue
-                     && allPoiIds.Contains(l.POIId.Value)
-                     && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
-            .Select(l => new
-            {
-                PoiId = l.POIId!.Value,
-                l.Nguon
-            })
-            .ToListAsync();
+        List<HistoryLogRow> existingLogs;
+        try
+        {
+            existingLogs = await _db.LichSuPhats
+                .AsNoTracking()
+                .Where(l => l.MaThietBi == maThietBi
+                         && l.POIId.HasValue
+                         && allPoiIds.Contains(l.POIId.Value)
+                         && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+                .Select(l => new HistoryLogRow(
+                    l.POIId!.Value,
+                    l.Nguon))
+                .ToListAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Request bi huy khi dong bo lich su cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(CreateSkippedHistorySyncResult("cancelled"));
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.LogWarning(ex, "Ket noi bi dispose khi dong bo lich su cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(CreateSkippedHistorySyncResult("disposed"));
+        }
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
+        {
+            _logger.LogWarning(ex, "Ket noi bi huy hoac dispose khi dong bo lich su cho thiet bi {DeviceId}.", maThietBi);
+            return Ok(CreateSkippedHistorySyncResult("disposed"));
+        }
 
         var existingViewed = existingLogs
             .Where(x => x.Nguon == "VIEW")
@@ -255,13 +317,54 @@ public class HeartbeatController : ControllerBase
         }
 
         if (insertedViews > 0 || insertedVisits > 0)
-            await _db.SaveChangesAsync();
+        {
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(ex, "Request bi huy khi luu lich su dong bo cho thiet bi {DeviceId}.", maThietBi);
+                return Ok(CreateSkippedHistorySyncResult("cancelled"));
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.LogWarning(ex, "Ket noi bi dispose khi luu lich su dong bo cho thiet bi {DeviceId}.", maThietBi);
+                return Ok(CreateSkippedHistorySyncResult("disposed"));
+            }
+            catch (Exception ex) when (IsCancellationOrDisposed(ex))
+            {
+                _logger.LogWarning(ex, "Ket noi bi huy hoac dispose khi luu lich su dong bo cho thiet bi {DeviceId}.", maThietBi);
+                return Ok(CreateSkippedHistorySyncResult("disposed"));
+            }
+        }
 
         return Ok(new
         {
             insertedViews,
             insertedVisits
         });
+    }
+
+    private static object CreateSkippedHistorySyncResult(string reason)
+        => new
+        {
+            insertedViews = 0,
+            insertedVisits = 0,
+            skipped = true,
+            reason
+        };
+
+    private static bool IsCancellationOrDisposed(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is OperationCanceledException or ObjectDisposedException)
+                return true;
+        }
+
+        var baseException = exception.GetBaseException();
+        return baseException is OperationCanceledException or ObjectDisposedException;
     }
 
     private static object CreateEmptyExperienceProfile(string deviceId)
@@ -280,6 +383,7 @@ public class HeartbeatController : ControllerBase
             LastActivityAt = (DateTime?)null
         };
 
+    private sealed record HistoryLogRow(Guid PoiId, string? Nguon);
     private sealed record ExperienceLogRow(Guid PoiId, string? Nguon, DateTime ThoiGian);
 
     // -----------------------------------------------------------------------
@@ -315,6 +419,11 @@ public class HeartbeatController : ControllerBase
         catch (ObjectDisposedException ex)
         {
             _logger.LogWarning(ex, "Ket noi bi dispose khi tai profile kinh nghiem cho thiet bi {DeviceId}.", normalizedDeviceId);
+            return Ok(CreateEmptyExperienceProfile(normalizedDeviceId));
+        }
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
+        {
+            _logger.LogWarning(ex, "Ket noi bi huy hoac dispose khi tai profile kinh nghiem cho thiet bi {DeviceId}.", normalizedDeviceId);
             return Ok(CreateEmptyExperienceProfile(normalizedDeviceId));
         }
 

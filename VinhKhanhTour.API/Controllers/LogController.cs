@@ -10,11 +10,17 @@ namespace VinhKhanhTour.API.Controllers;
 public class LogController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public LogController(AppDbContext db) => _db = db;
+    private readonly ILogger<LogController> _logger;
+
+    public LogController(AppDbContext db, ILogger<LogController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     // POST /api/log — ghi lịch sử phát từ app
     [HttpPost]
-    public async Task<IActionResult> Post([FromBody] LogRequest req)
+    public async Task<IActionResult> Post([FromBody] LogRequest req, CancellationToken cancellationToken)
     {
         try
         {
@@ -31,15 +37,32 @@ public class LogController : ControllerBase
             };
 
             _db.LichSuPhats.Add(log);
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
 
             return Ok(new { success = true, id = log.Id });
         }
+        catch (Exception ex) when (IsCancellationOrDisposed(ex))
+        {
+            _logger.LogWarning(ex, "Bo qua log lich su phat do ket noi bi huy hoac dispose.");
+            return Ok(new { success = false, skipped = true, reason = "disposed" });
+        }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Log] Lỗi ghi: {ex.Message}");
+            _logger.LogError(ex, "Loi ghi log lich su phat.");
             return StatusCode(500, new { success = false });
         }
+    }
+
+    private static bool IsCancellationOrDisposed(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is OperationCanceledException or ObjectDisposedException)
+                return true;
+        }
+
+        var baseException = exception.GetBaseException();
+        return baseException is OperationCanceledException or ObjectDisposedException;
     }
 }
 
