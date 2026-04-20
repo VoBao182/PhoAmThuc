@@ -33,6 +33,8 @@ public class HeartbeatController : ControllerBase
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+    private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
+    private static readonly string[] ViewedSourceValues = ["VIEW"];
 
     public HeartbeatController(AppDbContext db, ILogger<HeartbeatController> logger)
     {
@@ -252,7 +254,9 @@ public class HeartbeatController : ControllerBase
                 .Where(l => l.MaThietBi == maThietBi
                          && l.POIId.HasValue
                          && allPoiIds.Contains(l.POIId.Value)
-                         && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+                         && l.Nguon != null
+                         && (ViewedSourceValues.Contains(l.Nguon.ToUpper())
+                             || VisitedSourceValues.Contains(l.Nguon.ToUpper())))
                 .Select(l => new HistoryLogRow(
                     l.POIId!.Value,
                     l.Nguon))
@@ -275,12 +279,12 @@ public class HeartbeatController : ControllerBase
         }
 
         var existingViewed = existingLogs
-            .Where(x => x.Nguon == "VIEW")
+            .Where(x => IsViewedSource(x.Nguon))
             .Select(x => x.PoiId)
             .ToHashSet();
 
         var existingVisited = existingLogs
-            .Where(x => x.Nguon == "GPS")
+            .Where(x => IsVisitedSource(x.Nguon))
             .Select(x => x.PoiId)
             .ToHashSet();
 
@@ -355,6 +359,12 @@ public class HeartbeatController : ControllerBase
             reason
         };
 
+    private static bool IsVisitedSource(string? source)
+        => source != null && VisitedSourceValues.Contains(source.ToUpperInvariant());
+
+    private static bool IsViewedSource(string? source)
+        => source != null && ViewedSourceValues.Contains(source.ToUpperInvariant());
+
     private static bool IsCancellationOrDisposed(Exception exception)
     {
         for (var current = exception; current != null; current = current.InnerException)
@@ -404,7 +414,9 @@ public class HeartbeatController : ControllerBase
                 .AsNoTracking()
                 .Where(l => l.MaThietBi == normalizedDeviceId
                          && l.POIId.HasValue
-                         && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+                         && l.Nguon != null
+                         && (ViewedSourceValues.Contains(l.Nguon.ToUpper())
+                             || VisitedSourceValues.Contains(l.Nguon.ToUpper())))
                 .Select(l => new ExperienceLogRow(
                     l.POIId!.Value,
                     l.Nguon,
@@ -428,14 +440,14 @@ public class HeartbeatController : ControllerBase
         }
 
         var viewedPoiIds = logs
-            .Where(l => l.Nguon == "VIEW")
+            .Where(l => IsViewedSource(l.Nguon))
             .Select(l => l.PoiId)
             .Distinct()
             .OrderBy(id => id)
             .ToList();
 
         var visitedPoiIds = logs
-            .Where(l => l.Nguon == "GPS")
+            .Where(l => IsVisitedSource(l.Nguon))
             .Select(l => l.PoiId)
             .Distinct()
             .OrderBy(id => id)
@@ -488,7 +500,8 @@ public class HeartbeatController : ControllerBase
             .AsNoTracking()
             .Where(l => l.MaThietBi != null
                      && deviceIds.Contains(l.MaThietBi!)
-                     && l.Nguon == "GPS"
+                     && l.Nguon != null
+                     && VisitedSourceValues.Contains(l.Nguon.ToUpper())
                      && l.ThoiGian >= cutoffSession)
             .GroupBy(l => l.MaThietBi!)
             .Select(g => new { MaThietBi = g.Key, Count = g.Select(l => l.POIId).Distinct().Count() })
@@ -501,7 +514,8 @@ public class HeartbeatController : ControllerBase
             .AsNoTracking()
             .Where(l => l.MaThietBi != null
                      && deviceIds.Contains(l.MaThietBi!)
-                     && l.Nguon == "VIEW"
+                     && l.Nguon != null
+                     && ViewedSourceValues.Contains(l.Nguon.ToUpper())
                      && l.ThoiGian >= cutoffSession)
             .GroupBy(l => l.MaThietBi!)
             .Select(g => new { MaThietBi = g.Key, Count = g.Select(l => l.POIId).Distinct().Count() })

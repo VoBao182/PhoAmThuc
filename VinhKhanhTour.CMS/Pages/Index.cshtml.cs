@@ -9,10 +9,12 @@ public class IndexModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
-    public IndexModel(AppDbContext db, IConfiguration config)
+    private readonly ILogger<IndexModel> _logger;
+    public IndexModel(AppDbContext db, IConfiguration config, ILogger<IndexModel> logger)
     {
         _db = db;
         _config = config;
+        _logger = logger;
     }
 
     public List<POI> POIs        { get; set; } = [];
@@ -40,6 +42,7 @@ public class IndexModel : PageModel
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to load POIs from database on CMS home page");
             POIs = [];
             TongPOI = 0;
             TongMonAn = 0;

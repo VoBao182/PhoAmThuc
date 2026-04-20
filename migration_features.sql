@@ -29,8 +29,14 @@ CREATE TABLE IF NOT EXISTS vitrikhach (
     mathietbi       TEXT NOT NULL UNIQUE,            -- mỗi thiết bị chỉ có 1 dòng (upsert)
     lat             DOUBLE PRECISION NOT NULL,
     lng             DOUBLE PRECISION NOT NULL,
-    lancuoi_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    lancuoi_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    poiid_hientai   UUID,
+    ten_poi_hientai TEXT
 );
+
+ALTER TABLE vitrikhach
+    ADD COLUMN IF NOT EXISTS poiid_hientai UUID,
+    ADD COLUMN IF NOT EXISTS ten_poi_hientai TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_vitrikhach_mathietbi ON vitrikhach(mathietbi);
 CREATE INDEX IF NOT EXISTS idx_vitrikhach_lancuoi   ON vitrikhach(lancuoi_heartbeat DESC);

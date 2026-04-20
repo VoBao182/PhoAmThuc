@@ -11,6 +11,8 @@ public class IndexModel : PageModel
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+    private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
+    private static readonly string[] ViewedSourceValues = ["VIEW"];
 
     private readonly AppDbContext _db;
 
@@ -67,7 +69,10 @@ public class IndexModel : PageModel
 
             var visitedCounts = await _db.LichSuPhats
                 .AsNoTracking()
-                .Where(x => x.MaThietBi != null && x.POIId != null && x.Nguon == "GPS")
+                .Where(x => x.MaThietBi != null
+                    && x.POIId != null
+                    && x.Nguon != null
+                    && VisitedSourceValues.Contains(x.Nguon.ToUpper()))
                 .GroupBy(x => x.MaThietBi!)
                 .Select(g => new
                 {
@@ -78,7 +83,10 @@ public class IndexModel : PageModel
 
             var viewedCounts = await _db.LichSuPhats
                 .AsNoTracking()
-                .Where(x => x.MaThietBi != null && x.POIId != null && x.Nguon == "VIEW")
+                .Where(x => x.MaThietBi != null
+                    && x.POIId != null
+                    && x.Nguon != null
+                    && ViewedSourceValues.Contains(x.Nguon.ToUpper()))
                 .GroupBy(x => x.MaThietBi!)
                 .Select(g => new
                 {
@@ -87,10 +95,22 @@ public class IndexModel : PageModel
                 })
                 .ToListAsync();
 
-            var subscriptionMap = subscriptions.ToDictionary(x => x.DeviceId, x => x.ExpiresAt);
-            var locationMap = locations.ToDictionary(x => x.MaThietBi, x => x);
-            var visitedMap = visitedCounts.ToDictionary(x => x.DeviceId, x => x.Count);
-            var viewedMap = viewedCounts.ToDictionary(x => x.DeviceId, x => x.Count);
+            var subscriptionMap = subscriptions
+                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Max(x => x.ExpiresAt), StringComparer.OrdinalIgnoreCase);
+            var locationMap = locations
+                .Where(x => !string.IsNullOrWhiteSpace(x.MaThietBi))
+                .GroupBy(x => x.MaThietBi, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.LanCuoiHeartbeat).First(),
+                    StringComparer.OrdinalIgnoreCase);
+            var visitedMap = visitedCounts
+                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Count), StringComparer.OrdinalIgnoreCase);
+            var viewedMap = viewedCounts
+                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Count), StringComparer.OrdinalIgnoreCase);
 
             var deviceIds = subscriptions.Select(x => x.DeviceId)
                 .Concat(locations.Select(x => x.MaThietBi))

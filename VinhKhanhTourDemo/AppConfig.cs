@@ -35,7 +35,7 @@ public static class AppConfig
     public static string DefaultApiBaseUrl =>
         ConfiguredHostedApiBaseUrl
         ?? (DeviceInfo.Platform == DevicePlatform.Android
-            ? $"http://127.0.0.1:{AppEndpointOptions.ApiPort}"
+            ? $"http://10.0.2.2:{AppEndpointOptions.ApiPort}"
             : $"http://localhost:{AppEndpointOptions.ApiPort}");
 
     public static string? ConfiguredHostedApiBaseUrl =>
@@ -213,10 +213,10 @@ public static class AppConfig
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
         {
-            AddCandidate($"http://127.0.0.1:{AppEndpointOptions.ApiPort}");
-            AddCandidate($"http://localhost:{AppEndpointOptions.ApiPort}");
             AddCandidate($"http://10.0.2.2:{AppEndpointOptions.ApiPort}");
             AddCandidate($"http://10.0.3.2:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://127.0.0.1:{AppEndpointOptions.ApiPort}");
+            AddCandidate($"http://localhost:{AppEndpointOptions.ApiPort}");
         }
         else
         {

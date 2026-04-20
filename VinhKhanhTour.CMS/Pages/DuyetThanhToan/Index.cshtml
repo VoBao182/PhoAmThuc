@@ -24,7 +24,7 @@
         <strong>Co yeu cau thanh toan moi.</strong>
         <span id="paymentPendingAlertText">Trang se tu cap nhat.</span>
         <a href="?tab=cho_duyet" class="alert-link ms-2">Mo danh sach cho duyet</a>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
     </div>
 
     @if (!string.IsNullOrEmpty(Model.ThongBao))

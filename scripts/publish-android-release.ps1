@@ -1,7 +1,9 @@
 param(
-    [string]$HostedApiBaseUrl = "",
+    [string]$HostedApiBaseUrl = "https://phoamthuc.onrender.com",
 
     [string]$Configuration = "Release",
+
+    [string]$RuntimeIdentifier = "android-arm64",
 
     [string]$OutputDir = ""
 )
@@ -29,6 +31,7 @@ if ([string]::IsNullOrWhiteSpace($HostedApiBaseUrl)) {
 } else {
     Write-Host "HostedApiBaseUrl: $HostedApiBaseUrl"
 }
+Write-Host "RuntimeIdentifier: $RuntimeIdentifier"
 
 $publishArgs = @(
     "publish"
@@ -37,6 +40,8 @@ $publishArgs = @(
     "net10.0-android"
     "-c"
     $Configuration
+    "-r"
+    $RuntimeIdentifier
     "/p:AndroidPackageFormat=apk"
 )
 

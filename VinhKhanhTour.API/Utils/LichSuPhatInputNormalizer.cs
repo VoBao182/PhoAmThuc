@@ -2,6 +2,8 @@ namespace VinhKhanhTour.API.Utils;
 
 internal static class LichSuPhatInputNormalizer
 {
+    private const string RecoveryPrefix = "VKT-DEVICE:";
+
     public static string NormalizeNguon(string? nguon, string fallback = "GPS")
     {
         if (string.IsNullOrWhiteSpace(nguon))
@@ -36,5 +38,14 @@ internal static class LichSuPhatInputNormalizer
     }
 
     public static string NormalizeMaThietBi(string maThietBi)
-        => maThietBi.Trim();
+    {
+        if (string.IsNullOrWhiteSpace(maThietBi))
+            return "";
+
+        var value = maThietBi.Trim();
+        if (value.StartsWith(RecoveryPrefix, StringComparison.OrdinalIgnoreCase))
+            value = value[RecoveryPrefix.Length..];
+
+        return value.Trim().ToLowerInvariant();
+    }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
+using VinhKhanhTour.API.Utils;
 
 namespace VinhKhanhTour.API.Controllers;
 
@@ -48,7 +49,7 @@ public class SubscriptionController : ControllerBase
     [HttpGet("status/{maThietBi}")]
     public async Task<IActionResult> GetStatus(string maThietBi)
     {
-        maThietBi = maThietBi.Trim();
+        maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(maThietBi);
         if (string.IsNullOrWhiteSpace(maThietBi))
             return BadRequest(new { message = "MaThietBi khÃ´ng Ä‘Æ°á»£c trá»‘ng." });
 
@@ -95,7 +96,10 @@ public class SubscriptionController : ControllerBase
         if (!Goi.TryGetValue(req.LoaiGoi, out var info))
             return BadRequest(new { message = "Loại gói không hợp lệ. Chọn: thu, ngay, thang, nam." });
 
-        var maThietBi = req.MaThietBi.Trim();
+        var maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi);
+        if (string.IsNullOrWhiteSpace(maThietBi))
+            return BadRequest(new { message = "MaThietBi không hợp lệ." });
+
         var now = DateTime.UtcNow;
 
         // Gói dùng thử: mỗi thiết bị chỉ được 1 lần
@@ -159,7 +163,10 @@ public class SubscriptionController : ControllerBase
             return BadRequest(new { message = "Loại gói không hợp lệ. Chọn: ngay, tuan, thang, nam." });
 
         // Tạo mã nội dung chuyển khoản dễ nhận diện
-        var maThietBi = req.MaThietBi.Trim();
+        var maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi);
+        if (string.IsNullOrWhiteSpace(maThietBi))
+            return BadRequest(new { message = "MaThietBi không hợp lệ." });
+
         var shortId = maThietBi[..Math.Min(6, maThietBi.Length)].ToUpper();
         var noiDung = $"VKT {req.LoaiGoi.ToUpper()} {shortId}";
 

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"/c/Program Files \\(x86\\)/Android/android-sdk/platform-tools/adb.exe\" start-server)",
+      "Bash(\"/c/Program Files \\(x86\\)/Android/android-sdk/platform-tools/adb.exe\" connect localhost:5554)",
+      "Bash(\"/c/Program Files \\(x86\\)/Android/android-sdk/platform-tools/adb.exe\" connect 127.0.0.1:5555)",
+      "Read(//c/Users/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(tasklist //FI \"IMAGENAME eq emulator.exe\")",
+      "Bash(tasklist)",
+      "Bash(curl -s -m 5 -w \"HTTP:%{http_code}\\\\n\" \"http://localhost:5118/api/poi\" -o /dev/null)",
+      "Bash(curl -s -m 15 -w \"\\\\nHTTP:%{http_code}\\\\n\" \"http://localhost:5213/\")",
+      "Bash(curl -s -m 15 \"http://localhost:5213/\")",
+      "Read(//tmp/**)"
+    ]
+  }
+}

@@ -36,7 +36,7 @@ public partial class MainPage : ContentPage
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
     })
     {
-        Timeout = TimeSpan.FromSeconds(10)
+        Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
     private List<PoiDto> _pois = [];

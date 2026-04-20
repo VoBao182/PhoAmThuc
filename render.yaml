@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: vinhkhanhtour-api
+    name: phoamthuc
     runtime: docker
     dockerfilePath: ./VinhKhanhTour.API/Dockerfile
     dockerContext: .
@@ -12,7 +12,7 @@ services:
       - key: SUPABASE_CONNECTION_STRING
         sync: false
   - type: web
-    name: vinhkhanhtour-cms
+    name: phoamthuc-cms
     runtime: docker
     dockerfilePath: ./VinhKhanhTour.CMS/Dockerfile
     dockerContext: .
