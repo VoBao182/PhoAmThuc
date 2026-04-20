@@ -27,13 +27,18 @@ namespace VinhKhanhTour.API.Controllers;
 public class HeartbeatController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<HeartbeatController> _logger;
     private const int OnlineMinutes = 2;
     private const int SessionHours  = 4;   // lịch sử trong 4h gần nhất
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
 
-    public HeartbeatController(AppDbContext db) => _db = db;
+    public HeartbeatController(AppDbContext db, ILogger<HeartbeatController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     private static (int ExperiencePoints, int Level, int ExperienceInCurrentLevel, int ExperienceToNextLevel)
         CalculateExperience(int viewedPoiCount, int visitedPoiCount)
@@ -259,29 +264,59 @@ public class HeartbeatController : ControllerBase
         });
     }
 
+    private static object CreateEmptyExperienceProfile(string deviceId)
+        => new
+        {
+            MaThietBi = deviceId,
+            ViewedPoiIds = Array.Empty<Guid>(),
+            VisitedPoiIds = Array.Empty<Guid>(),
+            ViewedPoiCount = 0,
+            VisitedPoiCount = 0,
+            ExperiencePoints = 0,
+            Level = 1,
+            ExperienceInCurrentLevel = 0,
+            ExperienceToNextLevel = ExperiencePerLevel,
+            ExperiencePerLevel,
+            LastActivityAt = (DateTime?)null
+        };
+
+    private sealed record ExperienceLogRow(Guid PoiId, string? Nguon, DateTime ThoiGian);
+
     // -----------------------------------------------------------------------
     // GET /api/heartbeat/profile/{maThietBi}
     // Tra ve lich su da dong bo de app/CMS khoi phuc kinh nghiem sau khi cai lai.
     // -----------------------------------------------------------------------
     [HttpGet("profile/{maThietBi}")]
-    public async Task<IActionResult> GetExperienceProfile(string maThietBi)
+    public async Task<IActionResult> GetExperienceProfile(string maThietBi, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(maThietBi))
             return BadRequest(new { message = "MaThietBi không được trống." });
 
         var normalizedDeviceId = LichSuPhatInputNormalizer.NormalizeMaThietBi(maThietBi);
-        var logs = await _db.LichSuPhats
-            .AsNoTracking()
-            .Where(l => l.MaThietBi == normalizedDeviceId
-                     && l.POIId.HasValue
-                     && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
-            .Select(l => new
-            {
-                PoiId = l.POIId!.Value,
-                l.Nguon,
-                l.ThoiGian
-            })
-            .ToListAsync();
+        List<ExperienceLogRow> logs;
+        try
+        {
+            logs = await _db.LichSuPhats
+                .AsNoTracking()
+                .Where(l => l.MaThietBi == normalizedDeviceId
+                         && l.POIId.HasValue
+                         && (l.Nguon == "VIEW" || l.Nguon == "GPS"))
+                .Select(l => new ExperienceLogRow(
+                    l.POIId!.Value,
+                    l.Nguon,
+                    l.ThoiGian))
+                .ToListAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "Request bi huy khi tai profile kinh nghiem cho thiet bi {DeviceId}.", normalizedDeviceId);
+            return Ok(CreateEmptyExperienceProfile(normalizedDeviceId));
+        }
+        catch (ObjectDisposedException ex)
+        {
+            _logger.LogWarning(ex, "Ket noi bi dispose khi tai profile kinh nghiem cho thiet bi {DeviceId}.", normalizedDeviceId);
+            return Ok(CreateEmptyExperienceProfile(normalizedDeviceId));
+        }
 
         var viewedPoiIds = logs
             .Where(l => l.Nguon == "VIEW")
