@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan CMS (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync()
 ' Note: Sequence ngan va khop truc tiep voi code dashboard hien tai; co the xem la on dinh hon cac module dang phat trien.

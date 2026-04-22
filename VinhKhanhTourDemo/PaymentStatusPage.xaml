@@ -14,7 +14,7 @@
             <ActivityIndicator IsRunning="True" Color="#E36A11"
                                HeightRequest="60" WidthRequest="60"
                                HorizontalOptions="Center"/>
-            <Label Text="Chờ admin xác nhận…"
+            <Label Text="Chờ admin xác nhận..."
                    FontSize="20" FontAttributes="Bold"
                    TextColor="#1F2933" HorizontalOptions="Center"/>
             <Label Text="Đã ghi nhận yêu cầu của bạn. Vui lòng đợi admin kiểm tra giao dịch."
@@ -39,7 +39,7 @@
 
         <!-- Trạng thái đã duyệt -->
         <VerticalStackLayout x:Name="ViewDaDuyet" IsVisible="False" Spacing="16" HorizontalOptions="Center">
-            <Label Text="🎉" FontSize="72" HorizontalOptions="Center"/>
+            <Label Text="OK" FontSize="48" FontAttributes="Bold" TextColor="#16A34A" HorizontalOptions="Center"/>
             <Label Text="Thanh toán được duyệt!"
                    FontSize="22" FontAttributes="Bold"
                    TextColor="#16A34A" HorizontalOptions="Center"/>
@@ -55,7 +55,7 @@
 
         <!-- Trạng thái bị từ chối -->
         <VerticalStackLayout x:Name="ViewTuChoi" IsVisible="False" Spacing="16" HorizontalOptions="Center">
-            <Label Text="❌" FontSize="72" HorizontalOptions="Center"/>
+            <Label Text="!" FontSize="54" FontAttributes="Bold" TextColor="#DC2626" HorizontalOptions="Center"/>
             <Label Text="Yêu cầu bị từ chối"
                    FontSize="22" FontAttributes="Bold"
                    TextColor="#DC2626" HorizontalOptions="Center"/>

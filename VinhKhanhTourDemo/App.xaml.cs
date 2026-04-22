@@ -36,14 +36,14 @@ namespace VinhKhanhTourDemo
                             {
                                 new Label
                                 {
-                                    Text = "Khong the mo app",
+                                    Text = "Không thể mở app",
                                     FontSize = 28,
                                     FontAttributes = FontAttributes.Bold,
                                     TextColor = Color.FromArgb("#C2410C")
                                 },
                                 new Label
                                 {
-                                    Text = "App da gap loi ngay khi khoi dong. Man hinh nay giu app mo de minh tiep tuc truy vet loi.",
+                                    Text = "App đã gặp lỗi ngay khi khởi động. Màn hình này giữ app mở để mình tiếp tục truy vết lỗi.",
                                     FontSize = 15,
                                     TextColor = Color.FromArgb("#374151")
                                 },

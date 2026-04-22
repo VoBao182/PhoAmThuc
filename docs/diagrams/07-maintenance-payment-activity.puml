@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
@@ -9,11 +9,13 @@
 ' - VinhKhanhTour.API/Models/POI.cs
 ' - VinhKhanhTour.API/Models/DangKyDichVu.cs
 ' - VinhKhanhTour.API/Models/HoaDon.cs
-' Note: Luong CMS hien dang thao tac truc tiep qua PageModel/DbContext; can check lai neu sau nay chuyen sang PaymentController hoac doi quy trinh nghiep vu.
+' Note: Luong chinh van khop code hien tai; cap nhat them viec Index doc DangKyDichVus active de lay PhiDuyTriThang.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 start
 :ThanhToan/Index.OnGetAsync();
 :Load danh sach POI + trang thai han duy tri;
+:Load DangKyDichVus.TrangThai active va lay goi moi nhat theo POI;
+:Cap nhat PhiDuyTriThang hien thi cho tung POI;
 :Tinh SoQuanDaDong / SoQuanQuaHan / SoQuanSapHan / TongThuThang;
 
 if (Admin chon mot POI de ghi nhan?) then (Co)

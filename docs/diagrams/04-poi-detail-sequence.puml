@@ -1,16 +1,19 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), ConfigureAudioPlayer(), OnNgheClicked(), OnAudioWebViewNavigated(), OnAudioWebViewNavigating(), OnMapClicked()
+' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource()
+' - VinhKhanhTourDemo/AppConfig.cs: ResolveImageUrl()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
-' Note: Sequence chi mo ta luong doc detail va audio player theo code hien co; neu doi sang player/service khac thi file nay can sync truoc.
+' Note: Sequence cap nhat them FoodImageCatalog vi code da tach xu ly fallback anh ra helper.
 title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
 
 actor Guest
 participant DetailPage
 participant AppConfig
+participant FoodImageCatalog
 participant "PoiController" as PoiController
 participant AudioWebView
 participant "TextToSpeech" as TTS
@@ -24,7 +27,11 @@ DetailPage -> PoiController: GET /api/poi/{id}?lang=_lang
 PoiController -> DB: Include MonAns + ThuyetMinhs + BanDichs
 DB --> PoiController: poi detail
 PoiController --> DetailPage: PoiDetailDto
+DetailPage -> FoodImageCatalog: GetPoiImageSource(AnhDaiDien, TenPOI)
+FoodImageCatalog -> AppConfig: ResolveImageUrl(raw/fallback)
+FoodImageCatalog --> DetailPage: ImageSource
 DetailPage -> DetailPage: ConfigureAudioPlayer()\nRenderMenu(monAns)
+DetailPage -> FoodImageCatalog: GetDishImageSource(HinhAnh, TenMonAn, PhanLoai)
 
 alt co FileAudio
   Guest -> DetailPage: OnNgheClicked()

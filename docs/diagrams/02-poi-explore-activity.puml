@@ -1,36 +1,55 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RefreshPoisInBackgroundAsync(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestorePoiHistoryAsync(), RefreshPoisInBackgroundAsync(), RefreshMapIfNeeded(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), UpdateCaiDatUI()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView(), SyncHistory()
-' Note: Da bo sung luong dong bo lich su xem/ghe tu local Preferences len server sau khi mo app, tai POI va mo chi tiet.
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
+' Note: Da cap nhat theo code hien tai co restore profile/XP tu /api/heartbeat/profile va refresh POI nen moi 20 giay.
 title F02 - Tai va kham pha danh sach POI
 start
-:MainPage.LoadPoisFromApi();
-:AppConfig.EnsureApiBaseUrlAsync();
-:GET /api/poi;
-if (API thanh cong?) then (Co)
-  :_pois = ket qua tu PoiController.GetAll();
-  :_isUsingFallbackData = false;
-  :SyncPoiHistoryAsync();
-  :POST /api/heartbeat/sync-history;
-else (Khong)
-  :CreateFallbackPois();
-  :_isUsingFallbackData = true;
+:MainPage.OnAppearing();
+if (_uiPrepared == false?) then (Co)
+  :ApplyLocalizedUiText();
+  :UpdateCaiDatUI();
 endif
 
-:LoadMap();
+if (_isInitialized == false?) then (Co)
+  :LoadPoisFromApi();
+  :AppConfig.EnsureApiBaseUrlAsync();
+  :GET /api/poi;
+  if (API thanh cong?) then (Co)
+    :_pois = ket qua tu PoiController.GetAll();
+    :_isUsingFallbackData = false;
+    :_lastDataLoadError = null;
+    :RestorePoiHistoryAsync();
+    :GET /api/heartbeat/profile/{maThietBi};
+    :SyncPoiHistoryAsync();
+    :POST /api/heartbeat/sync-history;
+  else (Khong)
+    :CreateFallbackPois();
+    :_isUsingFallbackData = true;
+    :_lastDataLoadError = ex.Message;
+  endif
+else (Da tai)
+  :Bo qua tai danh sach lan dau;
+endif
+
+:RefreshMapIfNeeded();
 :RenderPoiCards();
 :UpdateApiConnectionUi();
+:RestorePoiHistoryAsync();
+:EnsureGpsTrackingAsync();
+:SyncPoiHistoryAsync();
 
 while (Nguoi dung tiep tuc kham pha?) is (Co)
   if (Nhap tu khoa tim kiem?) then (Co)
     :OnSearchTextChanged();
     :GetVisiblePois();
     :RenderPoiCards();
+    :RefreshMapIfNeeded();
   endif
 
   if (Bam xem chi tiet POI?) then (Co)
@@ -38,13 +57,14 @@ while (Nguoi dung tiep tuc kham pha?) is (Co)
     :RecordViewedPoi(poi);
     :RecordPoiViewAsync(poi);
     :SyncPoiHistoryAsync();
+    :UpdateCaiDatUI();
     :Navigation.PushAsync(new DetailPage(poi));
   endif
 
-  if (Den chu ky refresh nen?) then (Co)
+  if (Den chu ky refresh nen 20 giay?) then (Co)
     :RefreshPoisInBackgroundAsync();
     :GET /api/poi;
-    :LoadMap();
+    :RefreshMapIfNeeded();
     :RenderPoiCards();
   endif
 endwhile (Khong)

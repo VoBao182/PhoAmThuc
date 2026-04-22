@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using NpgsqlTypes;
 using VinhKhanhTour.API.Data;
 
 namespace VinhKhanhTour.CMS.Pages.BanDo;
@@ -8,11 +10,12 @@ namespace VinhKhanhTour.CMS.Pages.BanDo;
 public class IndexModel : PageModel
 {
     private static readonly TimeSpan OnlineThreshold = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan ActivityStatsTimeout = TimeSpan.FromSeconds(8);
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
-    private static readonly string[] ViewedSourceValues = ["VIEW"];
+    private static readonly string[] ViewedSourceValues = ["VIEW", "GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
 
     private readonly AppDbContext _db;
 
@@ -22,7 +25,9 @@ public class IndexModel : PageModel
     }
 
     public List<CustomerActivityRow> Customers { get; private set; } = [];
-    public int TotalCustomers { get; private set; }
+    public int SubscribedCustomers { get; private set; }
+    public int DisplayedCustomers { get; private set; }
+    public int TotalRecordedDevices { get; private set; }
     public int ActiveCustomers { get; private set; }
     public int CustomersAtPoi { get; private set; }
     public int ExpiredCustomers { get; private set; }
@@ -53,47 +58,11 @@ public class IndexModel : PageModel
             var now = DateTime.UtcNow;
             var onlineCutoff = now.Subtract(OnlineThreshold);
 
-            var subscriptions = await _db.DangKyApps
-                .AsNoTracking()
-                .GroupBy(x => x.MaThietBi)
-                .Select(g => new
-                {
-                    DeviceId = g.Key,
-                    ExpiresAt = g.Max(x => x.NgayHetHan)
-                })
-                .ToListAsync();
+            var subscriptions = await LoadSubscriptionsAsync();
+            var locations = await LoadLocationsAsync();
 
-            var locations = await _db.VitriKhachs
-                .AsNoTracking()
-                .ToListAsync();
-
-            var visitedCounts = await _db.LichSuPhats
-                .AsNoTracking()
-                .Where(x => x.MaThietBi != null
-                    && x.POIId != null
-                    && x.Nguon != null
-                    && VisitedSourceValues.Contains(x.Nguon.ToUpper()))
-                .GroupBy(x => x.MaThietBi!)
-                .Select(g => new
-                {
-                    DeviceId = g.Key,
-                    Count = g.Select(x => x.POIId).Distinct().Count()
-                })
-                .ToListAsync();
-
-            var viewedCounts = await _db.LichSuPhats
-                .AsNoTracking()
-                .Where(x => x.MaThietBi != null
-                    && x.POIId != null
-                    && x.Nguon != null
-                    && ViewedSourceValues.Contains(x.Nguon.ToUpper()))
-                .GroupBy(x => x.MaThietBi!)
-                .Select(g => new
-                {
-                    DeviceId = g.Key,
-                    Count = g.Select(x => x.POIId).Distinct().Count()
-                })
-                .ToListAsync();
+            var visitedCounts = await LoadPoiActivityCountsAsync(VisitedSourceValues, "luot ghe");
+            var viewedCounts = await LoadPoiActivityCountsAsync(ViewedSourceValues, "luot xem");
 
             var subscriptionMap = subscriptions
                 .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
@@ -145,6 +114,7 @@ public class IndexModel : PageModel
                     {
                         DeviceId = deviceId,
                         DeviceShort = deviceId[..Math.Min(8, deviceId.Length)].ToUpperInvariant(),
+                        HasSubscription = hasSubscription,
                         ExpiresAt = hasSubscription ? expiresAt : null,
                         RemainingDays = remainingDays,
                         ViewedPoiCount = viewedCount,
@@ -163,20 +133,26 @@ public class IndexModel : PageModel
                 })
                 .ToList();
 
-            Customers = ApplySort(ApplyExpiryFilter(ApplyStatusFilter(ApplySearchFilter(rows), now), now), now, onlineCutoff)
+            var allCustomers = rows.ToList();
+
+            Customers = ApplySort(ApplyExpiryFilter(ApplyStatusFilter(ApplySearchFilter(allCustomers), now), now), now, onlineCutoff)
                 .ToList();
 
-            TotalCustomers = Customers.Count;
-            ActiveCustomers = Customers.Count(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff);
-            CustomersAtPoi = Customers.Count(x => x.CurrentPoiName != null);
-            ExpiredCustomers = Customers.Count(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now);
-            TotalExperiencePoints = Customers.Sum(x => x.ExperiencePoints);
-            HighestCustomerLevel = Customers.Count == 0 ? 0 : Customers.Max(x => x.Level);
+            DisplayedCustomers = Customers.Count;
+            TotalRecordedDevices = allCustomers.Count;
+            SubscribedCustomers = allCustomers.Count(x => x.HasSubscription);
+            ActiveCustomers = allCustomers.Count(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff);
+            CustomersAtPoi = allCustomers.Count(x => x.CurrentPoiName != null);
+            ExpiredCustomers = allCustomers.Count(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now);
+            TotalExperiencePoints = allCustomers.Sum(x => x.ExperiencePoints);
+            HighestCustomerLevel = allCustomers.Count == 0 ? 0 : allCustomers.Max(x => x.Level);
         }
         catch (Exception ex)
         {
             Customers = [];
-            TotalCustomers = 0;
+            SubscribedCustomers = 0;
+            DisplayedCustomers = 0;
+            TotalRecordedDevices = 0;
             ActiveCustomers = 0;
             CustomersAtPoi = 0;
             ExpiredCustomers = 0;
@@ -188,6 +164,151 @@ public class IndexModel : PageModel
 
     private static string NormalizeOption(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
+
+    private async Task<List<DevicePoiCount>> LoadPoiActivityCountsAsync(string[] sourceValues, string label)
+        => await ExecuteRawReadAsync(label, async (connection, cancellationToken) =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
+            command.CommandText = """
+                SELECT mathietbi, count(DISTINCT poiid)::int
+                FROM lichsuphat
+                WHERE mathietbi IS NOT NULL
+                  AND poiid IS NOT NULL
+                  AND nguon = ANY (@sources)
+                GROUP BY mathietbi
+                """;
+            command.Parameters.Add("sources", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = sourceValues;
+
+            var counts = new List<DevicePoiCount>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                counts.Add(new DevicePoiCount
+                {
+                    DeviceId = reader.GetString(0),
+                    Count = reader.GetInt32(1)
+                });
+            }
+
+            return counts;
+        });
+
+    private async Task<List<DeviceSubscription>> LoadSubscriptionsAsync()
+        => await ExecuteRawReadAsync("gói đăng ký", async (connection, cancellationToken) =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
+            command.CommandText = """
+                SELECT mathietbi, max(ngayhethan)
+                FROM dangkyapp
+                WHERE mathietbi IS NOT NULL
+                GROUP BY mathietbi
+                """;
+
+            var subscriptions = new List<DeviceSubscription>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                subscriptions.Add(new DeviceSubscription
+                {
+                    DeviceId = reader.GetString(0),
+                    ExpiresAt = reader.GetDateTime(1)
+                });
+            }
+
+            return subscriptions;
+        });
+
+    private async Task<List<DeviceLocation>> LoadLocationsAsync()
+        => await ExecuteRawReadAsync("vi tri khach hang", async (connection, cancellationToken) =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
+            command.CommandText = """
+                SELECT mathietbi, lancuoi_heartbeat, poiid_hientai, ten_poi_hientai
+                FROM vitrikhach
+                WHERE mathietbi IS NOT NULL
+                """;
+
+            var locations = new List<DeviceLocation>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                locations.Add(new DeviceLocation
+                {
+                    MaThietBi = reader.GetString(0),
+                    LanCuoiHeartbeat = reader.GetDateTime(1),
+                    PoiIdHienTai = reader.IsDBNull(2) ? null : reader.GetGuid(2),
+                    TenPoiHienTai = reader.IsDBNull(3) ? null : reader.GetString(3)
+                });
+            }
+
+            return locations;
+        });
+
+    private async Task<List<T>> ExecuteRawReadAsync<T>(
+        string label,
+        Func<NpgsqlConnection, CancellationToken, Task<List<T>>> readAsync)
+    {
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var timeout = new CancellationTokenSource(ActivityStatsTimeout);
+
+            try
+            {
+                var connectionString = _db.Database.GetConnectionString()
+                    ?? throw new InvalidOperationException("Missing database connection string.");
+
+                await using var connection = new NpgsqlConnection(connectionString);
+                await connection.OpenAsync(timeout.Token);
+
+                return await readAsync(connection, timeout.Token);
+            }
+            catch (Exception ex) when (attempt == 0 && IsDisposedWaitHandle(ex))
+            {
+                ClearNpgsqlPoolsQuietly();
+            }
+            catch (Exception ex)
+            {
+                AppendLoadWarning($"Tạm thời không tải được {label}: {ex.GetBaseException().Message}");
+                return [];
+            }
+        }
+
+        AppendLoadWarning($"Tạm thời không tải được {label}: kết nối Supabase đang bận.");
+        return [];
+    }
+
+    private void AppendLoadWarning(string message)
+    {
+        ErrorMessage = string.IsNullOrWhiteSpace(ErrorMessage)
+            ? message
+            : $"{ErrorMessage} {message}";
+    }
+
+    private static bool IsDisposedWaitHandle(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is ObjectDisposedException od &&
+                string.Equals(od.ObjectName, "System.Threading.ManualResetEventSlim", StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void ClearNpgsqlPoolsQuietly()
+    {
+        try
+        {
+            NpgsqlConnection.ClearAllPools();
+        }
+        catch
+        {
+        }
+    }
 
     private IEnumerable<CustomerActivityRow> ApplySearchFilter(IEnumerable<CustomerActivityRow> customers)
     {
@@ -325,6 +446,7 @@ public class IndexModel : PageModel
     {
         public string DeviceId { get; init; } = "";
         public string DeviceShort { get; init; } = "";
+        public bool HasSubscription { get; init; }
         public DateTime? ExpiresAt { get; init; }
         public int? RemainingDays { get; init; }
         public int ViewedPoiCount { get; init; }
@@ -339,5 +461,25 @@ public class IndexModel : PageModel
         public string StatusClass { get; init; } = "";
         public string SubscriptionText { get; init; } = "";
         public string SubscriptionClass { get; init; } = "";
+    }
+
+    private sealed class DevicePoiCount
+    {
+        public string DeviceId { get; init; } = "";
+        public int Count { get; init; }
+    }
+
+    private sealed class DeviceSubscription
+    {
+        public string DeviceId { get; init; } = "";
+        public DateTime ExpiresAt { get; init; }
+    }
+
+    private sealed class DeviceLocation
+    {
+        public string MaThietBi { get; init; } = "";
+        public DateTime LanCuoiHeartbeat { get; init; }
+        public Guid? PoiIdHienTai { get; init; }
+        public string? TenPoiHienTai { get; init; }
     }
 }

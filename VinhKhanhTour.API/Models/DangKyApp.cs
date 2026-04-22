@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace VinhKhanhTour.API.Models;
 
 /// <summary>
-/// Gói đăng ký sử dụng app — khách hàng ẩn danh, định danh bằng mã thiết bị.
+/// G�i dang k� s? d?ng app - kh�ch h�ng ?n danh, d?nh danh b?ng m� thi?t b?.
 /// LoaiGoi: "ngay" | "thang" | "nam"
 /// </summary>
 [Table("dangkyapp")]
@@ -14,7 +14,7 @@ public class DangKyApp
     [Column("id")]
     public Guid Id { get; set; }
 
-    /// <summary>Mã thiết bị (UUID sinh lần đầu, lưu trong Preferences app)</summary>
+    /// <summary>M� thi?t b? (UUID sinh l?n d?u, luu trong Preferences app)</summary>
     [Column("mathietbi")]
     public string MaThietBi { get; set; } = "";
 

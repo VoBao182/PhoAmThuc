@@ -16,7 +16,7 @@
                    HorizontalOptions="Center"
                    TextColor="#C2410C"/>
             <Label x:Name="LblStatus"
-                   Text="Dang khoi dong ung dung..."
+                   Text="Đang khởi động ứng dụng..."
                    FontSize="15"
                    HorizontalTextAlignment="Center"
                    HorizontalOptions="Center"
@@ -28,7 +28,7 @@
                                HorizontalOptions="Center"/>
             <Button x:Name="BtnRetry"
                     IsVisible="False"
-                    Text="Thu lai"
+                    Text="Thử lại"
                     BackgroundColor="#FF5722"
                     TextColor="White"
                     CornerRadius="12"

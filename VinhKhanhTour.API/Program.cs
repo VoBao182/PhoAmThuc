@@ -1,7 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using VinhKhanhTour.API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Critical);
 builder.Configuration
     .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
     .AddJsonFile(
@@ -9,7 +14,7 @@ builder.Configuration
         optional: true,
         reloadOnChange: true);
 
-var connectionString = GetConnectionString(builder.Configuration);
+var connectionString = GetConnectionString(builder.Configuration, builder.Environment);
 var port = Environment.GetEnvironmentVariable("PORT");
 
 if (!string.IsNullOrWhiteSpace(port))
@@ -72,7 +77,7 @@ app.MapGet("/health/db", async (AppDbContext db) =>
 app.MapControllers();
 app.Run();
 
-static string GetConnectionString(ConfigurationManager configuration)
+static string GetConnectionString(ConfigurationManager configuration, IHostEnvironment environment)
 {
     var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
         ?? configuration.GetConnectionString("DefaultConnection");
@@ -83,7 +88,23 @@ static string GetConnectionString(ConfigurationManager configuration)
             "Missing Supabase database connection string. Set SUPABASE_CONNECTION_STRING or create appsettings.Development.Local.json with ConnectionStrings:DefaultConnection from Supabase.");
     }
 
-    return connectionString;
+    return ConfigureConnectionString(connectionString, configuration, environment);
+}
+
+static string ConfigureConnectionString(
+    string connectionString,
+    ConfigurationManager configuration,
+    IHostEnvironment environment)
+{
+    var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+    if (environment.IsDevelopment() &&
+        configuration.GetValue<bool>("Database:DisableSslForLocalDev"))
+    {
+        builder.SslMode = SslMode.Disable;
+    }
+
+    return builder.ConnectionString;
 }
 
 static bool LooksLikePlaceholder(string connectionString)

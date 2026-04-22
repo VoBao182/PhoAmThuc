@@ -119,7 +119,7 @@ public partial class DetailPage : ContentPage
     // ⚠️ ĐỔI IP NÀY:
     //   - Android Emulator  → "http://10.0.2.2:5118"
     //   - Thiết bị thật     → "http://192.168.x.x:5118"  (IP máy tính của bạn)
-    //   - Đã deploy lên server → URL thật
+    //   - Đã deploy lên server / URL thật
     private static readonly HttpClient _http = new(new HttpClientHandler
     {
         ServerCertificateCustomValidationCallback =

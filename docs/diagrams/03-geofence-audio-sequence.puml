@@ -1,17 +1,19 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
-' Note: Da cap nhat theo luong sync-history moi; van can kiem tra lai moi khi thay doi cooldown, dieu kien vao geofence, hoac cach phat audio/TTS.
+' Note: Sequence da sync lai heartbeat 10 giay, refresh POI 20 giay, va DeviceIdentity.GetDeviceId().
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 
 actor Guest
 participant MainPage
+participant DeviceIdentity
 participant "Geolocation / GPS" as GPS
 participant "HeartbeatController" as HeartbeatController
 participant "ThuyetMinhController" as ThuyetMinhController
@@ -32,17 +34,25 @@ loop moi 5 giay
   GPS --> MainPage: lat/lng
   MainPage -> MainPage: CheckGeofence(location)
 
-  opt moi 15 giay
+  opt moi 10 giay
+    MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat
     HeartbeatController -> DB: upsert VitriKhach
     DB --> HeartbeatController: saved
   end
 
+  opt moi 20 giay
+    MainPage -> MainPage: RefreshPoisInBackgroundAsync()
+  end
+
   alt vao POI moi va da qua cooldown
+    MainPage -> MainPage: RecordVisitedPoi(nearest)\nUpdateCaiDatUI()
+    MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
     HeartbeatController -> DB: dong bo visited/viewed tu local Preferences
     DB --> HeartbeatController: synced
 
+    MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat/visit
     HeartbeatController -> DB: dedup 10 phut + insert LichSuPhat(Nguon="GPS")
     DB --> HeartbeatController: saved

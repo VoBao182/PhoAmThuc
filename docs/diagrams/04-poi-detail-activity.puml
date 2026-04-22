@@ -1,11 +1,13 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), UseFallback(), ConfigureAudioPlayer(), RenderMenu(), OnNgheClicked(), OnMapClicked()
+' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource(), TryCreateImageSource()
+' - VinhKhanhTourDemo/AppConfig.cs: ResolveImageUrl()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
-' Note: DetailPage van la khu vuc dang kiem tra; giu WIP de tranh xem day la luong da chot, nhat la phan audio bridge va fallback.
+' Note: Da bo sung dung logic fallback anh hien tai qua FoodImageCatalog; van giu WIP vi DetailPage/audio bridge dang duoc kiem tra.
 title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
 start
 :Tao DetailPage(poiBasic);
@@ -16,11 +18,15 @@ start
 :AppConfig.EnsureApiBaseUrlAsync();
 :GET /api/poi/{id}?lang=_lang;
 if (API thanh cong?) then (Co)
+  :FoodImageCatalog.GetPoiImageSource(_poi.AnhDaiDien, _poi.TenPOI);
   :Gan ImgCover, thong tin quan,\nNoiDungThuyetMinh, MonAns;
   :ConfigureAudioPlayer();
   :RenderMenu(_poi.MonAns);
+  :Voi tung mon an, FoodImageCatalog.GetDishImageSource();
 else (Khong)
   :UseFallback(tenPoi);
+  :FoodImageCatalog.GetPoiImageSource(_poiBasic.AnhDaiDien, tenPoi);
+  :An SectionMenu;
 endif
 
 if (Nguoi dung bam nghe?) then (Co)

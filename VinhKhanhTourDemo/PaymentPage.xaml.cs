@@ -4,9 +4,9 @@ using System.Text.Json;
 namespace VinhKhanhTourDemo;
 
 /// <summary>
-/// Trang thanh toan QR: hien thi ma QR chuyen khoan va cho nguoi dung xac nhan.
-/// Sau khi nguoi dung nhan "Da chuyen khoan", tao yeu cau tren server
-/// roi chuyen sang PaymentStatusPage de polling ket qua duyet.
+/// Trang thanh toán QR: hiển thị mã QR chuyển khoản và chờ người dùng xác nhận.
+/// Sau khi người dùng nhấn "Đã chuyển khoản", tạo yêu cầu trên server
+/// rồi chuyển sang PaymentStatusPage để polling kết quả duyệt.
 /// </summary>
 public partial class PaymentPage : ContentPage
 {
@@ -25,10 +25,10 @@ public partial class PaymentPage : ContentPage
 
     private static readonly Dictionary<string, (decimal Gia, string Ten, int SoNgay)> GoiInfo = new()
     {
-        ["ngay"] = (29_000m, "Goi 1 ngay", 1),
-        ["tuan"] = (99_000m, "Goi 1 tuan", 7),
-        ["thang"] = (199_000m, "Goi 1 thang", 30),
-        ["nam"] = (999_000m, "Goi 1 nam", 365),
+        ["ngay"] = (29_000m, "Gói 1 ngày", 1),
+        ["tuan"] = (99_000m, "Gói 1 tuần", 7),
+        ["thang"] = (199_000m, "Gói 1 tháng", 30),
+        ["nam"] = (999_000m, "Gói 1 năm", 365),
     };
 
     private readonly string _loaiGoi;
@@ -41,7 +41,7 @@ public partial class PaymentPage : ContentPage
         _loaiGoi = loaiGoi;
         _deviceId = DeviceIdentity.GetDeviceId();
         SetupUi();
-        UpdateApiGuide();
+        HideApiGuide();
     }
 
     private void SetupUi()
@@ -52,7 +52,7 @@ public partial class PaymentPage : ContentPage
         var shortId = _deviceId[..Math.Min(6, _deviceId.Length)].ToUpperInvariant();
         _noiDungChuyen = $"VKT {_loaiGoi.ToUpperInvariant()} {shortId}";
 
-        LblTenGoi.Text = $"{info.Ten} - {info.SoNgay} ngay su dung";
+        LblTenGoi.Text = $"{info.Ten} - {info.SoNgay} ngày sử dụng";
         LblSoTK.Text = AccountNo;
         LblSoTien.Text = $"{info.Gia:N0}d";
         LblNoiDung.Text = _noiDungChuyen;
@@ -95,7 +95,7 @@ public partial class PaymentPage : ContentPage
                 var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
                 LblError.Text = errJson.TryGetProperty("message", out var message)
                     ? message.GetString()
-                    : "Loi tao yeu cau. Thu lai sau.";
+                    : "Lỗi tạo yêu cầu. Thử lại sau.";
                 LblError.IsVisible = true;
                 return;
             }
@@ -115,20 +115,13 @@ public partial class PaymentPage : ContentPage
         finally
         {
             SetLoading(false);
-            UpdateApiGuide();
+            HideApiGuide();
         }
     }
 
-    private void UpdateApiGuide()
+    private void HideApiGuide()
     {
-        ApiGuideCard.IsVisible = !AppConfig.HasConfiguredHostedApiBaseUrl;
-        if (!ApiGuideCard.IsVisible)
-            return;
-
-        LblApiGuideText.Text = DeviceInfo.Platform == DevicePlatform.Android
-            ? $"Neu dang test tren dien thoai qua USB, hay bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} hoac nhap IP/public API URL truoc khi gui yeu cau."
-            : $"Hay nhap URL backend dang chay, vi du http://localhost:{AppEndpointOptions.ApiPort}.";
-        LblApiGuideStatus.Text = $"Dang uu tien: {AppConfig.ApiBaseUrl}";
+        ApiGuideCard.IsVisible = false;
     }
 
     private async void OnConfigureApiClicked(object? sender, EventArgs e)
@@ -137,7 +130,7 @@ public partial class PaymentPage : ContentPage
         if (!string.IsNullOrWhiteSpace(apiBaseUrl))
         {
             LblError.IsVisible = false;
-            UpdateApiGuide();
+            HideApiGuide();
         }
     }
 

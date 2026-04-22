@@ -14,38 +14,61 @@ public class IndexModel : PageModel
     }
 
     public List<ThuyetMinhRow> Items { get; set; } = [];
+    public string? LoiMsg { get; set; }
 
     public async Task OnGetAsync()
     {
-        Items = await _db.POIs
-            .Include(p => p.ThuyetMinhs.Where(t => t.TrangThai))
-                .ThenInclude(t => t.BanDichs)
-            .OrderBy(p => p.MucUuTien)
-            .Select(p => new ThuyetMinhRow
+        try
+        {
+            var pois = await _db.POIs
+                .AsNoTracking()
+                .OrderBy(p => p.MucUuTien)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.TenPOI,
+                    p.TrangThai
+                })
+                .ToListAsync();
+
+            var banDichs = await _db.ThuyetMinhs
+                .AsNoTracking()
+                .Where(t => t.TrangThai)
+                .SelectMany(t => t.BanDichs.Select(b => new
+                {
+                    t.POIId,
+                    b.NgonNgu,
+                    b.NoiDung
+                }))
+                .Where(b => !string.IsNullOrWhiteSpace(b.NoiDung))
+                .ToListAsync();
+
+            var banDichByPoi = banDichs
+                .GroupBy(b => b.POIId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            Items = pois.Select(p =>
             {
-                PoiId = p.Id,
-                TenPOI = p.TenPOI,
-                TrangThaiPoi = p.TrangThai,
-                SoBanDich = p.ThuyetMinhs
-                    .SelectMany(t => t.BanDichs)
-                    .Count(b => !string.IsNullOrWhiteSpace(b.NoiDung)),
-                NoiDungVi = p.ThuyetMinhs
-                    .SelectMany(t => t.BanDichs)
-                    .Where(b => b.NgonNgu == "vi")
-                    .Select(b => b.NoiDung)
-                    .FirstOrDefault(),
-                NoiDungEn = p.ThuyetMinhs
-                    .SelectMany(t => t.BanDichs)
-                    .Where(b => b.NgonNgu == "en")
-                    .Select(b => b.NoiDung)
-                    .FirstOrDefault(),
-                NoiDungZh = p.ThuyetMinhs
-                    .SelectMany(t => t.BanDichs)
-                    .Where(b => b.NgonNgu == "zh")
-                    .Select(b => b.NoiDung)
-                    .FirstOrDefault()
-            })
-            .ToListAsync();
+                banDichByPoi.TryGetValue(p.Id, out var translations);
+                translations ??= [];
+
+                return new ThuyetMinhRow
+                {
+                    PoiId = p.Id,
+                    TenPOI = p.TenPOI,
+                    TrangThaiPoi = p.TrangThai,
+                    SoBanDich = translations.Count,
+                    NoiDungVi = translations.FirstOrDefault(b => b.NgonNgu == "vi")?.NoiDung,
+                    NoiDungEn = translations.FirstOrDefault(b => b.NgonNgu == "en")?.NoiDung,
+                    NoiDungZh = translations.FirstOrDefault(b => b.NgonNgu == "zh")?.NoiDung
+                };
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Items = [];
+            LoiMsg = $"Không thể tải danh sách thuyết minh: {ex.GetBaseException().Message}";
+        }
     }
 
     public sealed class ThuyetMinhRow

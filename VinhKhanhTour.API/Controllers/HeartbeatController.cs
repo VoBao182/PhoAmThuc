@@ -10,16 +10,16 @@ namespace VinhKhanhTour.API.Controllers;
 /// Theo dõi vị trí và hành trình thực tế của khách du lịch.
 ///
 /// Luồng tracking:
-///   1. App gửi POST /api/heartbeat mỗi 15 giây kèm lat/lng + POI đang đứng gần.
+///   1. App g?i POST /api/heartbeat m?i 15 gi�y k�m lat/lng + POI dang d?ng g?n.
 ///      → Bảng vitrikhach được upsert (1 dòng / thiết bị).
 ///
 ///   2. Khi khách bước vào vùng POI và audio bắt đầu phát:
 ///      App gửi POST /api/heartbeat/visit → ghi nhận vào lichsuphat.
 ///
 ///   3. CMS gọi GET /api/heartbeat/active → danh sách thiết bị online
-///      kèm POI đang đứng + số điểm đã ghé.
+///      k�m POI dang d?ng + s? di?m d� gh�.
 ///
-///   4. CMS gọi GET /api/heartbeat/history/{maThietBi} → lịch sử POI đã ghé
+///   4. CMS g?i GET /api/heartbeat/history/{maThietBi} ? l?ch s? POI d� gh�
 ///      trong phiên hiện tại (4 tiếng gần nhất).
 /// </summary>
 [ApiController]
@@ -34,7 +34,7 @@ public class HeartbeatController : ControllerBase
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
-    private static readonly string[] ViewedSourceValues = ["VIEW"];
+    private static readonly string[] ViewedSourceValues = ["VIEW", "GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
 
     public HeartbeatController(AppDbContext db, ILogger<HeartbeatController> logger)
     {
@@ -473,7 +473,7 @@ public class HeartbeatController : ControllerBase
 
     // -----------------------------------------------------------------------
     // GET /api/heartbeat/active
-    // Danh sách thiết bị online kèm POI hiện tại, số quán đã ghé/xem,
+    // Danh s�ch thi?t b? online k�m POI hi?n t?i, s? qu�n d� gh�/xem,
     // thời hạn gói đăng ký còn lại.
     // -----------------------------------------------------------------------
     [HttpGet("active")]
@@ -495,7 +495,7 @@ public class HeartbeatController : ControllerBase
         var deviceIds = activeDevices.Select(v => v.MaThietBi).ToList();
         var now       = DateTime.UtcNow;
 
-        // ── Đếm số POI đã ghé (GPS) trong phiên ───────────────────────
+        // ?? D?m s? POI d� gh� (GPS) trong phi�n ???????????????????????
         var gheCounts = await _db.LichSuPhats
             .AsNoTracking()
             .Where(l => l.MaThietBi != null
@@ -509,7 +509,7 @@ public class HeartbeatController : ControllerBase
 
         var gheMap = gheCounts.ToDictionary(x => x.MaThietBi, x => x.Count);
 
-        // ── Đếm số POI đã xem (chi tiết) trong phiên ──────────────────
+        // ?? D?m s? POI d� xem (chi ti?t) trong phi�n ??????????????????
         var xemCounts = await _db.LichSuPhats
             .AsNoTracking()
             .Where(l => l.MaThietBi != null
@@ -567,7 +567,7 @@ public class HeartbeatController : ControllerBase
 
     // -----------------------------------------------------------------------
     // GET /api/heartbeat/history/{deviceShort}
-    // Lịch sử POI đã ghé trong phiên hiện tại — dùng cho popup CMS.
+    // L?ch s? POI d� gh� trong phi�n hi?n t?i - d�ng cho popup CMS.
     // deviceShort = 6 ký tự đầu viết hoa của MaThietBi
     // -----------------------------------------------------------------------
     [HttpGet("history/{deviceShort}")]

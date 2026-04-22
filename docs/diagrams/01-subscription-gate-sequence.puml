@@ -1,21 +1,27 @@
 @startuml
 ' Diagram: F01 - Kich hoat quyen su dung app (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow(), BuildMissingConfigurationPage()
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync()
+' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
+' - VinhKhanhTourDemo/LaunchPage.xaml.cs: RouteAsync()
+' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), RestoreSubscriptionStateAsync()
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync(), UpdateTrialButtonState()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
-' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
-' Note: Da bo sung nhanh bootstrap chan app va prompt ket noi API truoc khi goi purchase cho trial.
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus(), Purchase()
+' Note: Sequence da doi theo LaunchPage hien tai; khong ve luong BuildMissingConfigurationPage vi code khong con goi ham nay.
 title F01 - Kich hoat quyen su dung app
 
 actor Guest
 participant App
+participant LaunchPage
+participant SubscriptionState
 participant MainPage
 participant Preferences
+participant DeviceIdentity
 participant SubscriptionPage
 participant PaymentPage
 participant ApiConnectionPrompt
@@ -24,41 +30,62 @@ participant "SubscriptionController" as SubscriptionController
 database DB
 
 Guest -> App: mo ung dung
-App -> AppConfig: ShouldBlockPublishedAndroidApp?
-alt Android phat hanh chua cau hinh public API
-  App -> Guest: BuildMissingConfigurationPage()
-else vao app binh thuong
-Guest -> MainPage: mo app / OnAppearing()
-MainPage -> Preferences: KiemTraSubscription()
+App -> LaunchPage: CreateWindow()\nNavigationPage(new LaunchPage)
+LaunchPage -> LaunchPage: OnAppearing()\nRouteAsync()
+LaunchPage -> SubscriptionState: IsSubscriptionActive()
+SubscriptionState -> Preferences: Get(sub_ngay_het_han)
+Preferences --> SubscriptionState: expiryRaw
 
-alt subscription con han
-  MainPage -> MainPage: LoadPoisFromApi()
-  MainPage -> MainPage: EnsureGpsTrackingAsync()
-else chua co / het han
-  MainPage -> SubscriptionPage: PushModalAsync()
+alt subscription local con han
+  SubscriptionState --> LaunchPage: true
+  LaunchPage -> MainPage: PushAsync(new MainPage)
+else chua co / het han local
+  SubscriptionState --> LaunchPage: false
+  LaunchPage -> SubscriptionState: HasStoredSubscriptionRecord()
+  SubscriptionState -> Preferences: ContainsKey(sub_ngay_het_han)
+  SubscriptionState --> LaunchPage: hetHan
+  LaunchPage -> SubscriptionPage: PushAsync(new SubscriptionPage(hetHan))
+end
 
-  alt chon goi dung thu
-    Guest -> SubscriptionPage: OnMuaGoiClicked("thu")
-    SubscriptionPage -> Preferences: GetDeviceId()\nneu chua co thi tao UUID moi
-    SubscriptionPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
-    ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
-    AppConfig --> ApiConnectionPrompt: apiBaseUrl?
-    alt ket noi API thanh cong
-      ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
-      SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
-      SubscriptionController -> DB: kiem tra da dung thu?\ninsert DangKyApp
-      DB --> SubscriptionController: saved
-      SubscriptionController --> SubscriptionPage: ngayHetHan
-      SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
-      SubscriptionPage --> MainPage: PopModalAsync()
-    else khong tim thay API dung
-      ApiConnectionPrompt --> SubscriptionPage: null
-      SubscriptionPage -> Guest: hien loi / DisplayAlert
-    end
-  else chon goi tra phi
-    Guest -> SubscriptionPage: OnMuaGoiClicked("ngay|tuan|thang|nam")
-    SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
+opt MainPage xuat hien nhung subscription local khong hop le
+  MainPage -> MainPage: EnsureSubscriptionGateAsync()
+  MainPage -> Preferences: KiemTraSubscription()
+  MainPage -> DeviceIdentity: GetDeviceId()
+  MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+  MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
+  SubscriptionController -> DB: doc DangKyApp con han\nkiem tra da dung thu
+  DB --> SubscriptionController: status
+  SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+  MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han)
+  alt van chua co goi hop le
+    MainPage -> SubscriptionPage: PushModalAsync(new SubscriptionPage(hetHan))
   end
 end
+
+alt nguoi dung chon goi dung thu
+  Guest -> SubscriptionPage: OnMuaGoiClicked("thu")
+  SubscriptionPage -> DeviceIdentity: GetDeviceId()
+  DeviceIdentity -> Preferences: doc override/device_id\nhoac tao stable id
+  DeviceIdentity --> SubscriptionPage: deviceId
+  SubscriptionPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
+  ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
+  AppConfig --> ApiConnectionPrompt: apiBaseUrl?
+  alt ket noi API thanh cong
+    ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
+    SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
+    SubscriptionController -> DB: neu goi thu, kiem tra da dung thu\ninsert DangKyApp
+    DB --> SubscriptionController: saved
+    SubscriptionController --> SubscriptionPage: ngayHetHan
+    SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
+    SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
+    SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+  else khong tim thay API dung
+    ApiConnectionPrompt --> SubscriptionPage: null
+    SubscriptionPage -> Guest: hien LblError
+  end
+else nguoi dung chon goi tra phi
+  Guest -> SubscriptionPage: OnMuaGoiClicked("ngay|tuan|thang|nam")
+  SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
 end
+
 @enduml

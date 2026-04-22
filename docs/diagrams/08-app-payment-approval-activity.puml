@@ -1,17 +1,30 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: snapshotUrl, polling JS
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
-' Note: Diagram dang bam theo luong duyet trong CMS PageModel; can doi chieu lai neu ban muon hop nhat voi approve/reject endpoint trong SubscriptionController.
+' Note: Da bo sung PendingSnapshot va retry clear Npgsql pools theo code CMS hien tai.
 title F08 - Duyet hoac tu choi thanh toan goi app
 start
 :DuyetThanhToan/Index.OnGetAsync(tab,...);
 :Doc YeuCauThanhToans theo FilterTab;
 :Tinh SoChoDuyet;
+:Lay LatestPendingId;
+
+if (JS polling snapshot?) then (Co)
+  :OnGetPendingSnapshotAsync();
+  :Query count cho_duyet va request moi nhat;
+  if (Query thanh cong?) then (Co)
+    :Tra JSON Count, LatestId,\nLatestTransferContent, LatestDeviceShort, Ok=true;
+  else (Loi)
+    :Neu IsDisposedWaitHandle -> ClearNpgsqlPoolsQuietly();
+    :Tra 503 JSON Ok=false;
+  endif
+endif
 
 if (Admin bam Duyet?) then (Co)
   :OnPostApproveAsync(yeuCauId);

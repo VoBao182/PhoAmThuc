@@ -27,14 +27,14 @@ public partial class SubscriptionPage : ContentPage
     {
         base.OnAppearing();
         UpdateTrialButtonState();
-        UpdateApiGuide();
+        HideApiGuide();
     }
 
     private void UpdateTrialButtonState()
     {
         bool daDungThu = Preferences.Get(PrefDaDungThu, false);
         BtnDungThu.IsEnabled = !daDungThu;
-        BtnDungThu.Text = daDungThu ? "Da su dung" : "Thu ngay";
+        BtnDungThu.Text = daDungThu ? "Đã sử dụng" : "Thử ngay";
         BtnDungThu.BackgroundColor = daDungThu
             ? Color.FromArgb("#9CA3AF")
             : Color.FromArgb("#22C55E");
@@ -57,16 +57,9 @@ public partial class SubscriptionPage : ContentPage
         await Navigation.PushModalAsync(new PaymentPage(loaiGoi), animated: true);
     }
 
-    private void UpdateApiGuide()
+    private void HideApiGuide()
     {
-        ApiGuideCard.IsVisible = !AppConfig.HasConfiguredHostedApiBaseUrl;
-        if (!ApiGuideCard.IsVisible)
-            return;
-
-        LblApiGuideText.Text = DeviceInfo.Platform == DevicePlatform.Android
-            ? $"Neu dang test tren dien thoai qua USB, {AppConfig.ApiBaseUrl} chi dung khi da bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}. Neu khong, hay nhap IP may tinh hoac public API URL."
-            : $"Hay nhap public API URL hoac URL backend dang chay, vi du http://localhost:{AppEndpointOptions.ApiPort}.";
-        LblApiGuideStatus.Text = $"Dang uu tien: {AppConfig.ApiBaseUrl}";
+        ApiGuideCard.IsVisible = false;
     }
 
     private async void OnConfigureApiClicked(object? sender, EventArgs e)
@@ -75,7 +68,7 @@ public partial class SubscriptionPage : ContentPage
         if (!string.IsNullOrWhiteSpace(apiBaseUrl))
         {
             LblError.IsVisible = false;
-            UpdateApiGuide();
+            HideApiGuide();
         }
     }
 
@@ -103,7 +96,7 @@ public partial class SubscriptionPage : ContentPage
                 var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
                 var errMsg = errJson.TryGetProperty("message", out var message)
                     ? message.GetString()
-                    : "Thu lai sau.";
+                    : "Thử lại sau.";
                 LblError.IsVisible = true;
                 LblError.Text = errMsg;
                 return;
@@ -116,9 +109,9 @@ public partial class SubscriptionPage : ContentPage
             UpdateTrialButtonState();
 
             await DisplayAlertAsync(
-                "Thanh cong",
-                "Ban da kich hoat goi dung thu 3 ngay.",
-                "Bat dau");
+                "Thành công",
+                "Bạn đã kích hoạt gói dùng thử 3 ngày.",
+                "Bắt đầu");
 
             await ExitSubscriptionGateAsync();
         }
@@ -130,7 +123,7 @@ public partial class SubscriptionPage : ContentPage
         finally
         {
             SetLoading(false);
-            UpdateApiGuide();
+            HideApiGuide();
         }
     }
 

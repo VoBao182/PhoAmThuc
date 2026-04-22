@@ -26,54 +26,54 @@
 <form method="get" class="card mb-4" style="padding:16px;">
     <div style="display:grid;grid-template-columns:2fr repeat(4, minmax(150px, 1fr)) auto;gap:12px;align-items:end;">
         <div>
-            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Tim kiem</label>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Tìm kiếm</label>
             <input name="search" value="@Model.Search" class="form-input" placeholder="Ten quan, dia chi, SDT..." />
         </div>
         <div>
-            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Trang thai</label>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Trạng thái</label>
             <select name="status" class="form-input">
-                <option value="all" selected="@(Model.StatusFilter == "all")">Tat ca</option>
-                <option value="visible" selected="@(Model.StatusFilter == "visible")">Dang hien</option>
-                <option value="hidden" selected="@(Model.StatusFilter == "hidden")">Dang an</option>
-                <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Con han</option>
+                <option value="all" selected="@(Model.StatusFilter == "all")">Tất cả</option>
+                <option value="visible" selected="@(Model.StatusFilter == "visible")">Đang hiện</option>
+                <option value="hidden" selected="@(Model.StatusFilter == "hidden")">Đang ẩn</option>
+                <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Còn hạn</option>
                 <option value="expired" selected="@(Model.StatusFilter == "expired")">Het han</option>
-                <option value="no-expiry" selected="@(Model.StatusFilter == "no-expiry")">Chua co han</option>
+                <option value="no-expiry" selected="@(Model.StatusFilter == "no-expiry")">Chưa có hạn</option>
             </select>
         </div>
         <div>
             <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Han duy tri</label>
             <select name="expiry" class="form-input">
-                <option value="all" selected="@(Model.ExpiryFilter == "all")">Tat ca</option>
-                <option value="active" selected="@(Model.ExpiryFilter == "active")">Con han</option>
-                <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sap het han 7 ngay</option>
-                <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Da het han</option>
-                <option value="none" selected="@(Model.ExpiryFilter == "none")">Chua co han</option>
+                <option value="all" selected="@(Model.ExpiryFilter == "all")">Tất cả</option>
+                <option value="active" selected="@(Model.ExpiryFilter == "active")">Còn hạn</option>
+                <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sắp hết hạn 7 ngày</option>
+                <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Đã hết hạn</option>
+                <option value="none" selected="@(Model.ExpiryFilter == "none")">Chưa có hạn</option>
             </select>
         </div>
         <div>
-            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Sap xep</label>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Sắp xếp</label>
             <select name="sort" class="form-input">
                 <option value="priority" selected="@(Model.SortBy == "priority")">Uu tien</option>
                 <option value="name" selected="@(Model.SortBy == "name")">Ten A-Z</option>
-                <option value="expiry" selected="@(Model.SortBy == "expiry")">Han con lai</option>
-                <option value="menu" selected="@(Model.SortBy == "menu")">So mon dang hien</option>
-                <option value="status" selected="@(Model.SortBy == "status")">Trang thai</option>
+                <option value="expiry" selected="@(Model.SortBy == "expiry")">Hạn còn lại</option>
+                <option value="menu" selected="@(Model.SortBy == "menu")">Số món đang hiện</option>
+                <option value="status" selected="@(Model.SortBy == "status")">Trạng thái</option>
             </select>
         </div>
         <div>
-            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Huong</label>
+            <label style="font-size:12px;color:var(--text-muted);font-weight:600;">Hướng</label>
             <select name="dir" class="form-input">
                 <option value="asc" selected="@(Model.SortDir == "asc")">Thap len cao / A-Z</option>
                 <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuong thap / Z-A</option>
             </select>
         </div>
         <div class="flex gap-2">
-            <button type="submit" class="btn btn-primary">Loc</button>
-            <a href="/Poi" class="btn btn-ghost">Xoa</a>
+            <button type="submit" class="btn btn-primary">Lọc</button>
+            <a href="/Poi" class="btn btn-ghost">Xóa</a>
         </div>
     </div>
     <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
-        Dang hien thi <strong>@Model.POIs.Count</strong> POI theo bo loc hien tai.
+        Đang hiện thi <strong>@Model.POIs.Count</strong> POI theo bộ lọc hiện tại.
     </div>
 </form>
 
@@ -160,12 +160,12 @@
                                     var remainingDays = VinhKhanhTour.CMS.Pages.Poi.IndexModel.GetRemainingDays(poi);
                                     <strong>@poi.NgayHetHanDuyTri.Value.ToLocalTime().ToString("dd/MM/yyyy")</strong>
                                     <div style="font-size:12px;color:@(remainingDays < 0 ? "#dc2626" : remainingDays <= 7 ? "#d97706" : "var(--text-muted)")">
-                                        @(remainingDays < 0 ? $"Qua han {Math.Abs(remainingDays)} ngay" : $"Con {remainingDays + 1} ngay")
+                                        @(remainingDays < 0 ? $"Quá hạn {Math.Abs(remainingDays)} ngày" : $"Còn {remainingDays + 1} ngày")
                                     </div>
                                 }
                                 else
                                 {
-                                    <span style="color:var(--text-muted)">Chua co han</span>
+                                    <span style="color:var(--text-muted)">Chưa có hạn</span>
                                 }
                             </td>
                             <td>

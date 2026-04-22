@@ -51,7 +51,7 @@ public class SubscriptionController : ControllerBase
     {
         maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(maThietBi);
         if (string.IsNullOrWhiteSpace(maThietBi))
-            return BadRequest(new { message = "MaThietBi khÃ´ng Ä‘Æ°á»£c trá»‘ng." });
+            return BadRequest(new { message = "MaThietBi không �'ược tr�'ng." });
 
         var now = DateTime.UtcNow;
         var goi = await _db.DangKyApps
@@ -60,7 +60,7 @@ public class SubscriptionController : ControllerBase
             .OrderByDescending(d => d.NgayHetHan)
             .FirstOrDefaultAsync();
 
-        // Kiểm tra thiết bị đã từng dùng thử chưa
+        // Ki?m tra thi?t b? d� t?ng d�ng th? chua
         bool daDungThu = await _db.DangKyApps
             .AsNoTracking()
             .AnyAsync(d => d.MaThietBi == maThietBi && d.LoaiGoi == "thu");
@@ -108,7 +108,7 @@ public class SubscriptionController : ControllerBase
             bool daDung = await _db.DangKyApps
                 .AnyAsync(d => d.MaThietBi == maThietBi && d.LoaiGoi == "thu");
             if (daDung)
-                return BadRequest(new { message = "Thiết bị này đã sử dụng gói dùng thử." });
+                return BadRequest(new { message = "Thi?t b? n�y d� s? d?ng g�i d�ng th?." });
         }
 
         // Nếu đang có gói chưa hết → gia hạn nối tiếp (chỉ áp dụng gói trả phí)
@@ -150,7 +150,7 @@ public class SubscriptionController : ControllerBase
 
     // -----------------------------------------------------------------------
     // POST /api/subscription/request
-    // Tạo yêu cầu thanh toán qua QR — gọi sau khi khách đã chuyển khoản.
+    // T?o y�u c?u thanh to�n qua QR - g?i sau khi kh�ch d� chuy?n kho?n.
     // Body: { MaThietBi, LoaiGoi }
     // -----------------------------------------------------------------------
     [HttpPost("request")]
@@ -162,7 +162,7 @@ public class SubscriptionController : ControllerBase
         if (!Goi.TryGetValue(req.LoaiGoi, out var info) || info.MienPhi)
             return BadRequest(new { message = "Loại gói không hợp lệ. Chọn: ngay, tuan, thang, nam." });
 
-        // Tạo mã nội dung chuyển khoản dễ nhận diện
+        // T?o m� n?i dung chuy?n kho?n d? nh?n di?n
         var maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi);
         if (string.IsNullOrWhiteSpace(maThietBi))
             return BadRequest(new { message = "MaThietBi không hợp lệ." });
@@ -196,7 +196,7 @@ public class SubscriptionController : ControllerBase
 
     // -----------------------------------------------------------------------
     // GET /api/subscription/request/{yeuCauId}
-    // Kiểm tra trạng thái yêu cầu — app polling mỗi 10 giây.
+    // Ki?m tra tr?ng th�i y�u c?u - app polling m?i 10 gi�y.
     // -----------------------------------------------------------------------
     [HttpGet("request/{yeuCauId:guid}")]
     public async Task<IActionResult> GetRequestStatus(Guid yeuCauId)
@@ -206,7 +206,7 @@ public class SubscriptionController : ControllerBase
 
         if (yc == null) return NotFound(new { message = "Yêu cầu không tồn tại." });
 
-        // Tính ngày hết hạn nếu đã duyệt
+        // T�nh ng�y h?t h?n n?u d� duy?t
         DateTime? ngayHetHan = null;
         if (yc.TrangThai == "da_duyet")
         {
@@ -242,7 +242,7 @@ public class SubscriptionController : ControllerBase
         var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
         if (yc == null) return NotFound(new { message = "Yêu cầu không tồn tại." });
         if (yc.TrangThai != "cho_duyet")
-            return BadRequest(new { message = $"Yêu cầu đã ở trạng thái '{yc.TrangThai}'." });
+            return BadRequest(new { message = $"Y�u c?u d� ? tr?ng th�i '{yc.TrangThai}'." });
 
         if (!Goi.TryGetValue(yc.LoaiGoi, out var info))
             return BadRequest(new { message = "Loại gói không hợp lệ." });
@@ -276,7 +276,7 @@ public class SubscriptionController : ControllerBase
 
         return Ok(new
         {
-            message    = $"Đã duyệt và kích hoạt gói {info.Ten} cho thiết bị.",
+            message    = $"D� duy?t v� k�ch ho?t g�i {info.Ten} cho thi?t b?.",
             NgayHetHan = hetHan
         });
     }
@@ -292,14 +292,14 @@ public class SubscriptionController : ControllerBase
         var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
         if (yc == null) return NotFound(new { message = "Yêu cầu không tồn tại." });
         if (yc.TrangThai != "cho_duyet")
-            return BadRequest(new { message = $"Yêu cầu đã ở trạng thái '{yc.TrangThai}'." });
+            return BadRequest(new { message = $"Y�u c?u d� ? tr?ng th�i '{yc.TrangThai}'." });
 
         yc.TrangThai   = "tu_choi";
         yc.NgayDuyet   = DateTime.UtcNow;
         yc.GhiChuAdmin = req.GhiChu;
 
         await _db.SaveChangesAsync();
-        return Ok(new { message = "Đã từ chối yêu cầu." });
+        return Ok(new { message = "D� t? ch?i y�u c?u." });
     }
 
     // -----------------------------------------------------------------------

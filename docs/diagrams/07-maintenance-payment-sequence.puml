@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
@@ -17,9 +17,10 @@ participant AppDbContext
 database DB
 
 Admin -> IndexModel: mo /ThanhToan
-IndexModel -> AppDbContext: load POIs + DangKyDichVus + HoaDons(thang hien tai)
+IndexModel -> AppDbContext: load POIs + DangKyDichVus active + HoaDons(thang hien tai)
 AppDbContext -> DB: SELECT du lieu thanh toan POI
 DB --> AppDbContext: data
+IndexModel -> IndexModel: lay PhiDuyTriThang moi nhat theo POI
 IndexModel --> Admin: danh sach + thong ke
 
 Admin -> GhiNhanModel: mo /ThanhToan/GhiNhan?poiId=...

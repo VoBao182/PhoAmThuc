@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace VinhKhanhTour.API.Models;
@@ -34,7 +34,7 @@ public class LichSuPhat
     [NotMapped]
     public int? ThoiLuongNghe { get; set; }
 
-    /// <summary>Mã thiết bị ẩn danh — dùng khi khách không đăng nhập</summary>
+    /// <summary>M� thi?t b? ?n danh - d�ng khi kh�ch kh�ng dang nh?p</summary>
     [Column("mathietbi")]
     public string? MaThietBi { get; set; }
 

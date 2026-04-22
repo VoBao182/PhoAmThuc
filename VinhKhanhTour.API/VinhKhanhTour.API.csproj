@@ -6,19 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Debug trên Windows: build ra thư mục an toàn hơn để tránh App Control chặn DLL trong bin\Debug -->
+  <!-- Windows Debug: run through dotnet.exe so Smart App Control does not block a local unsigned apphost. -->
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows')) and '$(Configuration)' == 'Debug'">
-    <OutputPath>$(MSBuildProjectDirectory)\..\.codex-temp\api-build\</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
-
-  <!-- Tự động unblock DLL sau build (tránh SAC chặn trên máy dev) -->
-  <Target Name="UnblockOutput"
-          AfterTargets="Build"
-          Condition="$([MSBuild]::IsOSPlatform('windows'))">
-    <Exec Command="powershell -NonInteractive -Command &quot;Get-ChildItem '$(OutDir)' -Recurse -Include '*.dll','*.exe' | ForEach-Object { Unblock-File $_.FullName -ErrorAction SilentlyContinue }&quot;" ContinueOnError="true" />
-  </Target>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />

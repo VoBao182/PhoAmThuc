@@ -1,54 +1,80 @@
 @startuml
 ' Diagram: F01 - Kich hoat quyen su dung app (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow(), BuildMissingConfigurationPage()
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), KiemTraSubscription()
-' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateTrialButtonState(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), GetDeviceId()
-' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
+' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
+' - VinhKhanhTourDemo/LaunchPage.xaml.cs: OnAppearing(), RouteAsync(), OnRetryClicked()
+' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), KiemTraSubscription(), RestoreSubscriptionStateAsync()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateTrialButtonState(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), ExitSubscriptionGateAsync()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
+' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync(), PromptForApiBaseUrlAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
-' Note: Da cap nhat theo baseline hien tai co them nhanh chan app neu Android phat hanh chua cau hinh HostedApiBaseUrl, va prompt ket noi API truoc khi kich hoat goi dung thu.
+' Note: Code hien tai khoi dong qua LaunchPage; khong con BuildMissingConfigurationPage/ShouldBlockPublishedAndroidApp trong App.xaml.cs.
 title F01 - Kich hoat quyen su dung app
 start
 :App.CreateWindow();
-if (ShouldBlockPublishedAndroidApp?) then (Co)
-  :BuildMissingConfigurationPage();
-  stop
+:Tao NavigationPage(new LaunchPage());
+:LaunchPage.OnAppearing();
+:Dispatcher.Dispatch(RouteAsync);
+:RouteAsync();
+:Hien BootIndicator va an nut Retry;
+:Task.Delay(250);
+
+if (SubscriptionState.IsSubscriptionActive()?) then (Co)
+  :targetPage = new MainPage();
+else (Khong)
+  :hetHan = SubscriptionState.HasStoredSubscriptionRecord();
+  :targetPage = new SubscriptionPage(hetHan);
 endif
 
-:MainPage.OnAppearing();
-if (KiemTraSubscription() con han?) then (Co)
-  if (_isInitialized == false?) then (Co)
-    :LoadPoisFromApi();
-  endif
-  :EnsureGpsTrackingAsync();
-  stop
-else (Khong)
-  :EnsureSubscriptionGateAsync();
-  :Navigation.PushModalAsync(SubscriptionPage);
+:Navigation.PushAsync(targetPage, animated:false);
+:Navigation.RemovePage(LaunchPage);
 
-  if (Nguoi dung chon goi dung thu?) then (Co)
-    :SubscriptionPage.OnMuaGoiClicked("thu");
-    :GetDeviceId();
-    :ActivateFreeTrialAsync();
-    :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();
-    if (Tim thay API dung va reachable?) then (Co)
-      :POST /api/subscription/purchase;
+if (targetPage la MainPage?) then (Co)
+  :MainPage.OnAppearing();
+  if (KiemTraSubscription() con han?) then (Co)
+    :Tiep tuc LoadPoisFromApi / GPS o F02-F03;
+  else (Khong)
+    :RestoreSubscriptionStateAsync();
+    if (server restore thanh cong va con han?) then (Co)
+      :Tiep tuc LoadPoisFromApi / GPS o F02-F03;
+    else (Khong)
+      :Navigation.PushModalAsync(new SubscriptionPage(hetHan));
+    endif
+  endif
+else (SubscriptionPage)
+  :SubscriptionPage.OnAppearing();
+  :UpdateTrialButtonState();
+  :HideApiGuide();
+endif
+
+if (Nguoi dung chon goi dung thu?) then (Co)
+  :SubscriptionPage.OnMuaGoiClicked("thu");
+  :DeviceIdentity.GetDeviceId();
+  :ActivateFreeTrialAsync(deviceId);
+  :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();
+  if (Tim thay API dung va reachable?) then (Co)
+    :POST /api/subscription/purchase;
+    if (API tra thanh cong?) then (Co)
       :Preferences.Set(sub_ngay_het_han);
       :Preferences.Set(da_dung_thu = true);
+      :UpdateTrialButtonState();
       :DisplayAlert thanh cong;
-      :PopModalAsync();
+      :ExitSubscriptionGateAsync();
     else (Khong)
-      :Hien loi / DisplayAlert tren SubscriptionPage;
+      :Doc message loi va hien LblError;
     endif
-  else (Goi tra phi)
-    :Navigation.PushModalAsync(PaymentPage);
-    note right
-      Luong chi tiet cua goi tra phi
-      duoc mo ta o F05.
-    end note
+  else (Khong)
+    :Hien loi ket noi tren LblError;
   endif
+else (Goi tra phi)
+  :Navigation.PushModalAsync(new PaymentPage(loaiGoi));
+  note right
+    Luong chi tiet cua goi tra phi
+    duoc mo ta o F05.
+  end note
 endif
 stop
 @enduml

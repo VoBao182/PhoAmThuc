@@ -9,7 +9,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="24,52,24,36" Spacing="0">
 
-            <Label Text="GOI"
+            <Label Text="GÓI"
                    FontSize="34"
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
@@ -20,7 +20,7 @@
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
                    TextColor="#1F2933"/>
-            <Label Text="Chon goi phu hop de bat dau kham pha"
+            <Label Text="Chọn gói phù hợp để bắt đầu khám phá"
                    FontSize="14"
                    HorizontalOptions="Center"
                    TextColor="#6B7280"
@@ -35,7 +35,7 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12"/>
                 </Border.StrokeShape>
-                <Label Text="Goi su dung da het han. Vui long gia han de tiep tuc."
+                <Label Text="Gói sử dụng đã hết hạn. Vui lòng gia hạn để tiếp tục."
                        FontSize="13"
                        TextColor="#92400E"
                        Padding="14,10"/>
@@ -51,7 +51,7 @@
                     <RoundRectangle CornerRadius="14"/>
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="16,14" Spacing="10">
-                    <Label Text="Ket noi thanh toan"
+                    <Label Text="Kết nối thanh toán"
                            FontSize="15"
                            FontAttributes="Bold"
                            TextColor="#92400E"/>
@@ -62,7 +62,7 @@
                            FontSize="12"
                            TextColor="#E36A11"/>
                     <Button x:Name="BtnConfigureApi"
-                            Text="Nhap API URL"
+                            Text="Nhập API URL"
                             FontSize="13"
                             FontAttributes="Bold"
                             BackgroundColor="#FFF7ED"
@@ -83,7 +83,7 @@
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="4">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="Dung thu"
+                            <Label Text="Dùng thử"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="#1F2933"/>
@@ -91,19 +91,19 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="MIEN PHI"
+                                <Label Text="MIỄN PHÍ"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
                             </Border>
                         </HorizontalStackLayout>
-                        <Label Text="3 ngay trai nghiem day du"
+                        <Label Text="3 ngày trải nghiệm đầy đủ"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
                     <Button Grid.Column="1"
                             x:Name="BtnDungThu"
-                            Text="Thu ngay"
+                            Text="Thử ngay"
                             FontSize="13"
                             FontAttributes="Bold"
                             BackgroundColor="#22C55E"
@@ -117,7 +117,7 @@
                 </Grid>
             </Border>
 
-            <Label Text="GOI TRA PHI"
+            <Label Text="GÓI TRA PHI"
                    FontSize="11"
                    FontAttributes="Bold"
                    TextColor="#9CA3AF"
@@ -136,11 +136,11 @@
                 </Border.Shadow>
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
-                        <Label Text="Goi Ngay"
+                        <Label Text="Gói Ngày"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#1F2933"/>
-                        <Label Text="1 ngay kham pha thoai mai"
+                        <Label Text="1 ngày khám phá thoải mái"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
@@ -154,7 +154,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNgay"
-                                Text="Chon"
+                                Text="Chọn"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#E36A11"
@@ -180,11 +180,11 @@
                 </Border.Shadow>
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
-                        <Label Text="Goi Tuan"
+                        <Label Text="Gói Tuần"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#1F2933"/>
-                        <Label Text="7 ngay trai nghiem lien tuc"
+                        <Label Text="7 ngày trải nghiệm liên tục"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
@@ -198,7 +198,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaTuan"
-                                Text="Chon"
+                                Text="Chọn"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#E36A11"
@@ -225,7 +225,7 @@
                 <VerticalStackLayout Padding="18,14" Spacing="10">
                     <Grid ColumnDefinitions="*, Auto">
                         <HorizontalStackLayout Grid.Column="0" Spacing="8">
-                            <Label Text="Goi Thang"
+                            <Label Text="Gói Tháng"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="#1F2933"/>
@@ -233,7 +233,7 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="PHO BIEN"
+                                <Label Text="PHỔ BIẾN"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
@@ -248,7 +248,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="*, Auto">
                         <Label Grid.Column="0"
-                               Text="30 ngay khong gioi han"
+                               Text="30 ngày không giới hạn"
                                FontSize="13"
                                TextColor="#78350F"
                                VerticalOptions="Center"/>
@@ -281,7 +281,7 @@
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="Goi Nam"
+                            <Label Text="Gói Năm"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="White"/>
@@ -289,13 +289,13 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="TIET KIEM"
+                                <Label Text="TIẾT KIỆM"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
                             </Border>
                         </HorizontalStackLayout>
-                        <Label Text="365 ngay - Tot nhat cho kham pha"
+                        <Label Text="365 ngày - Tốt nhất cho khám phá"
                                FontSize="13"
                                TextColor="#9CA3AF"/>
                     </VerticalStackLayout>
@@ -309,7 +309,7 @@
                                TextColor="#F59E0B"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNam"
-                                Text="Chon"
+                                Text="Chọn"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#F59E0B"
@@ -338,15 +338,15 @@
                    HorizontalTextAlignment="Center"
                    Margin="0,0,0,8"/>
 
-            <Label Text="Tu dong kich hoat khi ket noi duoc API thanh toan"
+            <Label Text="Tự động kích hoạt khi kết nối được API thanh toán"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>
-            <Label Text="Co the test USB bang adb reverse hoac nhap API URL thu cong"
+            <Label Text="Có thể test USB bằng adb reverse hoặc nhập API URL thủ công"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>
-            <Label Text="Ho tro 3 ngon ngu: Viet, Anh, Trung"
+            <Label Text="Hỗ trợ 3 ngôn ngữ: Việt, Anh, Trung"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>

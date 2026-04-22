@@ -1,30 +1,47 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestorePoiHistoryAsync(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: RecordView(), SyncHistory()
-' Note: Da bo sung luong dong bo lich su local -> server; cac buoc khac duoc giu nguyen.
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
+' Note: Da cap nhat theo luong restore profile/XP va refresh 20 giay trong MainPage hien tai.
 title F02 - Tai va kham pha danh sach POI
 
 actor Guest
 participant MainPage
+participant DeviceIdentity
 participant AppConfig
 participant "PoiController" as PoiController
 participant "HeartbeatController" as HeartbeatController
+participant Preferences
 participant DetailPage
 database DB
 
 Guest -> MainPage: mo man Explore
+MainPage -> MainPage: OnAppearing()\nApplyLocalizedUiText()\nUpdateCaiDatUI()
 MainPage -> AppConfig: EnsureApiBaseUrlAsync()
 MainPage -> PoiController: GET /api/poi
 PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri > now
 DB --> PoiController: danh sach POI
 PoiController --> MainPage: List<PoiDto>
-MainPage -> MainPage: LoadMap()\nRenderPoiCards()
+MainPage -> MainPage: RefreshMapIfNeeded()\nRenderPoiCards()
+
+opt restore lich su/XP tu server
+  MainPage -> DeviceIdentity: GetDeviceId()
+  MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+  MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
+  HeartbeatController -> DB: doc LichSuPhat VIEW/GPS theo MaThietBi
+  DB --> HeartbeatController: viewed/visited ids + XP/level
+  HeartbeatController --> MainPage: UserExperienceProfileResponse
+  MainPage -> Preferences: MergeSavedPoiIds(viewed/visited)
+  MainPage -> MainPage: UpdateCaiDatUI()
+end
+
 opt dong bo lich su local sau khi tai POI / vao lai man hinh
+  MainPage -> DeviceIdentity: GetDeviceId()
   MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
   HeartbeatController -> DB: kiem tra VIEW/GPS da co\nchen thieu tu ViewedPoiIds/VisitedPoiIds
   DB --> HeartbeatController: insertedViews / insertedVisits
@@ -36,20 +53,22 @@ MainPage -> MainPage: OnSearchTextChanged()\nGetVisiblePois()\nRenderPoiCards()
 
 Guest -> MainPage: bam "Xem chi tiet"
 MainPage -> MainPage: OpenPoiDetailAsync(poi)\nRecordViewedPoi(poi)
+MainPage -> Preferences: Save viewed_poi_ids
 MainPage -> HeartbeatController: POST /api/heartbeat/view
 HeartbeatController -> DB: dedup 5 phut + insert LichSuPhat(Nguon="VIEW")
 DB --> HeartbeatController: saved
 MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
 HeartbeatController -> DB: bo sung lich su local neu can
 DB --> HeartbeatController: synced
+MainPage -> MainPage: UpdateCaiDatUI()
 MainPage -> DetailPage: PushAsync(new DetailPage(poi))
 
-opt refresh nen 30 giay
+opt refresh nen 20 giay
   MainPage -> AppConfig: EnsureApiBaseUrlAsync()
   MainPage -> PoiController: GET /api/poi
   PoiController -> DB: query lai POI
   DB --> PoiController: danh sach moi
   PoiController --> MainPage: List<PoiDto>
-  MainPage -> MainPage: LoadMap()\nRenderPoiCards()
+  MainPage -> MainPage: RefreshMapIfNeeded()\nRenderPoiCards()
 end
 @enduml

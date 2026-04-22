@@ -25,7 +25,7 @@ public class YeuCauThanhToan
     [Column("sotien")]
     public decimal SoTien { get; set; }
 
-    /// <summary>Nội dung chuyển khoản để admin khớp với sao kê ngân hàng</summary>
+    /// <summary>N?i dung chuy?n kho?n d? admin kh?p v?i sao k� ng�n h�ng</summary>
     [Column("noidung_chuyen")]
     public string NoiDungChuyen { get; set; } = "";
 

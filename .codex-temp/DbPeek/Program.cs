@@ -1,73 +1,118 @@
+using Microsoft.Extensions.Configuration;
 using Npgsql;
-using System.Security.Cryptography.X509Certificates;
 
-var password = "Nikonchipbao182.";
-var candidates = new[]
-{
-    ("direct", "Host=db.gdehuskbrhfswvrkfzkl.supabase.co;Database=postgres;Username=postgres;Password=" + password + ";SSL Mode=Require;Trust Server Certificate=true")
-};
+var config = new ConfigurationBuilder()
+    .SetBasePath(Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "VinhKhanhTour.API")))
+    .AddJsonFile("appsettings.json", optional: true)
+    .AddJsonFile("appsettings.Development.json", optional: true)
+    .AddJsonFile("appsettings.Development.Local.json", optional: true)
+    .AddEnvironmentVariables()
+    .Build();
 
-foreach (var (name, cs) in candidates)
+var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
+    ?? config.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Missing connection string.");
+
+await using var conn = new NpgsqlConnection(connectionString);
+await conn.OpenAsync();
+
+await PrintQueryAsync(
+    conn,
+    "Active POI visible to /api/poi filter",
+    """
+    select id::text,
+           tenpoi,
+           diachi,
+           vido,
+           kinhdo,
+           trangthai,
+           ngayhethanduytri,
+           count(*) over (partition by round(vido::numeric, 6), round(kinhdo::numeric, 6)) as same_coord_count
+    from poi
+    where trangthai = true
+      and (ngayhethanduytri is null or ngayhethanduytri > now())
+    order by mucuutien, tenpoi;
+    """);
+
+await PrintQueryAsync(
+    conn,
+    "All active POI regardless maintenance expiry",
+    """
+    select id::text,
+           tenpoi,
+           diachi,
+           vido,
+           kinhdo,
+           trangthai,
+           ngayhethanduytri,
+           case
+             when ngayhethanduytri is null then 'visible_null_expiry'
+             when ngayhethanduytri > now() then 'visible_paid'
+             else 'hidden_expired'
+           end as api_visibility
+    from poi
+    where trangthai = true
+    order by api_visibility, mucuutien, tenpoi;
+    """);
+
+await PrintQueryAsync(
+    conn,
+    "Device 46391152 matching IDs",
+    """
+    select source, mathietbi, count(*) as rows
+    from (
+        select 'lichsuphat' as source, mathietbi from lichsuphat where mathietbi ilike '46391152%'
+        union all
+        select 'vitrikhach' as source, mathietbi from vitrikhach where mathietbi ilike '46391152%'
+        union all
+        select 'dangkyapp' as source, mathietbi from dangkyapp where mathietbi ilike '46391152%'
+    ) x
+    group by source, mathietbi
+    order by source, mathietbi;
+    """);
+
+await PrintQueryAsync(
+    conn,
+    "Device 46391152 POI activity",
+    """
+    select coalesce(l.nguon, '') as nguon,
+           l.poiid::text,
+           coalesce(p.tenpoi, '(missing poi)') as tenpoi,
+           count(*) as rows,
+           min(l.thoigian) as first_seen,
+           max(l.thoigian) as last_seen
+    from lichsuphat l
+    left join poi p on p.id = l.poiid
+    where l.mathietbi ilike '46391152%'
+      and l.poiid is not null
+    group by coalesce(l.nguon, ''), l.poiid, coalesce(p.tenpoi, '(missing poi)')
+    order by tenpoi, nguon;
+    """);
+
+static async Task PrintQueryAsync(NpgsqlConnection conn, string title, string sql)
 {
-    try
+    Console.WriteLine();
+    Console.WriteLine($"## {title}");
+
+    await using var cmd = new NpgsqlCommand(sql, conn)
     {
-        await using var conn = new NpgsqlConnection(cs);
-        await conn.OpenAsync();
+        CommandTimeout = 60
+    };
 
-        await using var cmd = new NpgsqlCommand("select count(*)::text from public.poi;", conn);
-        var count = (string?)await cmd.ExecuteScalarAsync();
-        Console.WriteLine($"{name}: OK poi_count={count}");
-    }
-    catch (Exception ex)
+    await using var reader = await cmd.ExecuteReaderAsync();
+    var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+    Console.WriteLine(string.Join(" | ", names));
+
+    while (await reader.ReadAsync())
     {
-        Console.WriteLine($"{name}: FAIL {ex}");
-    }
-}
-
-var regions = new[]
-{
-    "ap-southeast-1",
-    "ap-southeast-2",
-    "ap-east-1",
-    "ap-south-1",
-    "ap-northeast-1",
-    "ap-northeast-2",
-    "ca-central-1",
-    "eu-central-1",
-    "eu-north-1",
-    "eu-west-1",
-    "eu-west-2",
-    "eu-west-3",
-    "me-central-1",
-    "us-east-1",
-    "us-east-2",
-    "us-west-1",
-    "us-west-2",
-    "sa-east-1"
-};
-
-foreach (var region in regions)
-{
-    var builderCs = $"Host=aws-0-{region}.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.gdehuskbrhfswvrkfzkl;Password={password};SSL Mode=Require;Gss Encryption Mode=Disable";
-
-    try
-    {
-        var builder = new NpgsqlDataSourceBuilder(builderCs);
-        builder.UseSslClientAuthenticationOptionsCallback(options =>
+        var values = new object?[reader.FieldCount];
+        reader.GetValues(values);
+        Console.WriteLine(string.Join(" | ", values.Select(v => v switch
         {
-            options.ClientCertificates = [];
-            options.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-            options.CertificateRevocationCheckMode = X509RevocationMode.NoCheck;
-        });
-
-        await using var dataSource = builder.Build();
-        await using var conn = await dataSource.OpenConnectionAsync();
-        await using var cmd = new NpgsqlCommand("select count(*)::text from public.poi;", conn);
-        var count = (string?)await cmd.ExecuteScalarAsync();
-        Console.WriteLine($"region:{region}: OK poi_count={count}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"region:{region}: FAIL {ex.GetBaseException().Message}");
+            null => "",
+            DBNull => "",
+            DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss"),
+            _ => v.ToString()
+        })));
     }
 }

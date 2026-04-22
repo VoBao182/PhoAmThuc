@@ -1,7 +1,7 @@
 @page
 @model VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel
 @{
-    ViewData["Title"] = "Duyet thanh toan app";
+    ViewData["Title"] = "Duyệt thanh toán app";
     ViewData["Page"] = "duyetthanhtoan";
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
@@ -9,11 +9,11 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-0">Duyet thanh toan app</h2>
-            <p class="text-muted mb-0">Xac nhan yeu cau chuyen khoan tu khach mua goi</p>
+            <h2 class="fw-bold mb-0">Duyệt thanh toán app</h2>
+            <p class="text-muted mb-0">Xác nhận yêu cầu chuyển khoản từ khách mua gói</p>
         </div>
         <span id="pendingCountBadge" class="badge bg-warning text-dark fs-6">
-            @Model.SoChoDuyet yeu cau cho duyet
+            @Model.SoChoDuyet yêu cầu chờ duyệt
         </span>
     </div>
 
@@ -21,9 +21,9 @@
          class="alert alert-warning alert-dismissible fade show d-none"
          role="alert"
          aria-live="polite">
-        <strong>Co yeu cau thanh toan moi.</strong>
+        <strong>Có yêu cầu thanh toán mới.</strong>
         <span id="paymentPendingAlertText">Trang se tu cap nhat.</span>
-        <a href="?tab=cho_duyet" class="alert-link ms-2">Mo danh sach cho duyet</a>
+        <a href="?tab=cho_duyet" class="alert-link ms-2">Mở danh sách chờ duyệt</a>
         <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
     </div>
 
@@ -46,22 +46,22 @@
     <ul class="nav nav-tabs mb-3" id="filterTab">
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "cho_duyet" ? "active" : "")"
-               href="?tab=cho_duyet">Cho duyet (@Model.SoChoDuyet)</a>
+               href="?tab=cho_duyet">Chờ duyệt (@Model.SoChoDuyet)</a>
         </li>
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "da_duyet" ? "active" : "")"
-               href="?tab=da_duyet">Da duyet</a>
+               href="?tab=da_duyet">Đã duyệt</a>
         </li>
         <li class="nav-item">
             <a class="nav-link @(Model.FilterTab == "tu_choi" ? "active" : "")"
-               href="?tab=tu_choi">Da tu choi</a>
+               href="?tab=tu_choi">Đã từ chối</a>
         </li>
     </ul>
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             <div class="px-3 py-2 border-bottom bg-light small text-muted">
-                Trang tu kiem tra yeu cau moi moi 5 giay. Khi co thay doi, he thong se thong bao va tai lai neu admin khong dang thao tac.
+                Trang tự kiểm tra yêu cầu mới mỗi 15 giây khi tab đang mở. Khi có thay đổi, hệ thống sẽ thông báo và tải lại nếu admin không đang thao tác.
             </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -69,8 +69,8 @@
                         <tr>
                             <th>Thiet bi</th>
                             <th>Goi</th>
-                            <th>So tien</th>
-                            <th>Noi dung CK</th>
+                            <th>Số tiền</th>
+                            <th>Nội dung CK</th>
                             <th>Thoi gian</th>
                             <th>Ghi chu admin</th>
                             <th>Thao tac</th>
@@ -81,7 +81,7 @@
                         {
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
-                                    Khong co yeu cau nao.
+                                    Không có yêu cầu nào.
                                 </td>
                             </tr>
                         }
@@ -92,7 +92,7 @@
                                     <span class="font-monospace small fw-semibold" title="@yc.MaThietBi">
                                         @(yc.MaThietBi.Length > 8 ? yc.MaThietBi[..8].ToUpperInvariant() : yc.MaThietBi.ToUpperInvariant())
                                     </span>
-                                    <div class="text-muted" style="font-size:10px">ID thiet bi</div>
+                                    <div class="text-muted" style="font-size:10px">ID thiết bị</div>
                                 </td>
                                 <td>
                                     @switch (yc.LoaiGoi)
@@ -134,8 +134,8 @@
                                             <input type="hidden" name="yeuCauId" value="@yc.Id" />
                                             <button type="submit"
                                                     class="btn btn-sm btn-success me-1"
-                                                    onclick="return confirm('Xac nhan duyet yeu cau nay?')">
-                                                Duyet
+                                                    onclick="return confirm('Xác nhận duyệt yêu cầu này?')">
+                                                Duyệt
                                             </button>
                                         </form>
                                         <button type="button"
@@ -143,16 +143,16 @@
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalTuChoi"
                                                 data-id="@yc.Id">
-                                            Tu choi
+                                            Từ chối
                                         </button>
                                     }
                                     else if (yc.TrangThai == "da_duyet")
                                     {
-                                        <span class="badge bg-success">Da duyet</span>
+                                        <span class="badge bg-success">Đã duyệt</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-danger">Tu choi</span>
+                                        <span class="badge bg-danger">Từ chối</span>
                                     }
                                 </td>
                             </tr>
@@ -169,7 +169,7 @@
         <form method="post" asp-page-handler="Reject">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Tu choi yeu cau</h5>
+                    <h5 class="modal-title">Từ chối yêu cầu</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -179,12 +179,12 @@
                         <textarea name="lyDo"
                                   class="form-control"
                                   rows="3"
-                                  placeholder="Vi du: Khong tim thay giao dich khop noi dung chuyen khoan..."
+                                  placeholder="Ví dụ: Không tìm thấy giao dịch khớp nội dung chuyển khoản..."
                                   required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huy</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                     <button type="submit" class="btn btn-danger">Xac nhan tu choi</button>
                 </div>
             </div>
@@ -232,7 +232,7 @@
 
     function updateBadge(count) {
         if (pendingBadge) {
-            pendingBadge.textContent = count + ' yeu cau cho duyet';
+            pendingBadge.textContent = count + ' yêu cầu chờ duyệt';
         }
 
         document.title = count > 0 ? '(' + count + ') ' + currentTitle : currentTitle;
@@ -248,12 +248,12 @@
             ? ' (' + snapshot.latestDeviceShort + ')'
             : '';
 
-        alertText.textContent = 'Dang co ' + snapshot.count + ' yeu cau cho duyet' + device + '.' + detail;
+        alertText.textContent = 'Đang có ' + snapshot.count + ' yêu cầu chờ duyệt' + device + '.' + detail;
         alertBox.classList.remove('d-none');
 
         if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Vinh Khanh Tour', {
-                body: 'Co ' + snapshot.count + ' yeu cau thanh toan cho duyet.'
+                body: 'Có ' + snapshot.count + ' yêu cầu thanh toán chờ duyệt.'
             });
         }
     }
@@ -265,6 +265,8 @@
     }
 
     async function pollPendingPayments() {
+        if (document.hidden) return;
+
         try {
             var response = await fetch(snapshotUrl, {
                 headers: { 'Accept': 'application/json' },
@@ -299,7 +301,12 @@
     }
 
     updateBadge(lastCount);
-    window.setInterval(pollPendingPayments, 5000);
+    window.setInterval(pollPendingPayments, 15000);
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            pollPendingPayments();
+        }
+    });
 })();
 </script>
 }

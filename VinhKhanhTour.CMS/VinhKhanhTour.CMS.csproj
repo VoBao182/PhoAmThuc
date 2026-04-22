@@ -7,7 +7,14 @@
     <UserSecretsId>VinhKhanhTour-CMS-5d4db89d-f90a-4e55-b7e6-f9137e0d64c8</UserSecretsId>
   </PropertyGroup>
 
-  <!-- Tự động unblock DLL sau build (tránh SAC chặn trên máy dev) -->
+  <!-- Windows Debug: build into LOCALAPPDATA so Smart App Control / OneDrive does not block unsigned dev DLLs. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows')) and '$(Configuration)' == 'Debug'">
+    <OutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\cms-build\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+  </PropertyGroup>
+
+  <!-- Tự động unblock DLL sau build (tránh Smart App Control chặn trên máy dev) -->
   <Target Name="UnblockOutput"
           AfterTargets="Build"
           Condition="$([MSBuild]::IsOSPlatform('windows'))">

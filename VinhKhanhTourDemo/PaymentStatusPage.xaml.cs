@@ -4,9 +4,9 @@ using System.Text.Json;
 namespace VinhKhanhTourDemo;
 
 /// <summary>
-/// Trang cho admin duyet yeu cau thanh toan.
+/// Trang chờ admin duyệt yêu cầu thanh toán.
 /// Polling API /api/subscription/request/{id} moi 10 giay.
-/// Khi duoc duyet thi luu ngay het han vao Preferences va hien thanh cong.
+/// Khi được duyệt thì lưu ngày hết hạn vào Preferences và hiện thành công.
 /// </summary>
 public partial class PaymentStatusPage : ContentPage
 {
@@ -56,7 +56,7 @@ public partial class PaymentStatusPage : ContentPage
             for (_countdownSec = 10; _countdownSec > 0 && !ct.IsCancellationRequested; _countdownSec--)
             {
                 MainThread.BeginInvokeOnMainThread(() =>
-                    LblDemGiay.Text = $"Kiem tra lai sau {_countdownSec}s...");
+                    LblDemGiay.Text = $"Kiểm tra lại sau {_countdownSec}s...");
                 await Task.Delay(1000, ct).ContinueWith(_ => { });
             }
         }
@@ -112,7 +112,7 @@ public partial class PaymentStatusPage : ContentPage
                 out var hetHan))
         {
             var soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
-            LblHetHan.Text = $"Goi cua ban co hieu luc den {hetHan.ToLocalTime():dd/MM/yyyy}\n(con {soNgay} ngay)";
+            LblHetHan.Text = $"Gói của bạn có hiệu lực đến {hetHan.ToLocalTime():dd/MM/yyyy}\n(còn {soNgay} ngày)";
         }
     }
 
@@ -121,7 +121,7 @@ public partial class PaymentStatusPage : ContentPage
         ViewChoDuyet.IsVisible = false;
         ViewTuChoi.IsVisible = true;
         LblLyDo.Text = string.IsNullOrEmpty(lyDo)
-            ? "Admin khong tim thay giao dich khop. Kiem tra lai noi dung chuyen khoan."
+            ? "Admin không tìm thấy giao dịch khớp. Kiểm tra lại nội dung chuyển khoản."
             : lyDo;
     }
 

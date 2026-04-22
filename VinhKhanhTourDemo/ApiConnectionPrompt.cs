@@ -12,10 +12,10 @@ internal static class ApiConnectionPrompt
             return apiBaseUrl;
 
         var shouldConfigure = await page.DisplayAlertAsync(
-            "Khong ket noi duoc",
+            "Không kết nối được",
             AppConfig.BuildConnectionErrorMessage(new HttpRequestException("Unable to reach API.")),
-            "Nhap API URL",
-            "De sau");
+            "Nhập API URL",
+            "Để sau");
 
         return shouldConfigure
             ? await PromptForApiBaseUrlAsync(page, http)
@@ -31,8 +31,8 @@ internal static class ApiConnectionPrompt
         var input = await page.DisplayPromptAsync(
             "API URL",
             AppConfig.BuildApiConnectionHelpText(),
-            accept: "Luu",
-            cancel: "Huy",
+            accept: "Lưu",
+            cancel: "Hủy",
             placeholder: DeviceInfo.Platform == DevicePlatform.Android
                 ? "http://127.0.0.1:5118"
                 : "http://localhost:5118",
@@ -45,8 +45,8 @@ internal static class ApiConnectionPrompt
             if (!string.IsNullOrWhiteSpace(input))
             {
                 await page.DisplayAlertAsync(
-                    "URL khong hop le",
-                    "Hay nhap day du giao thuc va cong, vi du http://127.0.0.1:5118.",
+                    "URL không hợp lệ",
+                    "Hãy nhập đầy đủ giao thức và cổng, ví dụ http://127.0.0.1:5118.",
                     "OK");
             }
 
@@ -59,7 +59,7 @@ internal static class ApiConnectionPrompt
             return normalized;
 
         await page.DisplayAlertAsync(
-            "Chua ket noi duoc",
+            "Chưa kết nối được",
             AppConfig.BuildConnectionErrorMessage(new HttpRequestException("Unable to reach API.")),
             "OK");
 

@@ -504,7 +504,7 @@
                                     <RoundRectangle CornerRadius="14"/>
                                 </Border.StrokeShape>
                                 <VerticalStackLayout Spacing="10">
-                                    <Label Text="Ma khoi phuc du lieu"
+                                    <Label Text="Mã khôi phục dữ liệu"
                                            FontSize="12"
                                            TextColor="#C2410C"
                                            FontAttributes="Bold"/>
@@ -521,7 +521,7 @@
                                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                                         <Button x:Name="BtnCopyDeviceCode"
                                                 Grid.Column="0"
-                                                Text="Copy ma"
+                                                Text="Copy mã"
                                                 BackgroundColor="#FFEDD5"
                                                 TextColor="#C2410C"
                                                 CornerRadius="12"
@@ -530,7 +530,7 @@
                                                 Clicked="OnCopyDeviceCodeClicked"/>
                                         <Button x:Name="BtnRestoreDeviceCode"
                                                 Grid.Column="1"
-                                                Text="Nhap ma cu"
+                                                Text="Nhập mã cũ"
                                                 BackgroundColor="#1F2937"
                                                 TextColor="White"
                                                 CornerRadius="12"
@@ -538,7 +538,7 @@
                                                 FontAttributes="Bold"
                                                 Clicked="OnRestoreDeviceCodeClicked"/>
                                     </Grid>
-                                    <Label Text="Neu cai lai tren cung thiet bi, app se tu nhan lai ma nay. Neu can ho tro du lieu cu, hay luu ma/QR truoc khi xoa app."
+                                    <Label Text="Nếu cài lại trên cùng thiết bị, app sẽ tự nhận lại mã này. Nếu cần hỗ trợ dữ liệu cũ, hãy lưu mã/QR trước khi xóa app."
                                            FontSize="11"
                                            TextColor="#9A3412"/>
                                 </VerticalStackLayout>
@@ -585,58 +585,6 @@
                         HeightRequest="52"
                         Margin="16,0,16,0"
                         Clicked="OnReloadDataClicked"/>
-
-                <Border x:Name="ApiConfigCard"
-                        BackgroundColor="White"
-                        Stroke="#F3F4F6"
-                        StrokeThickness="1"
-                        Margin="16,12,16,0"
-                        Padding="14"
-                        IsVisible="False">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="16"/>
-                    </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="10">
-                        <Label x:Name="LblApiCaption"
-                               Text="API URL"
-                               FontSize="12"
-                               TextColor="#999"/>
-                        <Label x:Name="LblApiHint"
-                               Text="Emulator: http://10.0.2.2:5118"
-                               FontSize="12"
-                               TextColor="#777"/>
-                        <Entry x:Name="EntryApiBaseUrl"
-                               Placeholder="http://192.168.1.5:5118"
-                               Keyboard="Url"
-                               ClearButtonVisibility="WhileEditing"
-                               BackgroundColor="#FAFAFA"
-                               TextColor="#1a1a1a"/>
-                        <HorizontalStackLayout Spacing="10">
-                            <Button x:Name="BtnSaveApiUrl"
-                                    Text="Luu API URL"
-                                    BackgroundColor="#FFF3E0"
-                                    TextColor="#E65100"
-                                    CornerRadius="12"
-                                    FontAttributes="Bold"
-                                    HeightRequest="42"
-                                    HorizontalOptions="Fill"
-                                    Clicked="OnSaveApiUrlClicked"/>
-                            <Button x:Name="BtnResetApiUrl"
-                                    Text="Dung mac dinh"
-                                    BackgroundColor="#F3F4F6"
-                                    TextColor="#4B5563"
-                                    CornerRadius="12"
-                                    FontAttributes="Bold"
-                                    HeightRequest="42"
-                                    HorizontalOptions="Fill"
-                                    Clicked="OnResetApiUrlClicked"/>
-                        </HorizontalStackLayout>
-                        <Label x:Name="LblApiStatus"
-                               Text="Dang dung: http://10.0.2.2:5118"
-                               FontSize="12"
-                               TextColor="#16A34A"/>
-                    </VerticalStackLayout>
-                </Border>
 
             </VerticalStackLayout>
         </ScrollView>

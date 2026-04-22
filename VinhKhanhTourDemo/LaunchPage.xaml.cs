@@ -25,7 +25,7 @@ public partial class LaunchPage : ContentPage
         BootIndicator.IsVisible = true;
         BootIndicator.IsRunning = true;
         BtnRetry.IsVisible = false;
-        LblStatus.Text = "Dang khoi dong ung dung...";
+        LblStatus.Text = "Đang khởi động ứng dụng...";
 
         try
         {
@@ -44,7 +44,7 @@ public partial class LaunchPage : ContentPage
             BootIndicator.IsRunning = false;
             BootIndicator.IsVisible = false;
             BtnRetry.IsVisible = true;
-            LblStatus.Text = $"Khong the mo ung dung.\n{ex.Message}";
+            LblStatus.Text = $"Không thể mở ứng dụng.\n{ex.Message}";
         }
     }
 

@@ -1,23 +1,37 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
+' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml.cs: OnPostAsync(), UpsertBanDich()
+' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi(), ResolveDish()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload()
 ' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
-' Note: Sequence giu nguyen luong form + upload + SaveChanges; can so lai neu sau nay tach service hoac doi cach xu ly menu/thuyet minh.
+' Note: Sequence bo sung doc danh sach POI voi filter/sort va ImageUrlHelper; khong them service nao khong co trong code.
 title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
 
 actor Admin
 participant "Create/Edit.cshtml JS" as JS
+participant "Poi IndexModel" as IndexModel
+participant ImageUrlHelper
 participant "UploadController" as UploadController
 participant "CreateModel / EditModel" as PageModel
 participant AppDbContext
 database DB
 collections "wwwroot/uploads" as UploadStore
+
+opt mo danh sach /Poi
+  Admin -> IndexModel: OnGetAsync(search,status,expiry,sort,dir)
+  IndexModel -> AppDbContext: POIs.Include(MonAns).AsNoTracking()
+  AppDbContext -> DB: SELECT POI + MonAns
+  DB --> AppDbContext: pois
+  IndexModel -> IndexModel: ApplyStatusFilter()\nApplyExpiryFilter()\nApplySort()
+  IndexModel -> ImageUrlHelper: ResolvePoi()/ResolveDish() trong view
+  ImageUrlHelper --> Admin: URL anh hoac fallback
+end
 
 opt upload cover hoac anh mon an
   Admin -> JS: chon file anh
@@ -46,8 +60,9 @@ else sua POI hien co
 end
 
 opt bat/tat hien thi POI
-  Admin -> PageModel: POST /Poi?handler=Toggle
-  PageModel -> AppDbContext: poi.TrangThai = !poi.TrangThai
+  Admin -> IndexModel: POST /Poi?handler=Toggle
+  IndexModel -> AppDbContext: FindAsync(id)
+  IndexModel -> AppDbContext: poi.TrangThai = !poi.TrangThai
   AppDbContext -> DB: UPDATE poi.trangthai
 end
 @enduml

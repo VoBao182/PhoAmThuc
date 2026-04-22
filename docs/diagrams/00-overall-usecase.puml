@@ -1,13 +1,18 @@
 @startuml
 ' Diagram: F00 - Use case tong the he thong
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
+' - VinhKhanhTourDemo/App.xaml.cs
+' - VinhKhanhTourDemo/LaunchPage.xaml.cs
+' - VinhKhanhTourDemo/SubscriptionState.cs
+' - VinhKhanhTourDemo/DeviceIdentity.cs
 ' - VinhKhanhTourDemo/MainPage.xaml.cs
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs
+' - VinhKhanhTourDemo/FoodImageCatalog.cs
 ' - VinhKhanhTour.API/Controllers/PoiController.cs
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs
@@ -17,7 +22,8 @@
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
-' Note: Da doi chieu lai sau khi module BanDo chuyen tu live map JS sang trang tong hop khach hang render server-side.
+' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs
+' Note: Da cap nhat theo worktree hien tai: LaunchPage, DeviceIdentity, restore profile/XP, payment polling, va BanDo filter/sort/XP.
 left to right direction
 skinparam packageStyle rectangle
 
@@ -28,8 +34,8 @@ actor "Google Maps / Browser" as Maps
 actor "VietQR / Ngan hang" as Bank
 
 rectangle "VinhKhanhTour" {
-  usecase "F01\nKich hoat quyen\nsu dung app" as UC01
-  usecase "F02\nKham pha danh\nsach POI" as UC02
+  usecase "F01\nKhoi dong va kich hoat\nquyen su dung app" as UC01
+  usecase "F02\nKham pha POI,\ndong bo lich su/XP" as UC02
   usecase "F03\nTheo doi GPS,\ngeofence, auto audio" as UC03
   usecase "F04\nXem chi tiet POI,\nthuc don, audio, maps" as UC04
   usecase "F05\nThanh toan goi\ntra phi va cho duyet" as UC05
@@ -37,7 +43,7 @@ rectangle "VinhKhanhTour" {
   usecase "F06\nQuan ly POI,\nanh, geofence,\nthuyet minh, menu" as UC06
   usecase "F07\nGhi nhan phi duy tri\nva lich su hoa don" as UC07
   usecase "F08\nDuyet / tu choi\nthanh toan goi app" as UC08
-  usecase "F09\nTheo doi khach hang,\ntrang thai su dung\nva hanh trinh" as UC09
+  usecase "F09\nTheo doi khach hang,\ntrang thai su dung,\nXP va hanh trinh" as UC09
   usecase "F10\nDashboard tong quan CMS" as UC10
 }
 
@@ -62,3 +68,4 @@ UC01 .> UC05 : <<include>>
 UC08 .> UC05 : <<affects>>
 UC03 .> UC02 : <<uses POI>>
 @enduml
+f5 chạy emulator thì gặp lỗi nà

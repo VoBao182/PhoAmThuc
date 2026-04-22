@@ -6,7 +6,11 @@
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
 <script>
-    window.setTimeout(() => window.location.reload(), 10000);
+    window.setInterval(() => {
+        if (!document.hidden) {
+            window.location.reload();
+        }
+    }, 60000);
 </script>
 
 <style>
@@ -180,6 +184,25 @@
         font-size: 0.82rem;
     }
 
+    .filter-count-banner {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: #fff7ed;
+        border: 1px solid rgba(249, 115, 22, 0.2);
+        color: #9a3412;
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+
+    .filter-count-banner strong {
+        font-size: 1.1rem;
+        color: #c2410c;
+    }
+
     .status-pill,
     .sub-pill {
         display: inline-flex;
@@ -323,15 +346,15 @@
             <h1>Danh sách khách đang sử dụng app</h1>
         </div>
         <div class="customer-badge">
-            <strong>@Model.TotalCustomers</strong>
+            <strong>@Model.TotalRecordedDevices</strong>
             <span>thiết bị đã ghi nhận</span>
         </div>
     </div>
 
     <div class="summary-grid">
         <article class="summary-tile">
-            <span>Tổng khách hàng</span>
-            <strong>@Model.TotalCustomers</strong>
+            <span>Khách có gói đăng ký</span>
+            <strong>@Model.SubscribedCustomers</strong>
         </article>
         <article class="summary-tile">
             <span>Đang hoạt động</span>
@@ -346,65 +369,65 @@
             <strong>@Model.ExpiredCustomers</strong>
         </article>
         <article class="summary-tile">
-            <span>Tong XP</span>
-            <strong>@Model.TotalExperiencePoints.ToString("N0")</strong>
+            <span>Thiết bị đã ghi nhận</span>
+            <strong>@Model.TotalRecordedDevices</strong>
         </article>
     </div>
 
     <form method="get" class="customer-panel" style="padding:18px;">
         <div style="display:grid;grid-template-columns:2fr repeat(4, minmax(150px, 1fr)) auto;gap:12px;align-items:end;">
             <div>
-                <label class="mini-note" style="font-weight:700;">Tim kiem</label>
-                <input name="search" value="@Model.Search" class="form-control" placeholder="Ma thiet bi, quan hien tai..." />
+                <label class="mini-note" style="font-weight:700;">Tìm kiếm</label>
+                <input name="search" value="@Model.Search" class="form-control" placeholder="Mã thiết bị, quán hiện tại..." />
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Trang thai</label>
+                <label class="mini-note" style="font-weight:700;">Trạng thái</label>
                 <select name="status" class="form-select">
-                    <option value="all" selected="@(Model.StatusFilter == "all")">Tat ca</option>
-                    <option value="online" selected="@(Model.StatusFilter == "online")">Dang hoat dong</option>
-                    <option value="at-poi" selected="@(Model.StatusFilter == "at-poi")">Dang o quan</option>
-                    <option value="offline" selected="@(Model.StatusFilter == "offline")">Khong hoat dong</option>
-                    <option value="never" selected="@(Model.StatusFilter == "never")">Chua heartbeat</option>
-                    <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Con goi</option>
+                    <option value="all" selected="@(Model.StatusFilter == "all")">Tất cả</option>
+                    <option value="online" selected="@(Model.StatusFilter == "online")">Đang hoạt động</option>
+                    <option value="at-poi" selected="@(Model.StatusFilter == "at-poi")">Đang ở quán</option>
+                    <option value="offline" selected="@(Model.StatusFilter == "offline")">Không hoạt động</option>
+                    <option value="never" selected="@(Model.StatusFilter == "never")">Chưa heartbeat</option>
+                    <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Còn gói</option>
                     <option value="expired" selected="@(Model.StatusFilter == "expired")">Het han</option>
-                    <option value="no-sub" selected="@(Model.StatusFilter == "no-sub")">Chua co goi</option>
+                    <option value="no-sub" selected="@(Model.StatusFilter == "no-sub")">Chưa có gói</option>
                 </select>
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Han su dung</label>
+                <label class="mini-note" style="font-weight:700;">Hạn sử dụng</label>
                 <select name="expiry" class="form-select">
-                    <option value="all" selected="@(Model.ExpiryFilter == "all")">Tat ca</option>
-                    <option value="active" selected="@(Model.ExpiryFilter == "active")">Con han</option>
-                    <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sap het han 7 ngay</option>
-                    <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Da het han</option>
-                    <option value="none" selected="@(Model.ExpiryFilter == "none")">Chua co han</option>
+                    <option value="all" selected="@(Model.ExpiryFilter == "all")">Tất cả</option>
+                    <option value="active" selected="@(Model.ExpiryFilter == "active")">Còn hạn</option>
+                    <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sắp hết hạn 7 ngày</option>
+                    <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Đã hết hạn</option>
+                    <option value="none" selected="@(Model.ExpiryFilter == "none")">Chưa có hạn</option>
                 </select>
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Sap xep</label>
+                <label class="mini-note" style="font-weight:700;">Sắp xếp</label>
                 <select name="sort" class="form-select">
-                    <option value="last" selected="@(Model.SortBy == "last")">Lan cuoi hoat dong</option>
-                    <option value="expiry" selected="@(Model.SortBy == "expiry")">Han con lai</option>
-                    <option value="experience" selected="@(Model.SortBy == "experience")">Kinh nghiem</option>
-                    <option value="viewed" selected="@(Model.SortBy == "viewed")">So quan da xem</option>
-                    <option value="visited" selected="@(Model.SortBy == "visited")">So quan da ghe</option>
-                    <option value="device" selected="@(Model.SortBy == "device")">Ma thiet bi</option>
-                    <option value="current" selected="@(Model.SortBy == "current")">Quan hien tai</option>
+                    <option value="last" selected="@(Model.SortBy == "last")">Lần cuối hoạt động</option>
+                    <option value="expiry" selected="@(Model.SortBy == "expiry")">Hạn còn lại</option>
+                    <option value="experience" selected="@(Model.SortBy == "experience")">Kinh nghiệm</option>
+                    <option value="viewed" selected="@(Model.SortBy == "viewed")">Số quán đã xem</option>
+                    <option value="visited" selected="@(Model.SortBy == "visited")">Số quán đã ghé</option>
+                    <option value="device" selected="@(Model.SortBy == "device")">Mã thiết bị</option>
+                    <option value="current" selected="@(Model.SortBy == "current")">Quán hiện tại</option>
                 </select>
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Huong</label>
+                <label class="mini-note" style="font-weight:700;">Hướng</label>
                 <select name="dir" class="form-select">
-                    <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuong thap / moi nhat</option>
-                    <option value="asc" selected="@(Model.SortDir == "asc")">Thap len cao / cu nhat</option>
+                    <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuống thấp / mới nhất</option>
+                    <option value="asc" selected="@(Model.SortDir == "asc")">Thấp lên cao / cũ nhất</option>
                 </select>
             </div>
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Loc</button>
-                <a href="/BanDo" class="btn btn-light">Xoa</a>
+                <button type="submit" class="btn btn-primary">Lọc</button>
+                <a href="/BanDo" class="btn btn-light">Xóa</a>
             </div>
         </div>
-        <div class="mini-note" style="margin-top:10px;">Dang hien thi <strong>@Model.Customers.Count</strong> khach hang theo bo loc hien tai.</div>
+        <div class="filter-count-banner">Đang hiển thị <strong>@Model.DisplayedCustomers</strong> khách hàng theo bộ lọc hiện tại.</div>
     </form>
 
     <section class="customer-panel">
@@ -412,7 +435,7 @@
             <div>
                 <div class="eyebrow">Thông tin khách hàng</div>
                 <h2>Bảng theo dõi sử dụng</h2>
-                <p>Tự động làm mới mỗi 10 giây để cập nhật khách đang hoạt động nhanh hơn.</p>
+                <p>Tự động làm mới mỗi 60 giây để cập nhật khách đang hoạt động nhanh hơn.</p>
             </div>
         </div>
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
 
@@ -46,78 +47,139 @@ public class IndexModel : PageModel
         LoiMsg = err;
         FilterTab = tab ?? "cho_duyet";
 
-        try
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            SoChoDuyet = await _db.YeuCauThanhToans.CountAsync(y => y.TrangThai == "cho_duyet");
-            var latestPendingId = await _db.YeuCauThanhToans
-                .AsNoTracking()
-                .Where(y => y.TrangThai == "cho_duyet")
-                .OrderByDescending(y => y.NgayTao)
-                .Select(y => (Guid?)y.Id)
-                .FirstOrDefaultAsync();
-            LatestPendingId = latestPendingId?.ToString("N") ?? "";
+            try
+            {
+                SoChoDuyet = await _db.YeuCauThanhToans.CountAsync(y => y.TrangThai == "cho_duyet");
+                var latestPendingId = await _db.YeuCauThanhToans
+                    .AsNoTracking()
+                    .Where(y => y.TrangThai == "cho_duyet")
+                    .OrderByDescending(y => y.NgayTao)
+                    .Select(y => (Guid?)y.Id)
+                    .FirstOrDefaultAsync();
+                LatestPendingId = latestPendingId?.ToString("N") ?? "";
 
-            DanhSach = await _db.YeuCauThanhToans
-                .AsNoTracking()
-                .Where(y => y.TrangThai == FilterTab)
-                .OrderByDescending(y => y.NgayTao)
-                .Select(y => new YeuCauViewModel
-                {
-                    Id = y.Id,
-                    MaThietBi = y.MaThietBi,
-                    LoaiGoi = y.LoaiGoi,
-                    SoTien = y.SoTien,
-                    NoiDungChuyen = y.NoiDungChuyen,
-                    TrangThai = y.TrangThai,
-                    GhiChuAdmin = y.GhiChuAdmin,
-                    NgayTao = y.NgayTao,
-                    NgayDuyet = y.NgayDuyet
-                })
-                .ToListAsync();
+                DanhSach = await _db.YeuCauThanhToans
+                    .AsNoTracking()
+                    .Where(y => y.TrangThai == FilterTab)
+                    .OrderByDescending(y => y.NgayTao)
+                    .Take(100)
+                    .Select(y => new YeuCauViewModel
+                    {
+                        Id = y.Id,
+                        MaThietBi = y.MaThietBi,
+                        LoaiGoi = y.LoaiGoi,
+                        SoTien = y.SoTien,
+                        NoiDungChuyen = y.NoiDungChuyen,
+                        TrangThai = y.TrangThai,
+                        GhiChuAdmin = y.GhiChuAdmin,
+                        NgayTao = y.NgayTao,
+                        NgayDuyet = y.NgayDuyet
+                    })
+                    .ToListAsync();
+                return;
+            }
+            catch (Exception ex) when (attempt == 0 && IsDisposedWaitHandle(ex))
+            {
+                ClearNpgsqlPoolsQuietly();
+            }
+            catch (Exception ex)
+            {
+                SoChoDuyet = 0;
+                LatestPendingId = "";
+                DanhSach = [];
+                LoiMsg ??= IsDisposedWaitHandle(ex)
+                    ? "Tạm thời chưa tải được danh sách duyệt thanh toán. Hãy tải lại trang sau vài giây."
+                    : $"Không thể tải danh sách duyệt thanh toán: {ex.GetBaseException().Message}";
+                return;
+            }
         }
-        catch (Exception ex)
-        {
-            SoChoDuyet = 0;
-            LatestPendingId = "";
-            DanhSach = [];
-            LoiMsg ??= $"Khong the tai danh sach duyet thanh toan: {ex.GetBaseException().Message}";
-        }
+
+        SoChoDuyet = 0;
+        LatestPendingId = "";
+        DanhSach = [];
+        LoiMsg ??= "Tạm thời chưa tải được danh sách duyệt thanh toán. Hãy tải lại trang sau vài giây.";
     }
 
     public async Task<JsonResult> OnGetPendingSnapshotAsync()
     {
-        var pendingQuery = _db.YeuCauThanhToans
-            .AsNoTracking()
-            .Where(y => y.TrangThai == "cho_duyet");
-
-        var count = await pendingQuery.CountAsync();
-        var latest = await pendingQuery
-            .OrderByDescending(y => y.NgayTao)
-            .Select(y => new
-            {
-                y.Id,
-                y.NgayTao,
-                y.NoiDungChuyen,
-                y.MaThietBi
-            })
-            .FirstOrDefaultAsync();
-
-        var latestDeviceShort = "";
-        if (!string.IsNullOrWhiteSpace(latest?.MaThietBi))
+        try
         {
-            latestDeviceShort = latest.MaThietBi.Length > 8
-                ? latest.MaThietBi[..8].ToUpperInvariant()
-                : latest.MaThietBi.ToUpperInvariant();
+            var pendingQuery = _db.YeuCauThanhToans
+                .AsNoTracking()
+                .Where(y => y.TrangThai == "cho_duyet");
+
+            var count = await pendingQuery.CountAsync();
+            var latest = await pendingQuery
+                .OrderByDescending(y => y.NgayTao)
+                .Select(y => new
+                {
+                    y.Id,
+                    y.NgayTao,
+                    y.NoiDungChuyen,
+                    y.MaThietBi
+                })
+                .FirstOrDefaultAsync();
+
+            var latestDeviceShort = "";
+            if (!string.IsNullOrWhiteSpace(latest?.MaThietBi))
+            {
+                latestDeviceShort = latest.MaThietBi.Length > 8
+                    ? latest.MaThietBi[..8].ToUpperInvariant()
+                    : latest.MaThietBi.ToUpperInvariant();
+            }
+
+            return new JsonResult(new
+            {
+                Count = count,
+                LatestId = latest == null ? "" : latest.Id.ToString("N"),
+                LatestCreatedAt = latest?.NgayTao,
+                LatestTransferContent = latest?.NoiDungChuyen ?? "",
+                LatestDeviceShort = latestDeviceShort,
+                Ok = true
+            });
+        }
+        catch (Exception ex)
+        {
+            if (IsDisposedWaitHandle(ex))
+                ClearNpgsqlPoolsQuietly();
+
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return new JsonResult(new
+            {
+                Count = SoChoDuyet,
+                LatestId = LatestPendingId,
+                LatestCreatedAt = (DateTime?)null,
+                LatestTransferContent = "",
+                LatestDeviceShort = "",
+                Ok = false,
+                Error = ex.GetBaseException().Message
+            });
+        }
+    }
+
+    private static bool IsDisposedWaitHandle(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is ObjectDisposedException od &&
+                string.Equals(od.ObjectName, "System.Threading.ManualResetEventSlim", StringComparison.Ordinal))
+                return true;
         }
 
-        return new JsonResult(new
+        return false;
+    }
+
+    private static void ClearNpgsqlPoolsQuietly()
+    {
+        try
         {
-            Count = count,
-            LatestId = latest == null ? "" : latest.Id.ToString("N"),
-            LatestCreatedAt = latest?.NgayTao,
-            LatestTransferContent = latest?.NoiDungChuyen ?? "",
-            LatestDeviceShort = latestDeviceShort
-        });
+            NpgsqlConnection.ClearAllPools();
+        }
+        catch
+        {
+        }
     }
 
     public async Task<IActionResult> OnPostApproveAsync(Guid yeuCauId)
@@ -126,13 +188,13 @@ public class IndexModel : PageModel
         {
             var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
             if (yc == null)
-                return RedirectToPage(new { err = "Khong tim thay yeu cau." });
+                return RedirectToPage(new { err = "Không tìm thấy yêu cầu." });
 
             if (yc.TrangThai != "cho_duyet")
                 return RedirectToPage(new { tab = yc.TrangThai, err = $"Yeu cau da o trang thai '{yc.TrangThai}'." });
 
             if (!Goi.TryGetValue(yc.LoaiGoi, out var info))
-                return RedirectToPage(new { err = "Loai goi khong hop le." });
+                return RedirectToPage(new { err = "Loại gói không hợp lệ." });
 
             var now = DateTime.UtcNow;
 
@@ -161,12 +223,12 @@ public class IndexModel : PageModel
             return RedirectToPage(new
             {
                 tab = "da_duyet",
-                msg = $"Da duyet goi {yc.LoaiGoi} cho thiet bi. Het han: {hetHan:dd/MM/yyyy}"
+                msg = $"Đã duyệt gói {yc.LoaiGoi} cho thiết bị. Hết hạn: {hetHan:dd/MM/yyyy}"
             });
         }
         catch (Exception ex)
         {
-            return RedirectToPage(new { tab = "cho_duyet", err = $"Khong the duyet yeu cau: {ex.GetBaseException().Message}" });
+            return RedirectToPage(new { tab = "cho_duyet", err = $"Không thể duyệt yêu cầu: {ex.GetBaseException().Message}" });
         }
     }
 
@@ -176,7 +238,7 @@ public class IndexModel : PageModel
         {
             var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
             if (yc == null)
-                return RedirectToPage(new { err = "Khong tim thay yeu cau." });
+                return RedirectToPage(new { err = "Không tìm thấy yêu cầu." });
 
             if (yc.TrangThai != "cho_duyet")
                 return RedirectToPage(new { tab = yc.TrangThai, err = $"Yeu cau da o trang thai '{yc.TrangThai}'." });
@@ -186,11 +248,11 @@ public class IndexModel : PageModel
             yc.GhiChuAdmin = lyDo;
             await _db.SaveChangesAsync();
 
-            return RedirectToPage(new { tab = "tu_choi", msg = "Da tu choi yeu cau." });
+            return RedirectToPage(new { tab = "tu_choi", msg = "Đã từ chối yêu cầu." });
         }
         catch (Exception ex)
         {
-            return RedirectToPage(new { tab = "cho_duyet", err = $"Khong the tu choi yeu cau: {ex.GetBaseException().Message}" });
+            return RedirectToPage(new { tab = "cho_duyet", err = $"Không thể từ chối yêu cầu: {ex.GetBaseException().Message}" });
         }
     }
 }

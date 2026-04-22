@@ -100,7 +100,7 @@ public partial class MainPage : ContentPage
             Console.WriteLine($"[Startup] OnAppearing failed: {ex}");
             await DisplayAlertAsync(
                 "Loi khoi dong",
-                "Ung dung gap loi trong luc mo. Ban hay thu lai bang APK moi nhat.",
+                "Ứng dụng gặp lỗi trong lúc mở. Bạn hãy thử lại bằng APK mới nhất.",
                 "OK");
         }
     }
@@ -184,7 +184,7 @@ public partial class MainPage : ContentPage
         }
         catch
         {
-            // Neu API chua san sang, app van dung du lieu local va thu lai sau.
+            // Nếu API chưa sẵn sàng, app vẫn dùng dữ liệu local và thử lại sau.
         }
     }
 
@@ -314,28 +314,7 @@ public partial class MainPage : ContentPage
         LblLocalDataCaption.Text = GetText("Mã thiết bị", "Device ID", "设备编号");
         LblLanguageCaption.Text = GetText("Ngôn ngữ thuyết minh", "Audio language", "语音语言");
         BtnGiaHan.Text = GetText("Gia hạn gói", "Renew plan", "续费套餐");
-        LblApiCaption.Text = GetText("Ket noi API", "API connection", "API lian jie");
-        LblApiHint.Text = AppConfig.HasConfiguredHostedApiBaseUrl
-            ? GetText(
-                "Ung dung dang su dung may chu cong khai da cau hinh san.",
-                "The app is using the preconfigured public API.",
-                "Ying yong zheng zai shi yong yu xian pei zhi de gong gong API.")
-            : DeviceInfo.Platform == DevicePlatform.Android
-                ? GetText(
-                    "Dev local: co the dung adb reverse de map localhost khi test USB.",
-                    "Local dev: you can use adb reverse when testing over USB.",
-                    "Ben di kai fa: USB ce shi shi ke yi shi yong adb reverse.")
-                : GetText(
-                    "Mac dinh: http://localhost:5118",
-                    "Default: http://localhost:5118",
-                    "Mo ren: http://localhost:5118");
-        EntryApiBaseUrl.Placeholder = DeviceInfo.Platform == DevicePlatform.Android
-            ? "http://127.0.0.1:5118"
-            : "http://localhost:5118";
-        BtnSaveApiUrl.Text = GetText("Luu API URL", "Save API URL", "Bao cun API URL");
-        BtnResetApiUrl.Text = GetText("Dung mac dinh", "Use default", "Shi yong mo ren zhi");
     }
-
     private async Task EnsureGpsTrackingAsync()
     {
         var permission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
@@ -346,9 +325,9 @@ public partial class MainPage : ContentPage
         {
             GpsStatusDot.BackgroundColor = Color.FromArgb("#AAAAAA");
                 await DisplayAlertAsync(
-                GetText("Can cap vi tri", "Location required", "需要位置权限"),
+                GetText("Cần cấp vị trí", "Location required", "需要位置权限"),
                 GetText(
-                    "Hay cap quyen vi tri de ban do xac dinh vi tri hien tai va tu dong phat audio.",
+                    "Hãy cấp quyền vị trí để bản đồ xác định vị trí hiện tại và tự động phát audio.",
                     "Please allow location access so the map can detect your current position and trigger audio automatically.",
                     "请允许位置权限，以便地图获取当前位置并自动播放音频。"),
                 GetText("OK", "OK", "确定"));
@@ -398,7 +377,6 @@ public partial class MainPage : ContentPage
 
         RefreshMapIfNeeded();
         RenderPoiCards();
-        UpdateApiConnectionUi();
     }
 
     private string BuildApiFailureMessage()
@@ -408,43 +386,18 @@ public partial class MainPage : ContentPage
         return DeviceInfo.Platform == DevicePlatform.Android
             ? AppConfig.HasConfiguredHostedApiBaseUrl
                 ? GetText(
-                    $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra public API dang hoat dong. Ung dung tam dung du lieu mau.",
+                    $"Không kết nối được tới {apiBaseUrl}. Hãy kiểm tra public API đang hoạt động. Ứng dụng tạm dùng dữ liệu mẫu.",
                     $"Cannot reach {apiBaseUrl}. Check that the public API is online. The app is using sample data for now.",
-                    $"Wu fa lian jie dao {apiBaseUrl}. Qing jian cha gong gong API shi fou zheng chang. Ying yong zan shi shi yong shi li shu ju.")
+                    $"无法连接到 {apiBaseUrl}。请检查公共 API 是否正常。应用暂时使用示例数据。")
                 : GetText(
-                    $"Khong ket noi duoc toi {apiBaseUrl}. Neu dang test qua USB, hay dung adb reverse de map localhost. Ung dung tam dung du lieu mau.",
+                    $"Không kết nối được tới {apiBaseUrl}. Nếu đang test qua USB, hãy dùng adb reverse để map localhost. Ứng dụng tạm dùng dữ liệu mẫu.",
                     $"Cannot reach {apiBaseUrl}. If you are testing over USB, use adb reverse to map localhost. The app is using sample data for now.",
-                    $"Wu fa lian jie dao {apiBaseUrl}. Ruo guo ni zheng zai tong guo USB ce shi, qing shi yong adb reverse ying she localhost. Ying yong zan shi shi yong shi li shu ju.")
+                    $"无法连接到 {apiBaseUrl}。如果正在通过 USB 测试，请使用 adb reverse 映射 localhost。应用暂时使用示例数据。")
             : GetText(
-                $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay o cong 5118. Ung dung tam dung du lieu mau.",
+                $"Không kết nối được tới {apiBaseUrl}. Hãy kiểm tra backend đang chạy ở cổng 5118. Ứng dụng tạm dùng dữ liệu mẫu.",
                 $"Cannot reach {apiBaseUrl}. Make sure the backend is running on port 5118. The app is using sample data for now.",
-                $"Wu fa lian jie dao {apiBaseUrl}. Qing que ren hou duan yi zai 5118 duan kou yun han. Ying yong zan shi shi yong shi li shu ju.");
+                $"无法连接到 {apiBaseUrl}。请确认后端正在 5118 端口运行。应用暂时使用示例数据。");
     }
-
-    private void UpdateApiConnectionUi()
-    {
-        if (ApiConfigCard is not null)
-            ApiConfigCard.IsVisible = AppConfig.AllowManualApiOverride;
-
-        if (EntryApiBaseUrl is not null && !EntryApiBaseUrl.IsFocused)
-            EntryApiBaseUrl.Text = AppConfig.CustomApiBaseUrl ?? "";
-
-        var apiBaseUrl = AppConfig.ApiBaseUrl;
-        var statusText = GetText($"Dang dung: {apiBaseUrl}", $"Current URL: {apiBaseUrl}", $"Dang qian URL: {apiBaseUrl}");
-
-        if (_isUsingFallbackData)
-        {
-            statusText += GetText(" • Du lieu mau", " • Sample data", " • Shi li shu ju");
-            LblApiStatus.TextColor = Color.FromArgb("#DC2626");
-        }
-        else
-        {
-            LblApiStatus.TextColor = Color.FromArgb("#16A34A");
-        }
-
-        LblApiStatus.Text = statusText;
-    }
-
     private static List<PoiDto> CreateFallbackPois() =>
     [
         // 1. Quán ốc — thương hiệu nổi tiếng nhất phố
@@ -642,7 +595,7 @@ public partial class MainPage : ContentPage
     }
 
     /// <summary>
-    /// Refresh POI ngầm mỗi 30 giây — phát hiện thêm/sửa/ẩn từ CMS mà không làm gián đoạn người dùng.
+    /// Refresh POI ngầm mỗi 30 giây - phát hiện thêm/sửa/ẩn từ CMS mà không làm gián đoạn người dùng.
     /// </summary>
     private async Task RefreshPoisInBackgroundAsync()
     {
@@ -1564,7 +1517,7 @@ public partial class MainPage : ContentPage
         if (ImgDeviceQr is not null)
             ImgDeviceQr.Source = ImageSource.FromUri(new Uri(DeviceIdentity.BuildQrCodeUrl()));
 
-        // Số quán đã ghé (đọc từ LichSuPhat qua bộ nhớ local — cập nhật khi reload)
+        // Số quán đã ghé (đọc từ LichSuPhat qua bộ nhớ local - cập nhật khi reload)
         var viewedPoiCount = GetSavedPoiCount(ViewedPoiIdsPreferenceKey);
         var visitedPoiCount = GetSavedPoiCount(VisitedPoiIdsPreferenceKey);
         var totalXp = (viewedPoiCount * ViewedPoiExperience) + (visitedPoiCount * VisitedPoiExperience);
@@ -1592,7 +1545,6 @@ public partial class MainPage : ContentPage
             $"Food Explorer · Lv {currentLevel}",
             $"美食探索者·{currentLevel}级");
 
-        UpdateApiConnectionUi();
     }
 
     private async void OnCopyDeviceCodeClicked(object? sender, EventArgs e)
@@ -1600,22 +1552,22 @@ public partial class MainPage : ContentPage
         await Clipboard.SetTextAsync(DeviceIdentity.BuildRecoveryPayload());
         if (BtnCopyDeviceCode is not null)
         {
-            BtnCopyDeviceCode.Text = "Da copy";
+            BtnCopyDeviceCode.Text = "Đã copy";
             await Task.Delay(1500);
-            BtnCopyDeviceCode.Text = "Copy ma";
+            BtnCopyDeviceCode.Text = "Copy mã";
         }
     }
 
     private async void OnRestoreDeviceCodeClicked(object? sender, EventArgs e)
     {
         var code = await DisplayPromptAsync(
-            GetText("Khoi phuc du lieu", "Restore data", "恢复数据"),
+            GetText("Khôi phục dữ liệu", "Restore data", "恢复数据"),
             GetText(
-                "Nhap ma khoi phuc da luu hoac noi dung quet tu QR.",
+                "Nhập mã khôi phục đã lưu hoặc nội dung quét từ QR.",
                 "Enter the saved recovery code or QR content.",
                 "输入已保存的恢复码或二维码内容。"),
-            GetText("Khoi phuc", "Restore", "恢复"),
-            GetText("Huy", "Cancel", "取消"),
+            GetText("Khôi phục", "Restore", "恢复"),
+            GetText("Hủy", "Cancel", "取消"),
             "VKT-DEVICE:...");
 
         if (string.IsNullOrWhiteSpace(code))
@@ -1624,8 +1576,8 @@ public partial class MainPage : ContentPage
         if (!DeviceIdentity.TrySetDeviceIdOverride(code, out _))
         {
             await DisplayAlertAsync(
-                GetText("Ma khong hop le", "Invalid code", "无效代码"),
-                GetText("Ma khoi phuc khong dung dinh dang.", "The recovery code format is invalid.", "恢复码格式无效。"),
+                GetText("Mã không hợp lệ", "Invalid code", "无效代码"),
+                GetText("Mã khôi phục không đúng định dạng.", "The recovery code format is invalid.", "恢复码格式无效。"),
                 "OK");
             return;
         }
@@ -1636,8 +1588,8 @@ public partial class MainPage : ContentPage
         UpdateCaiDatUI();
 
         await DisplayAlertAsync(
-            GetText("Da khoi phuc", "Restored", "已恢复"),
-            GetText("Ung dung da dung ma thiet bi nay de dong bo goi va kinh nghiem.", "The app is now using this device code to sync subscription and experience.", "应用已使用此设备码同步订阅和经验。"),
+            GetText("Đã khôi phục", "Restored", "已恢复"),
+            GetText("Ứng dụng đã dùng mã thiết bị này để đồng bộ gói và kinh nghiệm.", "The app is now using this device code to sync subscription and experience.", "应用已使用此设备码同步订阅和经验。"),
             "OK");
     }
 
@@ -1670,37 +1622,6 @@ public partial class MainPage : ContentPage
             GetText("Đã tải lại dữ liệu mới nhất.", "Latest data reloaded.", "已重新加载最新数据。"),
             GetText("OK", "OK", "确定"));
         }
-    }
-
-    private async void OnSaveApiUrlClicked(object? sender, EventArgs e)
-    {
-        if (!AppConfig.AllowManualApiOverride)
-            return;
-
-        var normalized = AppConfig.NormalizeApiBaseUrl(EntryApiBaseUrl.Text);
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            await DisplayAlertAsync(
-                GetText("URL khong hop le", "Invalid URL", "URL wu xiao"),
-                GetText("Hay nhap day du giao thuc va cong, vi du http://127.0.0.1:5118.", "Enter the full URL including protocol and port, for example http://127.0.0.1:5118.", "Qing shu ru wan zheng URL, bao gom xie yi he duan kou, li ru http://127.0.0.1:5118."),
-                "OK");
-            return;
-        }
-
-        AppConfig.SetCustomApiBaseUrl(normalized);
-        await LoadPoisFromApi(showFailureAlert: true);
-        UpdateCaiDatUI();
-    }
-
-    private async void OnResetApiUrlClicked(object? sender, EventArgs e)
-    {
-        if (!AppConfig.AllowManualApiOverride)
-            return;
-
-        AppConfig.ClearCustomApiBaseUrl();
-        EntryApiBaseUrl.Text = "";
-        await LoadPoisFromApi(showFailureAlert: true);
-        UpdateCaiDatUI();
     }
 
     private void SetTabActive(string tab)

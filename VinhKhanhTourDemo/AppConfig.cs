@@ -90,8 +90,7 @@ public static class AppConfig
                 }
             }
 
-            _resolvedApiBaseUrl = CustomApiBaseUrl
-                ?? LastKnownGoodApiBaseUrl
+            _resolvedApiBaseUrl = LastKnownGoodApiBaseUrl
                 ?? DefaultApiBaseUrl;
             _lastProbeUtc = DateTime.UtcNow;
             _lastProbeSucceeded = false;
@@ -167,11 +166,11 @@ public static class AppConfig
     public static string BuildApiConnectionHelpText()
     {
         if (HasConfiguredHostedApiBaseUrl)
-            return $"Ung dung dang duoc cau hinh dung public API: {ConfiguredHostedApiBaseUrl}. Hay kiem tra backend/public domain dang online.";
+            return $"Ứng dụng đang được cấu hình dùng public API: {ConfiguredHostedApiBaseUrl}. Hãy kiểm tra backend/public domain đang online.";
 
         return DeviceInfo.Platform == DevicePlatform.Android
-            ? $"Ban dev local: uu tien dung public API. Neu dang test qua USB, hay bat adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} de app tu dung localhost ma khong can nhap IP."
-            : $"Neu backend khong chay cung may, hay cau hinh mot public API URL, vi du https://api.vinhkhanhtour.vn.";
+            ? $"Bản dev local: ưu tiên dùng public API. Nếu đang test qua USB, hãy bật adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} để app tự dùng localhost mà không cần nhập IP."
+            : $"Nếu backend không chạy cùng máy, hãy cấu hình một public API URL, ví dụ https://api.vinhkhanhtour.vn.";
     }
 
     public static string BuildConnectionErrorMessage(Exception exception)
@@ -180,15 +179,15 @@ public static class AppConfig
 
         if (HasConfiguredHostedApiBaseUrl)
         {
-            return $"Khong ket noi duoc toi {apiBaseUrl}. Day phai la public API cho khach hang, hay kiem tra server/domain dang hoat dong. Chi tiet: {exception.Message}";
+            return $"Không kết nối được toi {apiBaseUrl}. Đây phải là public API cho khách hàng, hãy kiểm tra server/domain đang hoạt động. Chi tiết: {exception.Message}";
         }
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
         {
-            return $"Khong ket noi duoc toi {apiBaseUrl}. Neu ban dang demo APK chua gan backend public, hay vao Cai dat de nhap API URL thu cong; con khi test USB local thi dung adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
+            return $"Không kết nối được toi {apiBaseUrl}. Nếu bạn đang demo APK chưa gắn backend public, hãy vào Cài đặt để nhập API URL thủ công; còn khi test USB local thì dùng adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
         }
 
-        return $"Khong ket noi duoc toi {apiBaseUrl}. Hay kiem tra backend dang chay va URL API dung. Chi tiet: {exception.Message}";
+        return $"Không kết nối được toi {apiBaseUrl}. Hãy kiểm tra backend đang chạy và URL API đúng. Chi tiết: {exception.Message}";
     }
 
     private static IEnumerable<string> GetCandidateApiBaseUrls()

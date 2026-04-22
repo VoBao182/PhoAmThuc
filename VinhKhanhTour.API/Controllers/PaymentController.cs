@@ -9,7 +9,7 @@ namespace VinhKhanhTour.API.Controllers;
 /// Xử lý phí duy trì (ghi nhận bởi admin trên CMS) và phí convert TTS (thanh toán trên app).
 ///
 /// Luồng phí duy trì:
-///   Admin đăng nhập CMS → chọn POI → ghi nhận đã thu tiền tháng → POST /api/payment/maintenance
+///   Admin dang nh?p CMS ? ch?n POI ? ghi nh?n d� thu ti?n th�ng ? POST /api/payment/maintenance
 ///   → Hệ thống tạo HoaDon + gia hạn NgayHetHanDuyTri của POI thêm 1 tháng.
 ///
 /// Luồng phí convert:
@@ -111,7 +111,7 @@ public class PaymentController : ControllerBase
         poi.NgayHetHanDuyTri = mocGiaHan.AddMonths(req.SoThangGiaHan);
         poi.TrangThai = true;   // kích hoạt lại nếu đang bị tắt do quá hạn
 
-        // Tạo hóa đơn cho từng tháng (để dễ tra cứu kỳ nào đã đóng)
+        // T?o h�a don cho t?ng th�ng (d? d? tra c?u k? n�o d� d�ng)
         for (int i = 0; i < req.SoThangGiaHan; i++)
         {
             var kyThanhToan = mocGiaHan.AddMonths(i).ToString("yyyy-MM");
@@ -133,7 +133,7 @@ public class PaymentController : ControllerBase
 
         return Ok(new
         {
-            message          = $"Đã gia hạn {req.SoThangGiaHan} tháng. Tổng: {tongTien:N0}đ",
+            message          = $"D� gia h?n {req.SoThangGiaHan} th�ng. T?ng: {tongTien:N0}d",
             NgayHetHanMoi    = poi.NgayHetHanDuyTri,
             TongTien         = tongTien
         });
@@ -153,7 +153,7 @@ public class PaymentController : ControllerBase
 
         // Kiểm tra phí duy trì còn hạn — quán hết hạn duy trì không được convert
         if (poi.NgayHetHanDuyTri == null || poi.NgayHetHanDuyTri < DateTime.UtcNow)
-            return BadRequest(new { message = "POI đã hết hạn duy trì. Vui lòng gia hạn trước khi convert." });
+            return BadRequest(new { message = "POI d� h?t h?n duy tr�. Vui l�ng gia h?n tru?c khi convert." });
 
         var goi = await _db.DangKyDichVus.AsNoTracking()
             .FirstOrDefaultAsync(d => d.POIId == poiId && d.TrangThai);

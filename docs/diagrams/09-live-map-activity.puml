@@ -1,27 +1,42 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Activity)
-' Status: VERIFIED
-' Baseline: branch master, HEAD a5fde70
+' Status: WIP
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), GetStatusText(), GetSubscriptionText()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), ApplySearchFilter(), ApplyStatusFilter(), ApplyExpiryFilter(), ApplySort(), GetStatusText(), GetSubscriptionText()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
 ' - VinhKhanhTour.API/Models/VitriKhach.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs
-' Note: Da sua theo code hien tai: trang BanDo khong con la live map fetch API bang JS, ma la bang tong hop render server-side.
+' Note: Da sync theo BanDo hien tai: render server-side, raw Npgsql read co timeout/retry, filter/sort, tinh XP/level.
 title F09 - Theo doi khach hang va trang thai su dung
 start
-:BanDo/Index.OnGetAsync();
-:Truy van DangKyApps theo MaThietBi va lay han muon nhat;
-:Truy van VitriKhachs;
-:Dem so POI da ghe tu LichSuPhat (Nguon = GPS);
-:Dem so POI da xem tu LichSuPhat (Nguon = VIEW);
+:BanDo/Index.OnGetAsync(search,status,expiry,sort,dir);
+:NormalizeOption cho status/expiry/sort/dir;
+:now = DateTime.UtcNow;
+:onlineCutoff = now - 2 phut;
+:LoadSubscriptionsAsync();
+:ExecuteRawReadAsync("goi dang ky");
+:Raw SQL max(ngayhethan) group by mathietbi;
+:LoadLocationsAsync();
+:ExecuteRawReadAsync("vi tri khach hang");
+:Raw SQL tu vitrikhach;
+:LoadPoiActivityCountsAsync(VisitedSourceValues);
+:Dem DISTINCT poiid cho Nguon GPS/APP-GEOFENCE/APP_GEOFENCE/GEOFENCE;
+:LoadPoiActivityCountsAsync(ViewedSourceValues);
+:Dem DISTINCT poiid cho Nguon VIEW/GPS/APP-GEOFENCE/APP_GEOFENCE/GEOFENCE;
 :Hop nhat deviceIds tu subscription, location, viewed, visited;
-:Tinh trang thai online / o quan / het han;
+:Tinh hasSubscription, remainingDays,\nviewedCount, visitedCount;
+:Tinh ExperiencePoints = viewed*50 + visited*100;
+:Tinh Level va ExperienceProgressPercent;
+:Tinh trang thai online / o quan / het han / chua ghi nhan;
 :GetStatusText(...);
 :GetSubscriptionText(...);
-:Sap xep Customers;
-:Tinh TotalCustomers, ActiveCustomers,\nCustomersAtPoi, ExpiredCustomers;
+:ApplySearchFilter();
+:ApplyStatusFilter();
+:ApplyExpiryFilter();
+:ApplySort();
+:Tinh TotalCustomers, DisplayedCustomers,\nTotalRecordedDevices, ActiveCustomers,\nCustomersAtPoi, ExpiredCustomers,\nTotalExperiencePoints, HighestCustomerLevel;
 :Render bang thong ke trong Index.cshtml;
 
 stop

@@ -15,7 +15,7 @@
                    HorizontalOptions="Center"
                    Margin="0,0,0,8"
                    TextColor="#E36A11"/>
-            <Label Text="Thanh toan chuyen khoan"
+            <Label Text="Thanh toán chuyển khoản"
                    FontSize="22"
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
@@ -36,7 +36,7 @@
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="24,20" Spacing="16">
 
-                    <Label Text="Quet ma QR de chuyen khoan"
+                    <Label Text="Quét mã QR để chuyển khoản"
                            FontSize="14"
                            FontAttributes="Bold"
                            HorizontalOptions="Center"
@@ -57,7 +57,7 @@
                         <Grid RowDefinitions="Auto,Auto,Auto,Auto" Padding="16,12" RowSpacing="8">
                             <Grid Grid.Row="0" ColumnDefinitions="*,*">
                                 <Label Grid.Column="0"
-                                       Text="Ngan hang"
+                                       Text="Ngân hàng"
                                        FontSize="12"
                                        TextColor="#6B7280"/>
                                 <Label Grid.Column="1"
@@ -69,7 +69,7 @@
                             </Grid>
                             <Grid Grid.Row="1" ColumnDefinitions="*,*">
                                 <Label Grid.Column="0"
-                                       Text="So tai khoan"
+                                       Text="Số tài khoản"
                                        FontSize="12"
                                        TextColor="#6B7280"/>
                                 <Label x:Name="LblSoTK"
@@ -81,7 +81,7 @@
                             </Grid>
                             <Grid Grid.Row="2" ColumnDefinitions="*,*">
                                 <Label Grid.Column="0"
-                                       Text="So tien"
+                                       Text="Số tiền"
                                        FontSize="12"
                                        TextColor="#6B7280"/>
                                 <Label x:Name="LblSoTien"
@@ -93,7 +93,7 @@
                             </Grid>
                             <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
                                 <Label Grid.Column="0"
-                                       Text="Noi dung CK"
+                                       Text="Nội dung CK"
                                        FontSize="12"
                                        TextColor="#6B7280"
                                        VerticalOptions="Center"/>
@@ -115,7 +115,7 @@
                         </Grid>
                     </Border>
 
-                    <Label Text="Nhap dung noi dung chuyen khoan de he thong xac nhan tu dong"
+                    <Label Text="Nhập đúng nội dung chuyển khoản để hệ thống xác nhận tự động"
                            FontSize="12"
                            TextColor="#92400E"
                            HorizontalOptions="Center"
@@ -142,7 +142,7 @@
                     <RoundRectangle CornerRadius="14"/>
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,12" Spacing="8">
-                    <Label Text="Can ket noi API de gui yeu cau thanh toan"
+                    <Label Text="Cần kết nối API để gửi yêu cầu thanh toán"
                            FontSize="13"
                            FontAttributes="Bold"
                            TextColor="#92400E"/>
@@ -153,7 +153,7 @@
                            FontSize="12"
                            TextColor="#E36A11"/>
                     <Button x:Name="BtnConfigureApi"
-                            Text="Nhap API URL"
+                            Text="Nhập API URL"
                             BackgroundColor="#FFF7ED"
                             TextColor="#C2410C"
                             CornerRadius="10"
@@ -172,7 +172,7 @@
                                Margin="0,0,0,12"/>
 
             <Button x:Name="BtnDaChuyenKhoan"
-                    Text="Toi da chuyen khoan"
+                    Text="Tôi đã chuyển khoản"
                     BackgroundColor="#16A34A"
                     TextColor="White"
                     CornerRadius="14"
@@ -182,7 +182,7 @@
                     Margin="0,0,0,12"
                     Clicked="OnDaChuyenKhoanClicked"/>
 
-            <Button Text="Huy"
+            <Button Text="Hủy"
                     BackgroundColor="Transparent"
                     TextColor="#6B7280"
                     FontSize="14"

@@ -54,7 +54,7 @@ public class AuthController : ControllerBase
 
         bool exists = await _db.TaiKhoans.AnyAsync(t => t.TenDangNhap == req.TenDangNhap);
         if (exists)
-            return Conflict(new { message = "Tên đăng nhập đã tồn tại." });
+            return Conflict(new { message = "T�n dang nh?p d� t?n t?i." });
 
         var tk = new TaiKhoan
         {

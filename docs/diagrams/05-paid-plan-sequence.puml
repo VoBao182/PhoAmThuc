@@ -1,20 +1,23 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD a5fde70
+' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
 ' Source:
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
-' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync()
+' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Da cap nhat theo luong co prompt ket noi API truoc khi tao yeu cau thanh toan; polling giu nguyen.
+' Note: Sequence da bo Preferences.GetDeviceId() vi code hien dung DeviceIdentity.GetDeviceId().
 title F05 - Thanh toan goi tra phi va cho duyet
 
 actor Guest
 participant SubscriptionPage
 participant PaymentPage
 participant PaymentStatusPage
+participant MainPage
+participant DeviceIdentity
 participant Preferences
 participant ApiConnectionPrompt
 participant AppConfig
@@ -24,7 +27,9 @@ database DB
 
 Guest -> SubscriptionPage: chon goi tra phi
 SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
-PaymentPage -> Preferences: GetDeviceId()
+PaymentPage -> DeviceIdentity: GetDeviceId()
+DeviceIdentity -> Preferences: doc override/device_id\nhoac tao stable id
+DeviceIdentity --> PaymentPage: deviceId
 PaymentPage -> PaymentPage: SetupUi()\n_tao noi dung chuyen + QR URL
 PaymentPage -> Bank: hien QR / thong tin chuyen khoan
 
@@ -50,10 +55,15 @@ loop moi 10 giay cho den khi co ket qua
   alt da_duyet
     PaymentStatusPage -> Preferences: Set(sub_ngay_het_han)
     PaymentStatusPage -> Guest: hien ViewDaDuyet
-    break
+    Guest -> PaymentStatusPage: OnBatDauClicked()
+    PaymentStatusPage -> PaymentStatusPage: ClosePaymentFlowAsync(true)
+    PaymentStatusPage -> MainPage: PushAsync(new MainPage) neu can\nRemovePage(SubscriptionPage)
+    PaymentStatusPage -> PaymentStatusPage: loop dung do _pollCts da Cancel()
   else tu_choi
     PaymentStatusPage -> Guest: hien ViewTuChoi + ly do
-    break
+    Guest -> PaymentStatusPage: OnThuLaiClicked()/OnDongClicked()
+    PaymentStatusPage -> PaymentStatusPage: PopModalAsync()\nhoac ClosePaymentFlowAsync(false)
+    PaymentStatusPage -> PaymentStatusPage: loop dung do _pollCts da Cancel()
   else cho_duyet
     PaymentStatusPage -> PaymentStatusPage: cap nhat countdown 10s
   end

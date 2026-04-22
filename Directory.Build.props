@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT' and '$(Configuration)' == 'Debug' and '$(MSBuildProjectName)' == 'VinhKhanhTourDemo'">
+    <!-- Keep MAUI Android F5 build artifacts out of OneDrive-synced source folders. -->
+    <BaseIntermediateOutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>
