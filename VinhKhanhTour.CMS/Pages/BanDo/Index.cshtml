@@ -14,16 +14,10 @@
 </script>
 
 <style>
-    .customer-shell {
-        display: grid;
-        gap: 24px;
-    }
+    .customer-shell { display: grid; gap: 24px; }
 
     .customer-hero {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-        padding: 28px;
+        padding: 28px 30px;
         border-radius: 28px;
         background:
             linear-gradient(120deg, rgba(255,143,61,0.16), rgba(255,255,255,0.92)),
@@ -43,33 +37,9 @@
         color: #6b7280;
     }
 
-    .customer-badge {
-        min-width: 180px;
-        align-self: center;
-        padding: 20px 22px;
-        border-radius: 24px;
-        background: #1f2f3d;
-        color: white;
-        text-align: center;
-        box-shadow: 0 18px 36px rgba(31, 47, 61, 0.18);
-    }
-
-    .customer-badge strong {
-        display: block;
-        font-size: 2.3rem;
-        line-height: 1;
-    }
-
-    .customer-badge span {
-        display: block;
-        margin-top: 8px;
-        color: rgba(255,255,255,0.72);
-        font-size: 0.92rem;
-    }
-
     .summary-grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 16px;
     }
 
@@ -79,20 +49,29 @@
         background: #fff;
         border: 1px solid rgba(31, 41, 51, 0.08);
         box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+        display: grid;
+        gap: 6px;
     }
 
-    .summary-tile strong {
-        display: block;
-        margin-top: 10px;
-        font-size: 2rem;
-        line-height: 1;
-    }
-
-    .summary-tile span {
+    .summary-tile .tile-label {
         color: #6b7280;
         font-weight: 600;
         font-size: 0.92rem;
     }
+
+    .summary-tile strong {
+        display: block;
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .summary-tile .tile-caption {
+        color: #9ca3af;
+        font-size: 0.78rem;
+    }
+
+    .summary-tile.tile-urgent { border-color: rgba(249, 115, 22, 0.35); background: #fff7ed; }
+    .summary-tile.tile-urgent strong { color: #c2410c; }
 
     .customer-panel {
         padding: 24px;
@@ -116,18 +95,38 @@
         font-weight: 750;
     }
 
-    .customer-panel-head p {
-        margin: 0;
-        color: #6b7280;
+    .customer-panel-head p { margin: 0; color: #6b7280; }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 2fr 1.1fr 1.1fr 1fr auto;
+        gap: 12px;
+        align-items: end;
     }
 
-    .customer-table-wrap {
-        overflow-x: auto;
+    .filter-label { font-weight: 700; color: #334155; font-size: 0.82rem; margin-bottom: 4px; display: block; }
+
+    .filter-count-banner {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: #fff7ed;
+        border: 1px solid rgba(249, 115, 22, 0.2);
+        color: #9a3412;
+        font-size: 0.92rem;
+        font-weight: 700;
     }
+
+    .filter-count-banner strong { font-size: 1.1rem; color: #c2410c; }
+
+    .customer-table-wrap { overflow-x: auto; }
 
     .customer-table {
         width: 100%;
-        min-width: 1120px;
+        min-width: 980px;
         border-collapse: separate;
         border-spacing: 0;
     }
@@ -149,14 +148,9 @@
         vertical-align: top;
     }
 
-    .customer-table tbody tr:hover {
-        background: #fffaf4;
-    }
+    .customer-table tbody tr:hover { background: #fffaf4; }
 
-    .device-cell {
-        display: grid;
-        gap: 8px;
-    }
+    .device-cell { display: grid; gap: 6px; }
 
     .device-short {
         display: inline-flex;
@@ -174,138 +168,59 @@
 
     .device-full {
         font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-        color: #111827;
-        font-size: 0.92rem;
+        color: #6b7280;
+        font-size: 0.78rem;
         word-break: break-all;
     }
 
-    .mini-note {
-        color: #6b7280;
-        font-size: 0.82rem;
-    }
+    .mini-note { color: #6b7280; font-size: 0.82rem; }
 
-    .filter-count-banner {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 14px;
-        padding: 10px 14px;
-        border-radius: 14px;
-        background: #fff7ed;
-        border: 1px solid rgba(249, 115, 22, 0.2);
-        color: #9a3412;
-        font-size: 0.92rem;
-        font-weight: 700;
-    }
-
-    .filter-count-banner strong {
-        font-size: 1.1rem;
-        color: #c2410c;
-    }
-
-    .status-pill,
-    .sub-pill {
+    .status-pill, .sub-pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 7px 12px;
+        padding: 6px 11px;
         border-radius: 999px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 700;
         white-space: nowrap;
     }
 
-    .status-online {
-        background: #e8f7ee;
-        color: #19703c;
-    }
+    .status-online  { background: #e8f7ee; color: #19703c; }
+    .status-at-poi  { background: #dcfce7; color: #166534; }
+    .status-offline { background: #f3f4f6; color: #4b5563; }
+    .status-empty   { background: #fef2f2; color: #b91c1c; }
 
-    .status-at-poi {
-        background: #dcfce7;
-        color: #166534;
-    }
+    .sub-active     { background: #eff6ff; color: #1d4ed8; }
+    .sub-warning    { background: #fff7ed; color: #c2410c; }
+    .sub-expired    { background: #fef2f2; color: #b91c1c; }
+    .sub-none       { background: #f3f4f6; color: #4b5563; }
 
-    .status-offline {
-        background: #f3f4f6;
-        color: #4b5563;
-    }
+    .poi-name { font-weight: 700; color: #111827; }
+    .poi-empty { color: #9ca3af; font-style: italic; }
 
-    .status-empty {
-        background: #fef2f2;
-        color: #b91c1c;
-    }
-
-    .sub-active {
-        background: #eff6ff;
-        color: #1d4ed8;
-    }
-
-    .sub-warning {
-        background: #fff7ed;
-        color: #c2410c;
-    }
-
-    .sub-expired {
-        background: #fef2f2;
-        color: #b91c1c;
-    }
-
-    .poi-name {
-        font-weight: 700;
-        color: #111827;
-    }
-
-    .poi-empty {
-        color: #9ca3af;
-        font-style: italic;
-    }
-
-    .count-box {
-        display: inline-flex;
-        flex-direction: column;
-        gap: 4px;
-        min-width: 90px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: #f8fafc;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-    }
-
-    .count-box strong {
-        font-size: 1.25rem;
-        line-height: 1;
-    }
-
-    .count-box span {
-        color: #64748b;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    .xp-card {
+    .activity-card {
         display: grid;
-        gap: 7px;
-        min-width: 150px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #fff7ed, #ffedd5);
-        border: 1px solid rgba(249, 115, 22, 0.18);
+        grid-template-columns: auto auto;
+        gap: 6px 16px;
+        align-items: center;
     }
 
-    .xp-card strong {
+    .activity-label { color: #64748b; font-size: 0.78rem; font-weight: 600; }
+    .activity-value { color: #111827; font-weight: 700; }
+
+    .xp-row { grid-column: 1 / span 2; display: grid; gap: 6px; }
+
+    .xp-meta {
+        display: flex;
+        justify-content: space-between;
         color: #9a3412;
-        font-size: 1.05rem;
-        line-height: 1;
-    }
-
-    .xp-card span {
-        color: #c2410c;
         font-size: 0.78rem;
         font-weight: 700;
     }
 
     .xp-track {
-        height: 7px;
+        height: 6px;
         overflow: hidden;
         border-radius: 999px;
         background: rgba(194, 65, 12, 0.15);
@@ -317,20 +232,15 @@
         background: linear-gradient(90deg, #f97316, #ea580c);
     }
 
-    @@media (max-width: 1100px) {
-        .summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .paid-note { color: #166534; font-size: 0.75rem; font-weight: 700; margin-top: 4px; }
 
-        .customer-hero {
-            flex-direction: column;
-        }
+    @@media (max-width: 1100px) {
+        .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .filter-grid { grid-template-columns: 1fr 1fr; }
     }
 
     @@media (max-width: 720px) {
-        .summary-grid {
-            grid-template-columns: 1fr;
-        }
+        .summary-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -341,101 +251,87 @@
     }
 
     <div class="customer-hero">
-        <div>
-            <div class="eyebrow">Theo dõi khách hàng</div>
-            <h1>Danh sách khách đang sử dụng app</h1>
-        </div>
-        <div class="customer-badge">
-            <strong>@Model.TotalRecordedDevices</strong>
-            <span>thiết bị đã ghi nhận</span>
-        </div>
+        <div class="eyebrow">Quản lý khách hàng</div>
+        <h1>Theo dõi người dùng app</h1>
+        <p>Mỗi dòng là một thiết bị đã dùng app. Số liệu phía dưới luôn tính trên toàn bộ khách hàng, không phụ thuộc bộ lọc đang áp dụng.</p>
     </div>
 
     <div class="summary-grid">
         <article class="summary-tile">
-            <span>Khách có gói đăng ký</span>
-            <strong>@Model.SubscribedCustomers</strong>
+            <span class="tile-label">Tổng khách hàng</span>
+            <strong>@Model.TotalCustomers</strong>
+            <span class="tile-caption">Thiết bị đã từng dùng app</span>
         </article>
         <article class="summary-tile">
-            <span>Đang hoạt động</span>
-            <strong>@Model.ActiveCustomers</strong>
+            <span class="tile-label">Đang online</span>
+            <strong>@Model.OnlineCustomers</strong>
+            <span class="tile-caption">Có heartbeat trong 2 phút gần nhất</span>
         </article>
         <article class="summary-tile">
-            <span>Đang ở quán</span>
-            <strong>@Model.CustomersAtPoi</strong>
+            <span class="tile-label">Gói còn hiệu lực</span>
+            <strong>@Model.ActiveSubscriptionCustomers</strong>
+            <span class="tile-caption">Khách đang có gói trả phí hợp lệ</span>
         </article>
-        <article class="summary-tile">
-            <span>Hết hạn</span>
-            <strong>@Model.ExpiredCustomers</strong>
-        </article>
-        <article class="summary-tile">
-            <span>Thiết bị đã ghi nhận</span>
-            <strong>@Model.TotalRecordedDevices</strong>
+        <article class="summary-tile @(Model.ExpiringSoonCustomers > 0 ? "tile-urgent" : "")">
+            <span class="tile-label">Sắp hết hạn ≤ 7 ngày</span>
+            <strong>@Model.ExpiringSoonCustomers</strong>
+            <span class="tile-caption">Cần nhắc gia hạn sớm</span>
         </article>
     </div>
 
-    <form method="get" class="customer-panel" style="padding:18px;">
-        <div style="display:grid;grid-template-columns:2fr repeat(4, minmax(150px, 1fr)) auto;gap:12px;align-items:end;">
+    <form method="get" class="customer-panel" style="padding:18px 20px;">
+        <div class="filter-grid">
             <div>
-                <label class="mini-note" style="font-weight:700;">Tìm kiếm</label>
+                <label class="filter-label">Tìm kiếm</label>
                 <input name="search" value="@Model.Search" class="form-control" placeholder="Mã thiết bị, quán hiện tại..." />
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Trạng thái</label>
-                <select name="status" class="form-select">
-                    <option value="all" selected="@(Model.StatusFilter == "all")">Tất cả</option>
-                    <option value="online" selected="@(Model.StatusFilter == "online")">Đang hoạt động</option>
-                    <option value="at-poi" selected="@(Model.StatusFilter == "at-poi")">Đang ở quán</option>
-                    <option value="offline" selected="@(Model.StatusFilter == "offline")">Không hoạt động</option>
-                    <option value="never" selected="@(Model.StatusFilter == "never")">Chưa heartbeat</option>
-                    <option value="active-sub" selected="@(Model.StatusFilter == "active-sub")">Còn gói</option>
-                    <option value="expired" selected="@(Model.StatusFilter == "expired")">Het han</option>
-                    <option value="no-sub" selected="@(Model.StatusFilter == "no-sub")">Chưa có gói</option>
+                <label class="filter-label">Lọc khách hàng</label>
+                <select name="filter" class="form-select">
+                    <option value="all" selected="@(Model.Filter == "all")">Tất cả</option>
+                    <option value="online" selected="@(Model.Filter == "online")">Đang online</option>
+                    <option value="offline" selected="@(Model.Filter == "offline")">Ngoại tuyến</option>
+                    <option value="at-poi" selected="@(Model.Filter == "at-poi")">Đang ở quán</option>
+                    <option value="active-sub" selected="@(Model.Filter == "active-sub")">Gói còn hiệu lực</option>
+                    <option value="expiring-soon" selected="@(Model.Filter == "expiring-soon")">Sắp hết hạn ≤ 7 ngày</option>
+                    <option value="expired" selected="@(Model.Filter == "expired")">Đã hết hạn</option>
+                    <option value="no-sub" selected="@(Model.Filter == "no-sub")">Chưa mua gói</option>
                 </select>
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Hạn sử dụng</label>
-                <select name="expiry" class="form-select">
-                    <option value="all" selected="@(Model.ExpiryFilter == "all")">Tất cả</option>
-                    <option value="active" selected="@(Model.ExpiryFilter == "active")">Còn hạn</option>
-                    <option value="expiring7" selected="@(Model.ExpiryFilter == "expiring7")">Sắp hết hạn 7 ngày</option>
-                    <option value="expired" selected="@(Model.ExpiryFilter == "expired")">Đã hết hạn</option>
-                    <option value="none" selected="@(Model.ExpiryFilter == "none")">Chưa có hạn</option>
-                </select>
-            </div>
-            <div>
-                <label class="mini-note" style="font-weight:700;">Sắp xếp</label>
+                <label class="filter-label">Sắp xếp theo</label>
                 <select name="sort" class="form-select">
-                    <option value="last" selected="@(Model.SortBy == "last")">Lần cuối hoạt động</option>
-                    <option value="expiry" selected="@(Model.SortBy == "expiry")">Hạn còn lại</option>
+                    <option value="last" selected="@(Model.SortBy == "last")">Hoạt động gần nhất</option>
+                    <option value="expiry" selected="@(Model.SortBy == "expiry")">Ngày hết hạn</option>
                     <option value="experience" selected="@(Model.SortBy == "experience")">Kinh nghiệm</option>
-                    <option value="viewed" selected="@(Model.SortBy == "viewed")">Số quán đã xem</option>
                     <option value="visited" selected="@(Model.SortBy == "visited")">Số quán đã ghé</option>
-                    <option value="device" selected="@(Model.SortBy == "device")">Mã thiết bị</option>
-                    <option value="current" selected="@(Model.SortBy == "current")">Quán hiện tại</option>
+                    <option value="viewed" selected="@(Model.SortBy == "viewed")">Số quán đã xem</option>
+                    <option value="spent" selected="@(Model.SortBy == "spent")">Tổng chi trả</option>
                 </select>
             </div>
             <div>
-                <label class="mini-note" style="font-weight:700;">Hướng</label>
+                <label class="filter-label">Hướng</label>
                 <select name="dir" class="form-select">
-                    <option value="desc" selected="@(Model.SortDir == "desc")">Cao xuống thấp / mới nhất</option>
-                    <option value="asc" selected="@(Model.SortDir == "asc")">Thấp lên cao / cũ nhất</option>
+                    <option value="desc" selected="@(Model.SortDir == "desc")">Giảm dần</option>
+                    <option value="asc" selected="@(Model.SortDir == "asc")">Tăng dần</option>
                 </select>
             </div>
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Lọc</button>
-                <a href="/BanDo" class="btn btn-light">Xóa</a>
+                <button type="submit" class="btn btn-primary">Áp dụng</button>
+                <a href="/BanDo" class="btn btn-light">Xóa bộ lọc</a>
             </div>
         </div>
-        <div class="filter-count-banner">Đang hiển thị <strong>@Model.DisplayedCustomers</strong> khách hàng theo bộ lọc hiện tại.</div>
+        <div class="filter-count-banner">
+            Đang hiển thị <strong>@Model.DisplayedCustomers</strong> / @Model.TotalCustomers khách hàng theo bộ lọc hiện tại.
+        </div>
     </form>
 
     <section class="customer-panel">
         <div class="customer-panel-head">
             <div>
-                <div class="eyebrow">Thông tin khách hàng</div>
-                <h2>Bảng theo dõi sử dụng</h2>
-                <p>Tự động làm mới mỗi 60 giây để cập nhật khách đang hoạt động nhanh hơn.</p>
+                <div class="eyebrow">Bảng khách hàng</div>
+                <h2>Chi tiết từng thiết bị</h2>
+                <p>Tự động làm mới mỗi 60 giây. Nhấp hàng để xem nhanh; dùng bộ lọc phía trên để tập trung vào nhóm khách cần xử lý.</p>
             </div>
         </div>
 
@@ -443,96 +339,104 @@
             <table class="customer-table">
                 <thead>
                     <tr>
-                        <th>Mã thiết bị</th>
-                        <th>Trạng thái</th>
-                        <th>Thời hạn còn lại</th>
-                        <th>Số quán đã xem</th>
-                        <th>Số quán đã ghé</th>
-                        <th>Kinh nghiệm</th>
-                        <th>Đang ở quán nào</th>
-                        <th>Lần cuối hoạt động</th>
+                        <th style="width: 190px;">Thiết bị</th>
+                        <th style="width: 140px;">Trạng thái</th>
+                        <th style="width: 200px;">Gói đăng ký</th>
+                        <th style="width: 280px;">Hoạt động</th>
+                        <th>Vị trí &amp; lần cuối</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (Model.Customers.Any())
+                @if (!Model.Customers.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Không có khách hàng nào khớp với bộ lọc.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var customer in Model.Customers)
                     {
-                        @foreach (var customer in Model.Customers)
-                        {
-                            <tr>
-                                <td>
-                                    <div class="device-cell">
-                                        <span class="device-short">@customer.DeviceShort</span>
-                                        <div class="device-full">@customer.DeviceId</div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="status-pill @customer.StatusClass">@customer.StatusText</span>
-                                </td>
-                                <td>
-                                    <div class="device-cell">
-                                        <span class="sub-pill @customer.SubscriptionClass">@customer.SubscriptionText</span>
+                        <tr>
+                            <td>
+                                <div class="device-cell">
+                                    <span class="device-short">@customer.DeviceShort</span>
+                                    <div class="device-full">@customer.DeviceId</div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-pill @VinhKhanhTour.CMS.Pages.BanDo.IndexModel.ActivityBadgeClass(customer)">
+                                    @VinhKhanhTour.CMS.Pages.BanDo.IndexModel.ActivityBadgeText(customer)
+                                </span>
+                            </td>
+                            <td>
+                                <div class="device-cell">
+                                    <span class="sub-pill @VinhKhanhTour.CMS.Pages.BanDo.IndexModel.SubscriptionBadgeClass(customer)">
+                                        @VinhKhanhTour.CMS.Pages.BanDo.IndexModel.DescribeRemaining(customer)
+                                    </span>
+                                    @if (customer.ExpiresAt.HasValue)
+                                    {
                                         <div class="mini-note">
-                                            @(customer.ExpiresAt.HasValue
-                                                ? customer.ExpiresAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                                : "Chưa có gói đăng ký")
+                                            Hết hạn: @customer.ExpiresAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                                         </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="count-box">
-                                        <strong>@customer.ViewedPoiCount</strong>
-                                        <span>quán đã xem</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="count-box">
-                                        <strong>@customer.VisitedPoiCount</strong>
-                                        <span>quán đã ghé</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="xp-card">
-                                        <strong>Lv @customer.Level - @customer.ExperiencePoints.ToString("N0") XP</strong>
-                                        <span>@customer.ExperienceInCurrentLevel / 500 XP cấp hiện tại</span>
+                                    }
+                                    @if (customer.PaidPackagesCount > 0)
+                                    {
+                                        <div class="paid-note">
+                                            @customer.PaidPackagesCount gói trả phí · @customer.TotalSpent.ToString("N0") đ tổng cộng
+                                        </div>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="activity-card">
+                                    <span class="activity-label">Quán đã xem</span>
+                                    <span class="activity-value">@customer.ViewedPoiCount</span>
+                                    <span class="activity-label">Quán đã ghé</span>
+                                    <span class="activity-value">@customer.VisitedPoiCount</span>
+                                    <div class="xp-row">
+                                        <div class="xp-meta">
+                                            <span>Cấp @customer.Level</span>
+                                            <span>@customer.ExperiencePoints.ToString("N0") XP</span>
+                                        </div>
                                         <div class="xp-track" aria-hidden="true">
                                             <div class="xp-fill" style="width:@customer.ExperienceProgressPercent%"></div>
                                         </div>
+                                        <div class="mini-note">@customer.ExperienceInCurrentLevel / 500 XP cấp hiện tại</div>
                                     </div>
-                                </td>
-                                <td>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="device-cell">
                                     @if (!string.IsNullOrWhiteSpace(customer.CurrentPoiName))
                                     {
                                         <div class="poi-name">@customer.CurrentPoiName</div>
                                     }
+                                    else if (customer.IsOnline)
+                                    {
+                                        <div class="poi-empty">Đang di chuyển</div>
+                                    }
                                     else
                                     {
-                                        <div class="poi-empty">Không có</div>
+                                        <div class="poi-empty">Không rõ vị trí</div>
                                     }
-                                </td>
-                                <td>
                                     @if (customer.LastHeartbeat.HasValue)
                                     {
-                                        <div class="device-cell">
-                                            <strong>@customer.LastHeartbeat.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</strong>
-                                            <span class="mini-note">cập nhật gần nhất</span>
+                                        <div class="mini-note">
+                                            Lần cuối: @customer.LastHeartbeat.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
                                         </div>
                                     }
                                     else
                                     {
-                                        <span class="poi-empty">Chưa ghi nhận</span>
+                                        <div class="mini-note">Chưa có heartbeat nào</div>
                                     }
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                Chưa có khách hàng nào được ghi nhận trong hệ thống.
+                                </div>
                             </td>
                         </tr>
                     }
+                }
                 </tbody>
             </table>
         </div>

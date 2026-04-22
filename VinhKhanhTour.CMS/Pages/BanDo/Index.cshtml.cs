@@ -10,12 +10,17 @@ namespace VinhKhanhTour.CMS.Pages.BanDo;
 public class IndexModel : PageModel
 {
     private static readonly TimeSpan OnlineThreshold = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan ExpiringSoonWindow = TimeSpan.FromDays(7);
     private static readonly TimeSpan ActivityStatsTimeout = TimeSpan.FromSeconds(8);
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+
+    // Sources the app sends when the user physically walks into a POI (GPS/geofence).
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
-    private static readonly string[] ViewedSourceValues = ["VIEW", "GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
+
+    // Sources recorded when the user opens the POI detail screen.
+    private static readonly string[] ViewedSourceValues = ["VIEW"];
 
     private readonly AppDbContext _db;
 
@@ -24,32 +29,31 @@ public class IndexModel : PageModel
         _db = db;
     }
 
+    // Rows shown to admin after search/filter/sort.
     public List<CustomerActivityRow> Customers { get; private set; } = [];
-    public int SubscribedCustomers { get; private set; }
-    public int DisplayedCustomers { get; private set; }
-    public int TotalRecordedDevices { get; private set; }
-    public int ActiveCustomers { get; private set; }
-    public int CustomersAtPoi { get; private set; }
-    public int ExpiredCustomers { get; private set; }
-    public int TotalExperiencePoints { get; private set; }
-    public int HighestCustomerLevel { get; private set; }
+
+    // Stats are always computed from the full customer base, never the filtered view.
+    public int TotalCustomers { get; private set; }
+    public int OnlineCustomers { get; private set; }
+    public int ActiveSubscriptionCustomers { get; private set; }
+    public int ExpiringSoonCustomers { get; private set; }
+
+    public int DisplayedCustomers => Customers.Count;
     public string? ErrorMessage { get; private set; }
+
     public string Search { get; private set; } = "";
-    public string StatusFilter { get; private set; } = "all";
-    public string ExpiryFilter { get; private set; } = "all";
+    public string Filter { get; private set; } = "all";
     public string SortBy { get; private set; } = "last";
     public string SortDir { get; private set; } = "desc";
 
     public async Task OnGetAsync(
         [FromQuery] string? search,
-        [FromQuery] string? status,
-        [FromQuery] string? expiry,
+        [FromQuery] string? filter,
         [FromQuery] string? sort,
         [FromQuery] string? dir)
     {
         Search = (search ?? "").Trim();
-        StatusFilter = NormalizeOption(status, "all");
-        ExpiryFilter = NormalizeOption(expiry, "all");
+        Filter = NormalizeOption(filter, "all");
         SortBy = NormalizeOption(sort, "last");
         SortDir = string.Equals(dir, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
 
@@ -57,116 +61,121 @@ public class IndexModel : PageModel
         {
             var now = DateTime.UtcNow;
             var onlineCutoff = now.Subtract(OnlineThreshold);
+            var expiringSoonCutoff = now.Add(ExpiringSoonWindow);
 
             var subscriptions = await LoadSubscriptionsAsync();
             var locations = await LoadLocationsAsync();
+            var visitedCounts = await LoadPoiActivityCountsAsync(VisitedSourceValues, "lượt ghé");
+            var viewedCounts = await LoadPoiActivityCountsAsync(ViewedSourceValues, "lượt xem");
 
-            var visitedCounts = await LoadPoiActivityCountsAsync(VisitedSourceValues, "luot ghe");
-            var viewedCounts = await LoadPoiActivityCountsAsync(ViewedSourceValues, "luot xem");
+            var rows = BuildCustomerRows(subscriptions, locations, visitedCounts, viewedCounts, now, onlineCutoff);
 
-            var subscriptionMap = subscriptions
-                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Max(x => x.ExpiresAt), StringComparer.OrdinalIgnoreCase);
-            var locationMap = locations
-                .Where(x => !string.IsNullOrWhiteSpace(x.MaThietBi))
-                .GroupBy(x => x.MaThietBi, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(x => x.LanCuoiHeartbeat).First(),
-                    StringComparer.OrdinalIgnoreCase);
-            var visitedMap = visitedCounts
-                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Count), StringComparer.OrdinalIgnoreCase);
-            var viewedMap = viewedCounts
-                .GroupBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Count), StringComparer.OrdinalIgnoreCase);
+            // Stats always reflect the full customer base, not the filter.
+            TotalCustomers = rows.Count;
+            OnlineCustomers = rows.Count(x => x.IsOnline);
+            ActiveSubscriptionCustomers = rows.Count(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now);
+            ExpiringSoonCustomers = rows.Count(x =>
+                x.ExpiresAt.HasValue &&
+                x.ExpiresAt.Value >= now &&
+                x.ExpiresAt.Value <= expiringSoonCutoff);
 
-            var deviceIds = subscriptions.Select(x => x.DeviceId)
-                .Concat(locations.Select(x => x.MaThietBi))
-                .Concat(visitedCounts.Select(x => x.DeviceId))
-                .Concat(viewedCounts.Select(x => x.DeviceId))
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var rows = deviceIds
-                .Select(deviceId =>
-                {
-                    subscriptionMap.TryGetValue(deviceId, out var expiresAt);
-                    locationMap.TryGetValue(deviceId, out var location);
-                    visitedMap.TryGetValue(deviceId, out var visitedCount);
-                    viewedMap.TryGetValue(deviceId, out var viewedCount);
-
-                    var lastHeartbeat = location?.LanCuoiHeartbeat;
-                    var isOnline = lastHeartbeat.HasValue && lastHeartbeat.Value >= onlineCutoff;
-                    var isAtPoi = isOnline && location?.PoiIdHienTai != null && !string.IsNullOrWhiteSpace(location.TenPoiHienTai);
-                    var isExpired = expiresAt != default && expiresAt < now;
-                    var hasSubscription = expiresAt != default;
-
-                    var remainingDays = hasSubscription && expiresAt >= now
-                        ? Math.Max(1, (int)(expiresAt - now).TotalDays + 1)
-                        : (int?)null;
-                    var experiencePoints = (viewedCount * ViewedPoiExperience) + (visitedCount * VisitedPoiExperience);
-                    var level = Math.Max(1, (experiencePoints / ExperiencePerLevel) + 1);
-                    var experienceInCurrentLevel = experiencePoints % ExperiencePerLevel;
-
-                    return new CustomerActivityRow
-                    {
-                        DeviceId = deviceId,
-                        DeviceShort = deviceId[..Math.Min(8, deviceId.Length)].ToUpperInvariant(),
-                        HasSubscription = hasSubscription,
-                        ExpiresAt = hasSubscription ? expiresAt : null,
-                        RemainingDays = remainingDays,
-                        ViewedPoiCount = viewedCount,
-                        VisitedPoiCount = visitedCount,
-                        ExperiencePoints = experiencePoints,
-                        Level = level,
-                        ExperienceInCurrentLevel = experienceInCurrentLevel,
-                        ExperienceProgressPercent = (int)Math.Round(experienceInCurrentLevel * 100d / ExperiencePerLevel),
-                        CurrentPoiName = isAtPoi ? location!.TenPoiHienTai : null,
-                        LastHeartbeat = lastHeartbeat,
-                        StatusText = GetStatusText(isOnline, isAtPoi, lastHeartbeat),
-                        StatusClass = GetStatusClass(isOnline, isAtPoi, lastHeartbeat),
-                        SubscriptionText = GetSubscriptionText(hasSubscription, isExpired, remainingDays),
-                        SubscriptionClass = GetSubscriptionClass(hasSubscription, isExpired, remainingDays)
-                    };
-                })
-                .ToList();
-
-            var allCustomers = rows.ToList();
-
-            Customers = ApplySort(ApplyExpiryFilter(ApplyStatusFilter(ApplySearchFilter(allCustomers), now), now), now, onlineCutoff)
-                .ToList();
-
-            DisplayedCustomers = Customers.Count;
-            TotalRecordedDevices = allCustomers.Count;
-            SubscribedCustomers = allCustomers.Count(x => x.HasSubscription);
-            ActiveCustomers = allCustomers.Count(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff);
-            CustomersAtPoi = allCustomers.Count(x => x.CurrentPoiName != null);
-            ExpiredCustomers = allCustomers.Count(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now);
-            TotalExperiencePoints = allCustomers.Sum(x => x.ExperiencePoints);
-            HighestCustomerLevel = allCustomers.Count == 0 ? 0 : allCustomers.Max(x => x.Level);
+            Customers = ApplySort(ApplyFilter(ApplySearch(rows), now, onlineCutoff, expiringSoonCutoff), now).ToList();
         }
         catch (Exception ex)
         {
             Customers = [];
-            SubscribedCustomers = 0;
-            DisplayedCustomers = 0;
-            TotalRecordedDevices = 0;
-            ActiveCustomers = 0;
-            CustomersAtPoi = 0;
-            ExpiredCustomers = 0;
-            TotalExperiencePoints = 0;
-            HighestCustomerLevel = 0;
-            ErrorMessage = $"Không thể tải danh sách khách hàng: {ex.GetBaseException().Message}";
+            TotalCustomers = 0;
+            OnlineCustomers = 0;
+            ActiveSubscriptionCustomers = 0;
+            ExpiringSoonCustomers = 0;
+            AppendLoadWarning($"Không thể tải danh sách khách hàng: {ex.GetBaseException().Message}");
         }
     }
 
-    private static string NormalizeOption(string? value, string fallback)
-        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
+    // --- data loading -----------------------------------------------------
+
+    private List<CustomerActivityRow> BuildCustomerRows(
+        List<DeviceSubscription> subscriptions,
+        List<DeviceLocation> locations,
+        List<DevicePoiCount> visitedCounts,
+        List<DevicePoiCount> viewedCounts,
+        DateTime now,
+        DateTime onlineCutoff)
+    {
+        var subscriptionMap = subscriptions
+            .ToDictionary(x => x.DeviceId, StringComparer.OrdinalIgnoreCase);
+        var locationMap = locations
+            .Where(x => !string.IsNullOrWhiteSpace(x.MaThietBi))
+            .GroupBy(x => x.MaThietBi, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.LanCuoiHeartbeat).First(),
+                StringComparer.OrdinalIgnoreCase);
+        var visitedMap = visitedCounts
+            .ToDictionary(x => x.DeviceId, x => x.Count, StringComparer.OrdinalIgnoreCase);
+        var viewedMap = viewedCounts
+            .ToDictionary(x => x.DeviceId, x => x.Count, StringComparer.OrdinalIgnoreCase);
+
+        var deviceIds = subscriptionMap.Keys
+            .Concat(locationMap.Keys)
+            .Concat(visitedMap.Keys)
+            .Concat(viewedMap.Keys)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return deviceIds.Select(deviceId =>
+        {
+            subscriptionMap.TryGetValue(deviceId, out var sub);
+            locationMap.TryGetValue(deviceId, out var location);
+            visitedMap.TryGetValue(deviceId, out var visitedCount);
+            viewedMap.TryGetValue(deviceId, out var viewedCount);
+
+            var expiresAt = sub?.ExpiresAt;
+            var lastHeartbeat = location?.LanCuoiHeartbeat;
+            var isOnline = lastHeartbeat.HasValue && lastHeartbeat.Value >= onlineCutoff;
+            var currentPoi = isOnline && location?.PoiIdHienTai != null && !string.IsNullOrWhiteSpace(location.TenPoiHienTai)
+                ? location.TenPoiHienTai
+                : null;
+
+            int? remainingDays = null;
+            int? remainingHours = null;
+            if (expiresAt.HasValue && expiresAt.Value >= now)
+            {
+                var delta = expiresAt.Value - now;
+                remainingDays = (int)Math.Floor(delta.TotalDays);
+                remainingHours = (int)Math.Floor(delta.TotalHours);
+            }
+
+            var experiencePoints = (viewedCount * ViewedPoiExperience) + (visitedCount * VisitedPoiExperience);
+            var level = Math.Max(1, (experiencePoints / ExperiencePerLevel) + 1);
+            var experienceInCurrentLevel = experiencePoints % ExperiencePerLevel;
+
+            return new CustomerActivityRow
+            {
+                DeviceId = deviceId,
+                DeviceShort = deviceId[..Math.Min(8, deviceId.Length)].ToUpperInvariant(),
+                ExpiresAt = expiresAt,
+                RemainingDays = remainingDays,
+                RemainingHours = remainingHours,
+                PaidPackagesCount = sub?.PaidPackages ?? 0,
+                TotalSpent = sub?.TotalSpent ?? 0m,
+                ViewedPoiCount = viewedCount,
+                VisitedPoiCount = visitedCount,
+                ExperiencePoints = experiencePoints,
+                Level = level,
+                ExperienceInCurrentLevel = experienceInCurrentLevel,
+                ExperienceProgressPercent = (int)Math.Round(experienceInCurrentLevel * 100d / ExperiencePerLevel),
+                CurrentPoiName = currentPoi,
+                LastHeartbeat = lastHeartbeat,
+                IsOnline = isOnline,
+                IsAtPoi = currentPoi != null
+            };
+        }).ToList();
+    }
 
     private async Task<List<DevicePoiCount>> LoadPoiActivityCountsAsync(string[] sourceValues, string label)
-        => await ExecuteRawReadAsync(label, async (connection, cancellationToken) =>
+        => await ExecuteRawReadAsync(label, async (connection, ct) =>
         {
             await using var command = connection.CreateCommand();
             command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
@@ -181,8 +190,8 @@ public class IndexModel : PageModel
             command.Parameters.Add("sources", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = sourceValues;
 
             var counts = new List<DevicePoiCount>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
             {
                 counts.Add(new DevicePoiCount
                 {
@@ -195,25 +204,31 @@ public class IndexModel : PageModel
         });
 
     private async Task<List<DeviceSubscription>> LoadSubscriptionsAsync()
-        => await ExecuteRawReadAsync("gói đăng ký", async (connection, cancellationToken) =>
+        => await ExecuteRawReadAsync("gói đăng ký", async (connection, ct) =>
         {
             await using var command = connection.CreateCommand();
             command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
             command.CommandText = """
-                SELECT mathietbi, max(ngayhethan)
+                SELECT
+                    mathietbi,
+                    max(ngayhethan) AS expires_at,
+                    count(*) FILTER (WHERE sotien > 0)::int AS paid_packages,
+                    coalesce(sum(sotien) FILTER (WHERE sotien > 0), 0) AS total_spent
                 FROM dangkyapp
                 WHERE mathietbi IS NOT NULL
                 GROUP BY mathietbi
                 """;
 
             var subscriptions = new List<DeviceSubscription>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
             {
                 subscriptions.Add(new DeviceSubscription
                 {
                     DeviceId = reader.GetString(0),
-                    ExpiresAt = reader.GetDateTime(1)
+                    ExpiresAt = reader.GetDateTime(1),
+                    PaidPackages = reader.GetInt32(2),
+                    TotalSpent = reader.GetDecimal(3)
                 });
             }
 
@@ -221,7 +236,7 @@ public class IndexModel : PageModel
         });
 
     private async Task<List<DeviceLocation>> LoadLocationsAsync()
-        => await ExecuteRawReadAsync("vi tri khach hang", async (connection, cancellationToken) =>
+        => await ExecuteRawReadAsync("vị trí khách hàng", async (connection, ct) =>
         {
             await using var command = connection.CreateCommand();
             command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
@@ -232,8 +247,8 @@ public class IndexModel : PageModel
                 """;
 
             var locations = new List<DeviceLocation>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
             {
                 locations.Add(new DeviceLocation
                 {
@@ -310,7 +325,9 @@ public class IndexModel : PageModel
         }
     }
 
-    private IEnumerable<CustomerActivityRow> ApplySearchFilter(IEnumerable<CustomerActivityRow> customers)
+    // --- search / filter / sort -------------------------------------------
+
+    private IEnumerable<CustomerActivityRow> ApplySearch(IEnumerable<CustomerActivityRow> customers)
     {
         if (string.IsNullOrWhiteSpace(Search))
             return customers;
@@ -318,137 +335,134 @@ public class IndexModel : PageModel
         return customers.Where(x =>
             x.DeviceId.Contains(Search, StringComparison.OrdinalIgnoreCase) ||
             x.DeviceShort.Contains(Search, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(x.CurrentPoiName) && x.CurrentPoiName.Contains(Search, StringComparison.OrdinalIgnoreCase)));
+            (!string.IsNullOrWhiteSpace(x.CurrentPoiName) &&
+                x.CurrentPoiName.Contains(Search, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private IEnumerable<CustomerActivityRow> ApplyStatusFilter(IEnumerable<CustomerActivityRow> customers, DateTime now)
-        => StatusFilter switch
+    private IEnumerable<CustomerActivityRow> ApplyFilter(
+        IEnumerable<CustomerActivityRow> customers,
+        DateTime now,
+        DateTime onlineCutoff,
+        DateTime expiringSoonCutoff)
+        => Filter switch
         {
-            "online" => customers.Where(x => IsOnline(x)),
-            "at-poi" => customers.Where(x => x.CurrentPoiName != null),
-            "offline" => customers.Where(x => x.LastHeartbeat.HasValue && !IsOnline(x)),
-            "never" => customers.Where(x => !x.LastHeartbeat.HasValue),
+            "online" => customers.Where(x => x.IsOnline),
+            "offline" => customers.Where(x => !x.IsOnline),
+            "at-poi" => customers.Where(x => x.IsAtPoi),
             "active-sub" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now),
+            "expiring-soon" => customers.Where(x =>
+                x.ExpiresAt.HasValue &&
+                x.ExpiresAt.Value >= now &&
+                x.ExpiresAt.Value <= expiringSoonCutoff),
             "expired" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now),
             "no-sub" => customers.Where(x => !x.ExpiresAt.HasValue),
             _ => customers
         };
 
-    private IEnumerable<CustomerActivityRow> ApplyExpiryFilter(IEnumerable<CustomerActivityRow> customers, DateTime now)
-        => ExpiryFilter switch
-        {
-            "active" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now),
-            "expiring7" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value >= now && x.ExpiresAt.Value <= now.AddDays(7)),
-            "expired" => customers.Where(x => x.ExpiresAt.HasValue && x.ExpiresAt.Value < now),
-            "none" => customers.Where(x => !x.ExpiresAt.HasValue),
-            _ => customers
-        };
-
     private IEnumerable<CustomerActivityRow> ApplySort(
-        IEnumerable<CustomerActivityRow> customers,
-        DateTime now,
-        DateTime onlineCutoff)
+        IEnumerable<CustomerActivityRow> customers, DateTime now)
     {
         var descending = SortDir == "desc";
         IOrderedEnumerable<CustomerActivityRow> ordered = SortBy switch
         {
             "expiry" => descending
-                ? customers.OrderByDescending(x => GetRemainingDaysSortValue(x, now))
-                : customers.OrderBy(x => GetRemainingDaysSortValue(x, now)),
+                ? customers.OrderByDescending(x => x.ExpiresAt ?? DateTime.MaxValue)
+                : customers.OrderBy(x => x.ExpiresAt ?? DateTime.MaxValue),
             "experience" => descending
                 ? customers.OrderByDescending(x => x.ExperiencePoints)
                 : customers.OrderBy(x => x.ExperiencePoints),
-            "viewed" => descending
-                ? customers.OrderByDescending(x => x.ViewedPoiCount)
-                : customers.OrderBy(x => x.ViewedPoiCount),
             "visited" => descending
                 ? customers.OrderByDescending(x => x.VisitedPoiCount)
                 : customers.OrderBy(x => x.VisitedPoiCount),
-            "device" => descending
-                ? customers.OrderByDescending(x => x.DeviceId, StringComparer.OrdinalIgnoreCase)
-                : customers.OrderBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase),
-            "current" => descending
-                ? customers.OrderByDescending(x => x.CurrentPoiName ?? "", StringComparer.CurrentCultureIgnoreCase)
-                : customers.OrderBy(x => x.CurrentPoiName ?? "", StringComparer.CurrentCultureIgnoreCase),
+            "viewed" => descending
+                ? customers.OrderByDescending(x => x.ViewedPoiCount)
+                : customers.OrderBy(x => x.ViewedPoiCount),
+            "spent" => descending
+                ? customers.OrderByDescending(x => x.TotalSpent)
+                : customers.OrderBy(x => x.TotalSpent),
             _ => descending
                 ? customers.OrderByDescending(x => x.LastHeartbeat ?? DateTime.MinValue)
                 : customers.OrderBy(x => x.LastHeartbeat ?? DateTime.MinValue)
         };
 
         return ordered
-            .ThenByDescending(x => x.LastHeartbeat.HasValue && x.LastHeartbeat.Value >= onlineCutoff)
-            .ThenByDescending(x => x.CurrentPoiName != null)
+            .ThenByDescending(x => x.IsOnline)
             .ThenBy(x => x.DeviceId, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool IsOnline(CustomerActivityRow customer)
-        => customer.LastHeartbeat.HasValue && customer.LastHeartbeat.Value >= DateTime.UtcNow.Subtract(OnlineThreshold);
+    private static string NormalizeOption(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
 
-    private static int GetRemainingDaysSortValue(CustomerActivityRow customer, DateTime now)
+    // --- view helpers (shared between cshtml and code) --------------------
+
+    public static string DescribeRemaining(CustomerActivityRow row)
     {
-        if (!customer.ExpiresAt.HasValue)
-            return int.MinValue;
+        if (!row.ExpiresAt.HasValue)
+            return "Chưa mua gói";
 
-        return (int)Math.Floor((customer.ExpiresAt.Value - now).TotalDays);
+        if (row.ExpiresAt.Value < DateTime.UtcNow)
+            return "Đã hết hạn";
+
+        if (row.RemainingDays is >= 1)
+            return $"Còn {row.RemainingDays} ngày";
+
+        if (row.RemainingHours is >= 1)
+            return $"Còn {row.RemainingHours} giờ";
+
+        return "Sắp hết trong 1 giờ";
     }
 
-    private static string GetStatusText(bool isOnline, bool isAtPoi, DateTime? lastHeartbeat)
+    public static string SubscriptionBadgeClass(CustomerActivityRow row)
     {
-        if (isAtPoi)
-            return "Đang ở quán";
+        if (!row.ExpiresAt.HasValue)
+            return "sub-none";
 
-        if (isOnline)
-            return "Đang hoạt động";
+        if (row.ExpiresAt.Value < DateTime.UtcNow)
+            return "sub-expired";
 
-        if (lastHeartbeat.HasValue)
-            return "Không hoạt động";
+        if (row.RemainingDays is <= 7)
+            return "sub-warning";
 
-        return "Chưa ghi nhận";
+        return "sub-active";
     }
 
-    private static string GetStatusClass(bool isOnline, bool isAtPoi, DateTime? lastHeartbeat)
+    public static string ActivityBadgeClass(CustomerActivityRow row)
     {
-        if (isAtPoi)
+        if (row.IsAtPoi)
             return "status-at-poi";
 
-        if (isOnline)
+        if (row.IsOnline)
             return "status-online";
 
-        if (lastHeartbeat.HasValue)
+        if (row.LastHeartbeat.HasValue)
             return "status-offline";
 
         return "status-empty";
     }
 
-    private static string GetSubscriptionText(bool hasSubscription, bool isExpired, int? remainingDays)
+    public static string ActivityBadgeText(CustomerActivityRow row)
     {
-        if (!hasSubscription)
-            return "Chưa đăng ký";
+        if (row.IsAtPoi)
+            return "Đang ở quán";
 
-        if (isExpired)
-            return "Hết hạn";
+        if (row.IsOnline)
+            return "Đang online";
 
-        return remainingDays == 1 ? "Còn 1 ngày" : $"Còn {remainingDays} ngày";
-    }
+        if (row.LastHeartbeat.HasValue)
+            return "Ngoại tuyến";
 
-    private static string GetSubscriptionClass(bool hasSubscription, bool isExpired, int? remainingDays)
-    {
-        if (!hasSubscription || isExpired)
-            return "sub-expired";
-
-        if (remainingDays <= 3)
-            return "sub-warning";
-
-        return "sub-active";
+        return "Chưa heartbeat";
     }
 
     public sealed class CustomerActivityRow
     {
         public string DeviceId { get; init; } = "";
         public string DeviceShort { get; init; } = "";
-        public bool HasSubscription { get; init; }
         public DateTime? ExpiresAt { get; init; }
         public int? RemainingDays { get; init; }
+        public int? RemainingHours { get; init; }
+        public int PaidPackagesCount { get; init; }
+        public decimal TotalSpent { get; init; }
         public int ViewedPoiCount { get; init; }
         public int VisitedPoiCount { get; init; }
         public int ExperiencePoints { get; init; }
@@ -457,10 +471,8 @@ public class IndexModel : PageModel
         public int ExperienceProgressPercent { get; init; }
         public string? CurrentPoiName { get; init; }
         public DateTime? LastHeartbeat { get; init; }
-        public string StatusText { get; init; } = "";
-        public string StatusClass { get; init; } = "";
-        public string SubscriptionText { get; init; } = "";
-        public string SubscriptionClass { get; init; } = "";
+        public bool IsOnline { get; init; }
+        public bool IsAtPoi { get; init; }
     }
 
     private sealed class DevicePoiCount
@@ -473,6 +485,8 @@ public class IndexModel : PageModel
     {
         public string DeviceId { get; init; } = "";
         public DateTime ExpiresAt { get; init; }
+        public int PaidPackages { get; init; }
+        public decimal TotalSpent { get; init; }
     }
 
     private sealed class DeviceLocation
