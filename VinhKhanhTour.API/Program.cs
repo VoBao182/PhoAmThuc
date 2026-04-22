@@ -104,6 +104,21 @@ static string ConfigureConnectionString(
         builder.SslMode = SslMode.Disable;
     }
 
+    // Stay below Supabase pooler's session-mode client cap. Free tier allocates a small
+    // number of slots per pooler role, shared between API and CMS. Without an explicit cap,
+    // Npgsql may hold 100 idle slots and trigger "MaxClientsInSessionMode" under load.
+    if (builder.MaxPoolSize > 6 || builder.MaxPoolSize == 0)
+        builder.MaxPoolSize = 6;
+
+    if (builder.MinPoolSize > 0)
+        builder.MinPoolSize = 0;
+
+    if (builder.ConnectionIdleLifetime == 0 || builder.ConnectionIdleLifetime > 30)
+        builder.ConnectionIdleLifetime = 30;
+
+    if (builder.ConnectionPruningInterval == 0 || builder.ConnectionPruningInterval > 10)
+        builder.ConnectionPruningInterval = 10;
+
     return builder.ConnectionString;
 }
 

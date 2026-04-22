@@ -6,6 +6,190 @@
     ViewData["Page"] = "dashboard";
 }
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .analytics-hero {
+        padding: 24px 28px;
+        border-radius: 28px;
+        background:
+            linear-gradient(120deg, rgba(99, 102, 241, 0.1), rgba(255,255,255,0.92)),
+            linear-gradient(135deg, #ffffff, #eef2ff);
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .analytics-hero h2 {
+        margin: 8px 0 6px;
+        font-size: 1.6rem;
+        line-height: 1.1;
+    }
+    .analytics-hero p { margin: 0; color: #6b7280; max-width: 640px; }
+
+    .range-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .range-btn {
+        padding: 9px 15px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    .range-btn:hover { background: #e2e8f0; color: #1e293b; }
+    .range-btn.is-active { background: #1e293b; color: #fff; }
+
+    .analytics-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .analytics-tile {
+        padding: 20px;
+        border-radius: 20px;
+        background: #fff;
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+        display: grid;
+        gap: 6px;
+    }
+
+    .analytics-tile .tile-label { color: #6b7280; font-weight: 600; font-size: 0.9rem; }
+    .analytics-tile strong { display: block; font-size: 1.8rem; line-height: 1; }
+    .analytics-tile .tile-caption { color: #9ca3af; font-size: 0.76rem; }
+    .tile-revenue strong { color: #166534; }
+    .tile-active strong { color: #1d4ed8; }
+    .tile-visits strong { color: #b45309; }
+
+    .chart-panel {
+        padding: 22px;
+        border-radius: 24px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 15px 36px rgba(15, 23, 42, 0.05);
+    }
+
+    .chart-panel h3 {
+        margin: 0 0 4px;
+        font-size: 1.25rem;
+        font-weight: 750;
+    }
+    .chart-panel .muted { margin: 0 0 14px; color: #6b7280; font-size: 0.9rem; }
+
+    .chart-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+
+    .chart-canvas-wrap { position: relative; height: 300px; }
+
+    #geoMap { height: 340px; border-radius: 18px; overflow: hidden; }
+
+    .top-poi-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .top-poi-table th, .top-poi-table td {
+        padding: 11px 12px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+        text-align: left;
+        font-size: 0.9rem;
+    }
+
+    .top-poi-table th {
+        background: #f8fafc;
+        font-weight: 700;
+        color: #475569;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .pill-view  { background: #dbeafe; color: #1d4ed8; padding: 3px 9px; border-radius: 999px; font-weight: 700; font-size: 0.76rem; }
+    .pill-visit { background: #fef3c7; color: #92400e; padding: 3px 9px; border-radius: 999px; font-weight: 700; font-size: 0.76rem; }
+
+    .empty-state {
+        padding: 32px 20px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.95rem;
+    }
+
+    .range-toolbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: end;
+        background: #fff;
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        border-radius: 20px;
+        padding: 18px 20px;
+    }
+
+    .range-current {
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+    .range-current .muted { color: #6b7280; font-weight: 500; margin-right: 6px; }
+
+    .range-custom-row {
+        display: grid;
+        grid-template-columns: auto auto auto auto auto;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .range-field { display: grid; gap: 4px; }
+    .range-field label { color: #475569; font-weight: 700; font-size: 0.78rem; }
+    .range-field input, .range-field select {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        font-size: 0.9rem;
+        background: #fff;
+    }
+
+    .range-apply {
+        padding: 10px 18px;
+        border-radius: 10px;
+        background: #1e293b;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        border: 0;
+        cursor: pointer;
+    }
+    .range-apply:hover { background: #0f172a; }
+
+    .range-custom-hint { display: none; }
+    .range-custom-row[data-mode="day"]    .f-date   { display: grid; }
+    .range-custom-row[data-mode="week"]   .f-week   { display: grid; }
+    .range-custom-row[data-mode="month"]  .f-month  { display: grid; }
+    .range-custom-row[data-mode="year"]   .f-year   { display: grid; }
+    .range-custom-row[data-mode="custom"] .f-custom { display: contents; }
+
+    .range-field.f-date, .range-field.f-week, .range-field.f-month, .range-field.f-year { display: none; }
+    .f-custom { display: none; }
+
+    @@media (max-width: 1100px) {
+        .chart-row { grid-template-columns: 1fr; }
+        .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .range-toolbar { grid-template-columns: 1fr; }
+        .range-custom-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    @@media (max-width: 720px) {
+        .analytics-summary { grid-template-columns: 1fr; }
+        .range-custom-row { grid-template-columns: 1fr; }
+    }
+</style>
+
 <section class="dashboard-shell">
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
     {
@@ -53,6 +237,179 @@
         </article>
     </div>
 
+    <!-- ============ Analytics section ============ -->
+    @if (!string.IsNullOrEmpty(Model.AnalyticsError))
+    {
+        <div class="alert alert-warning rounded-4">@Model.AnalyticsError</div>
+    }
+
+    <div class="analytics-hero">
+        <div>
+            <div class="eyebrow">Phân tích & chiến lược</div>
+            <h2>Monitoring hoạt động khách hàng</h2>
+            <p>Bản đồ nhiệt, biểu đồ lượt xem/lượt ghé theo quán và doanh thu — dùng để đưa ra quyết định kinh doanh dựa trên dữ liệu thực tế.</p>
+        </div>
+        <div class="range-picker">
+            <a class="range-btn @(Model.Mode == "today"    ? "is-active" : "")" href="?mode=today">Hôm nay</a>
+            <a class="range-btn @(Model.Mode == "last7"    ? "is-active" : "")" href="?mode=last7">7 ngày</a>
+            <a class="range-btn @(Model.Mode == "last30"   ? "is-active" : "")" href="?mode=last30">30 ngày</a>
+            <a class="range-btn @(Model.Mode == "last12m"  ? "is-active" : "")" href="?mode=last12m">12 tháng</a>
+        </div>
+    </div>
+
+    <form method="get" class="range-toolbar" id="rangeForm">
+        <div class="range-current">
+            <span class="muted">Khung đang xem:</span> @Model.RangeLabel
+        </div>
+        <div class="range-custom-row" id="rangeCustomRow" data-mode="@(IsAbsolute(Model.Mode) ? Model.Mode : "day")">
+            <div class="range-field">
+                <label for="modeSelect">Chọn theo</label>
+                <select name="mode" id="modeSelect">
+                    <option value="day"    selected="@(Model.Mode == "day")">Ngày cụ thể</option>
+                    <option value="week"   selected="@(Model.Mode == "week")">Tuần cụ thể</option>
+                    <option value="month"  selected="@(Model.Mode == "month")">Tháng cụ thể</option>
+                    <option value="year"   selected="@(Model.Mode == "year")">Năm cụ thể</option>
+                    <option value="custom" selected="@(Model.Mode == "custom")">Khoảng tùy chọn</option>
+                </select>
+            </div>
+
+            <div class="range-field f-date">
+                <label for="dateInput">Ngày</label>
+                <input type="date" name="date" id="dateInput"
+                       value="@(string.IsNullOrEmpty(Model.ParamDate) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : Model.ParamDate)" />
+            </div>
+
+            <div class="range-field f-week">
+                <label for="weekInput">Tuần</label>
+                <input type="week" name="week" id="weekInput"
+                       value="@(string.IsNullOrEmpty(Model.ParamWeek) ? System.Globalization.ISOWeek.GetYear(DateTime.UtcNow).ToString("D4") + "-W" + System.Globalization.ISOWeek.GetWeekOfYear(DateTime.UtcNow).ToString("D2") : Model.ParamWeek)" />
+            </div>
+
+            <div class="range-field f-month">
+                <label for="monthInput">Tháng</label>
+                <input type="month" name="month" id="monthInput"
+                       value="@(string.IsNullOrEmpty(Model.ParamMonth) ? DateTime.UtcNow.ToString("yyyy-MM") : Model.ParamMonth)" />
+            </div>
+
+            <div class="range-field f-year">
+                <label for="yearInput">Năm</label>
+                <select name="year" id="yearInput">
+                    @{
+                        var currentYear = DateTime.UtcNow.Year;
+                        var selectedYear = Model.ParamYear == 0 ? currentYear : Model.ParamYear;
+                    }
+                    @for (var yy = currentYear + 1; yy >= currentYear - 6; yy--)
+                    {
+                        <option value="@yy" selected="@(yy == selectedYear)">@yy</option>
+                    }
+                </select>
+            </div>
+
+            <div class="range-field f-custom">
+                <label for="fromInput">Từ ngày</label>
+                <input type="date" name="from" id="fromInput"
+                       value="@(string.IsNullOrEmpty(Model.ParamFrom) ? DateTime.UtcNow.AddDays(-6).ToString("yyyy-MM-dd") : Model.ParamFrom)" />
+            </div>
+            <div class="range-field f-custom">
+                <label for="toInput">Đến ngày</label>
+                <input type="date" name="to" id="toInput"
+                       value="@(string.IsNullOrEmpty(Model.ParamTo) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : Model.ParamTo)" />
+            </div>
+
+            <button type="submit" class="range-apply">Áp dụng</button>
+        </div>
+    </form>
+
+    @functions {
+        bool IsAbsolute(string mode) => mode is "day" or "week" or "month" or "year" or "custom";
+    }
+
+    <div class="analytics-summary">
+        <article class="analytics-tile tile-active">
+            <span class="tile-label">Khách hoạt động (@Model.RangeLabel)</span>
+            <strong>@Model.TotalActiveDevices</strong>
+            <span class="tile-caption">Thiết bị duy nhất có hoạt động</span>
+        </article>
+        <article class="analytics-tile tile-visits">
+            <span class="tile-label">Lượt ghé quán</span>
+            <strong>@Model.TotalVisits.ToString("N0")</strong>
+            <span class="tile-caption">GPS/Geofence ghi nhận</span>
+        </article>
+        <article class="analytics-tile">
+            <span class="tile-label">Lượt xem chi tiết</span>
+            <strong>@Model.TotalViews.ToString("N0")</strong>
+            <span class="tile-caption">Khách mở trang POI</span>
+        </article>
+        <article class="analytics-tile tile-revenue">
+            <span class="tile-label">Doanh thu (@Model.RangeLabel)</span>
+            <strong>@Model.TotalRevenue.ToString("N0") đ</strong>
+            <span class="tile-caption">Gói app + phí duy trì</span>
+        </article>
+    </div>
+
+    <article class="chart-panel">
+        <h3>Hoạt động theo thời gian</h3>
+        <p class="muted">Số thiết bị duy nhất và lượt ghé/xem theo từng khung thời gian.</p>
+        <div class="chart-canvas-wrap">
+            <canvas id="activityChart"></canvas>
+        </div>
+    </article>
+
+    <div class="chart-row">
+        <article class="chart-panel">
+            <h3>Doanh thu theo thời gian</h3>
+            <p class="muted">Gói app (đã duyệt) + phí duy trì POI cộng dồn theo từng khung.</p>
+            <div class="chart-canvas-wrap">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </article>
+
+        <article class="chart-panel">
+            <h3>Top 10 quán phổ biến</h3>
+            <p class="muted">Tổng lượt xem + ghé theo khung @Model.RangeLabel.</p>
+            @if (Model.TopPoi.Count == 0)
+            {
+                <div class="empty-state">Chưa có hoạt động nào trong khung này.</div>
+            }
+            else
+            {
+                <table class="top-poi-table">
+                    <thead>
+                        <tr>
+                            <th>Quán</th>
+                            <th style="width: 80px; text-align: right;">Xem</th>
+                            <th style="width: 80px; text-align: right;">Ghé</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var poi in Model.TopPoi)
+                        {
+                            <tr>
+                                <td><strong>@poi.Name</strong></td>
+                                <td style="text-align: right;"><span class="pill-view">@poi.Views</span></td>
+                                <td style="text-align: right;"><span class="pill-visit">@poi.Visits</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </article>
+    </div>
+
+    <article class="chart-panel">
+        <h3>Bản đồ nhiệt phân bố khách</h3>
+        <p class="muted">Mỗi điểm là một POI; độ đậm tỉ lệ với số lượt xem + ghé trong khung thời gian được chọn.</p>
+        @if (Model.GeoPoints.Count == 0)
+        {
+            <div class="empty-state">Chưa có dữ liệu vị trí nào trong khung này.</div>
+        }
+        else
+        {
+            <div id="geoMap"></div>
+        }
+    </article>
+
+    <!-- ============ POI list (below analytics) ============ -->
     <section class="dashboard-panel">
         <div class="panel-head">
             <div>
@@ -121,3 +478,180 @@
         </div>
     </section>
 </section>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<script>
+(function () {
+    const activity = @Html.Raw(Model.ActivityJson);
+    const revenue  = @Html.Raw(Model.RevenueJson);
+    const geo      = @Html.Raw(Model.GeoJson);
+    const granularity = '@Model.Granularity';
+
+    function bucketLabel(iso, g) {
+        const d = new Date(iso);
+        if (g === 'hour') return d.getHours().toString().padStart(2, '0') + 'h';
+        if (g === 'month') return (d.getMonth() + 1) + '/' + d.getFullYear();
+        return d.getDate() + '/' + (d.getMonth() + 1);
+    }
+
+    // Picker: show/hide the matching field set per selected mode, and strip
+    // unused params on submit so URLs stay clean.
+    const modeSelect = document.getElementById('modeSelect');
+    const customRow = document.getElementById('rangeCustomRow');
+    const rangeForm = document.getElementById('rangeForm');
+    function syncModeUi() {
+        if (!customRow || !modeSelect) return;
+        customRow.dataset.mode = modeSelect.value;
+    }
+    if (modeSelect) { modeSelect.addEventListener('change', syncModeUi); syncModeUi(); }
+
+    if (rangeForm) {
+        rangeForm.addEventListener('submit', function () {
+            const keep = {
+                day:    ['mode', 'date'],
+                week:   ['mode', 'week'],
+                month:  ['mode', 'month'],
+                year:   ['mode', 'year'],
+                custom: ['mode', 'from', 'to']
+            }[modeSelect.value] || ['mode'];
+            rangeForm.querySelectorAll('input, select').forEach(el => {
+                if (el.name && !keep.includes(el.name)) el.disabled = true;
+            });
+        });
+    }
+
+    const actCanvas = document.getElementById('activityChart');
+    if (actCanvas && activity.length > 0) {
+        const labels = activity.map(b => bucketLabel(b.bucketUtc, granularity));
+        new Chart(actCanvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Thiết bị',
+                        data: activity.map(b => b.activeUsers),
+                        backgroundColor: 'rgba(37, 99, 235, 0.75)',
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Lượt ghé',
+                        data: activity.map(b => b.visits),
+                        backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Lượt xem',
+                        data: activity.map(b => b.views),
+                        type: 'line',
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.2)',
+                        yAxisID: 'y',
+                        tension: 0.35,
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    } else if (actCanvas) {
+        actCanvas.parentElement.innerHTML = '<div class="empty-state">Chưa có hoạt động nào trong khung thời gian này.</div>';
+    }
+
+    const revCanvas = document.getElementById('revenueChart');
+    if (revCanvas && revenue.length > 0) {
+        const labels = revenue.map(r => bucketLabel(r.bucketUtc, granularity));
+        new Chart(revCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Gói app',
+                        data: revenue.map(r => Number(r.appRevenue)),
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                        tension: 0.35,
+                        fill: true
+                    },
+                    {
+                        label: 'Phí POI',
+                        data: revenue.map(r => Number(r.poiRevenue)),
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.2)',
+                        tension: 0.35,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                return ctx.dataset.label + ': ' +
+                                    Number(ctx.parsed.y).toLocaleString('vi-VN') + ' đ';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => Number(v).toLocaleString('vi-VN') }
+                    }
+                }
+            }
+        });
+    } else if (revCanvas) {
+        revCanvas.parentElement.innerHTML = '<div class="empty-state">Chưa có doanh thu nào trong khung thời gian này.</div>';
+    }
+
+    const mapEl = document.getElementById('geoMap');
+    if (mapEl && geo.length > 0) {
+        const map = L.map(mapEl).setView([geo[0].lat, geo[0].lng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        const maxWeight = Math.max(...geo.map(g => g.weight), 1);
+        const heatPoints = geo.map(g => [g.lat, g.lng, g.weight / maxWeight]);
+
+        L.heatLayer(heatPoints, { radius: 28, blur: 22, maxZoom: 17 }).addTo(map);
+
+        geo.forEach(g => {
+            L.circleMarker([g.lat, g.lng], {
+                radius: 5,
+                color: '#ef4444',
+                fillColor: '#fca5a5',
+                fillOpacity: 0.85,
+                weight: 1.5
+            })
+            .bindTooltip(g.name + ' — ' + g.weight + ' tương tác', { direction: 'top' })
+            .addTo(map);
+        });
+
+        if (geo.length > 1) {
+            const bounds = L.latLngBounds(geo.map(g => [g.lat, g.lng]));
+            map.fitBounds(bounds.pad(0.2));
+        }
+    }
+})();
+</script>
+}

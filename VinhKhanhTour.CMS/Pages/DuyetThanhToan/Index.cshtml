@@ -1,35 +1,266 @@
 @page
 @model VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel
 @{
-    ViewData["Title"] = "Duyệt thanh toán app";
+    ViewData["Title"] = "Duyệt thanh toán";
     ViewData["Page"] = "duyetthanhtoan";
     Layout = "/Pages/Shared/_Layout.cshtml";
 }
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-0">Duyệt thanh toán app</h2>
-            <p class="text-muted mb-0">Xác nhận yêu cầu chuyển khoản từ khách mua gói</p>
-        </div>
-        <span id="pendingCountBadge" class="badge bg-warning text-dark fs-6">
-            @Model.SoChoDuyet yêu cầu chờ duyệt
-        </span>
-    </div>
+<style>
+    .payment-shell { display: grid; gap: 24px; }
 
-    <div id="paymentPendingAlert"
-         class="alert alert-warning alert-dismissible fade show d-none"
-         role="alert"
-         aria-live="polite">
-        <strong>Có yêu cầu thanh toán mới.</strong>
-        <span id="paymentPendingAlertText">Trang se tu cap nhat.</span>
-        <a href="?tab=cho_duyet" class="alert-link ms-2">Mở danh sách chờ duyệt</a>
-        <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
-    </div>
+    .payment-hero {
+        padding: 28px 30px;
+        border-radius: 28px;
+        background:
+            linear-gradient(120deg, rgba(56, 189, 248, 0.14), rgba(255,255,255,0.92)),
+            linear-gradient(135deg, #ffffff, #eff6ff);
+        border: 1px solid rgba(31, 41, 51, 0.08);
+    }
 
+    .payment-hero h1 {
+        margin: 10px 0 8px;
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+        line-height: 1.1;
+    }
+
+    .payment-hero p { margin: 0; max-width: 760px; color: #6b7280; }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .summary-tile {
+        padding: 22px;
+        border-radius: 22px;
+        background: #fff;
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+        display: grid;
+        gap: 6px;
+    }
+
+    .summary-tile .tile-label { color: #6b7280; font-weight: 600; font-size: 0.92rem; }
+    .summary-tile strong { display: block; font-size: 2rem; line-height: 1; }
+    .summary-tile .tile-caption { color: #9ca3af; font-size: 0.78rem; }
+
+    .summary-tile.tile-pending-urgent {
+        border-color: rgba(249, 115, 22, 0.35);
+        background: #fff7ed;
+    }
+    .summary-tile.tile-pending-urgent strong { color: #c2410c; }
+    .summary-tile.tile-revenue strong { color: #166534; }
+
+    .payment-panel {
+        padding: 24px;
+        border-radius: 28px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(31, 41, 51, 0.08);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+    }
+
+    .payment-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 14px;
+    }
+
+    .payment-panel-head h2 {
+        margin: 6px 0 0;
+        font-size: 1.5rem;
+        font-weight: 750;
+    }
+
+    .payment-panel-head p { margin: 0; color: #6b7280; }
+
+    .payment-tabs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .payment-tab {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background 0.15s ease;
+    }
+
+    .payment-tab:hover { background: #e2e8f0; color: #1e293b; }
+
+    .payment-tab.is-active {
+        background: #1f2f3d;
+        color: #fff;
+    }
+
+    .payment-tab .count {
+        background: rgba(0,0,0,0.12);
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+    }
+
+    .payment-tab.is-active .count { background: rgba(255,255,255,0.18); }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 2fr 1.2fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .filter-label { font-weight: 700; color: #334155; font-size: 0.82rem; margin-bottom: 4px; display: block; }
+
+    .filter-count-banner {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: #eff6ff;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        color: #1e3a8a;
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+
+    .filter-count-banner strong { font-size: 1.1rem; color: #1d4ed8; }
+
+    #paymentPendingAlert {
+        border-radius: 18px;
+        border: 1px solid rgba(249, 115, 22, 0.35);
+        background: #fff7ed;
+        color: #9a3412;
+    }
+
+    .payment-table-wrap { overflow-x: auto; }
+
+    .payment-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .payment-table thead th {
+        padding: 14px 16px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.83rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .payment-table tbody td {
+        padding: 18px 16px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+        vertical-align: top;
+    }
+
+    .payment-table tbody tr:hover { background: #f8fbff; }
+
+    .device-cell { display: grid; gap: 6px; }
+
+    .device-short {
+        display: inline-flex;
+        justify-content: center;
+        min-width: 76px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+    }
+
+    .device-full {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        color: #6b7280;
+        font-size: 0.78rem;
+        word-break: break-all;
+    }
+
+    .mini-note { color: #6b7280; font-size: 0.82rem; }
+
+    .pkg-pill {
+        display: inline-flex;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .pkg-ngay  { background: #f3f4f6; color: #4b5563; }
+    .pkg-tuan  { background: #cffafe; color: #0e7490; }
+    .pkg-thang { background: #dbeafe; color: #1d4ed8; }
+    .pkg-nam   { background: #dcfce7; color: #166534; }
+
+    .amount-big {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #166534;
+    }
+
+    .transfer-code {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #0f172a;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.82rem;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        border: 0;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .action-approve { background: #22c55e; color: #fff; }
+    .action-approve:hover { background: #16a34a; color: #fff; }
+    .action-reject { background: transparent; color: #b91c1c; border: 1px solid #fecaca; }
+    .action-reject:hover { background: #fef2f2; }
+
+    .status-done    { background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: 0.82rem; }
+    .status-reject  { background: #fee2e2; color: #991b1b; padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: 0.82rem; }
+
+    @@media (max-width: 1100px) {
+        .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .filter-grid  { grid-template-columns: 1fr 1fr; }
+    }
+
+    @@media (max-width: 720px) {
+        .summary-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<section class="payment-shell">
     @if (!string.IsNullOrEmpty(Model.ThongBao))
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert alert-success alert-dismissible fade show rounded-4" role="alert">
             @Model.ThongBao
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -37,132 +268,198 @@
 
     @if (!string.IsNullOrEmpty(Model.LoiMsg))
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show rounded-4" role="alert">
             @Model.LoiMsg
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
 
-    <ul class="nav nav-tabs mb-3" id="filterTab">
-        <li class="nav-item">
-            <a class="nav-link @(Model.FilterTab == "cho_duyet" ? "active" : "")"
-               href="?tab=cho_duyet">Chờ duyệt (@Model.SoChoDuyet)</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link @(Model.FilterTab == "da_duyet" ? "active" : "")"
-               href="?tab=da_duyet">Đã duyệt</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link @(Model.FilterTab == "tu_choi" ? "active" : "")"
-               href="?tab=tu_choi">Đã từ chối</a>
-        </li>
-    </ul>
+    <div id="paymentPendingAlert"
+         class="alert alert-dismissible fade show d-none"
+         role="alert"
+         aria-live="polite">
+        <strong>Có yêu cầu thanh toán mới.</strong>
+        <span id="paymentPendingAlertText">Trang sẽ tự cập nhật.</span>
+        <a href="?tab=cho_duyet" class="alert-link ms-2">Mở danh sách chờ duyệt</a>
+        <button type="button" class="btn-close" onclick="this.closest('.alert').classList.add('d-none')"></button>
+    </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-0">
-            <div class="px-3 py-2 border-bottom bg-light small text-muted">
-                Trang tự kiểm tra yêu cầu mới mỗi 15 giây khi tab đang mở. Khi có thay đổi, hệ thống sẽ thông báo và tải lại nếu admin không đang thao tác.
+    <div class="payment-hero">
+        <div class="eyebrow">Quản lý thanh toán</div>
+        <h1>Duyệt thanh toán gói app</h1>
+        <p>Xác nhận các yêu cầu chuyển khoản từ khách mua gói. Số liệu phía dưới tính trên toàn bộ yêu cầu, không phụ thuộc tab hay bộ lọc đang chọn.</p>
+    </div>
+
+    <div class="summary-grid">
+        <article class="summary-tile">
+            <span class="tile-label">Tổng yêu cầu</span>
+            <strong>@Model.TongYeuCau</strong>
+            <span class="tile-caption">Mọi trạng thái</span>
+        </article>
+        <article class="summary-tile @(Model.SoChoDuyet > 0 ? "tile-pending-urgent" : "")">
+            <span class="tile-label">Đang chờ duyệt</span>
+            <strong id="pendingCountBadge">@Model.SoChoDuyet</strong>
+            <span class="tile-caption">Cần xử lý sớm</span>
+        </article>
+        <article class="summary-tile">
+            <span class="tile-label">Tiền chờ xác nhận</span>
+            <strong>@Model.TienChoDuyet.ToString("N0") đ</strong>
+            <span class="tile-caption">Tổng của các yêu cầu đang chờ</span>
+        </article>
+        <article class="summary-tile tile-revenue">
+            <span class="tile-label">Doanh thu đã duyệt</span>
+            <strong>@Model.DoanhThuDaDuyet.ToString("N0") đ</strong>
+            <span class="tile-caption">Tổng từ các gói đã duyệt</span>
+        </article>
+    </div>
+
+    <div class="payment-panel">
+        <div class="payment-panel-head">
+            <div>
+                <div class="eyebrow">Bảng yêu cầu</div>
+                <h2>Chi tiết các yêu cầu chuyển khoản</h2>
+                <p>Tự động cập nhật mỗi 5 giây và thông báo khi có yêu cầu mới.</p>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+        </div>
+
+        <div class="payment-tabs">
+            <a class="payment-tab @(Model.FilterTab == "cho_duyet" ? "is-active" : "")"
+               href="?tab=cho_duyet&pkg=@Model.PackageFilter&search=@Model.Search">
+                Chờ duyệt
+                <span class="count">@Model.SoChoDuyet</span>
+            </a>
+            <a class="payment-tab @(Model.FilterTab == "da_duyet" ? "is-active" : "")"
+               href="?tab=da_duyet&pkg=@Model.PackageFilter&search=@Model.Search">
+                Đã duyệt
+                <span class="count">@Model.SoDaDuyet</span>
+            </a>
+            <a class="payment-tab @(Model.FilterTab == "tu_choi" ? "is-active" : "")"
+               href="?tab=tu_choi&pkg=@Model.PackageFilter&search=@Model.Search">
+                Đã từ chối
+                <span class="count">@Model.SoTuChoi</span>
+            </a>
+        </div>
+
+        <form method="get" class="mb-3">
+            <input type="hidden" name="tab" value="@Model.FilterTab" />
+            <div class="filter-grid">
+                <div>
+                    <label class="filter-label">Tìm kiếm</label>
+                    <input name="search" value="@Model.Search" class="form-control" placeholder="Mã thiết bị hoặc nội dung chuyển khoản..." />
+                </div>
+                <div>
+                    <label class="filter-label">Loại gói</label>
+                    <select name="pkg" class="form-select">
+                        <option value="all" selected="@(Model.PackageFilter == "all")">Tất cả gói</option>
+                        <option value="ngay" selected="@(Model.PackageFilter == "ngay")">1 ngày</option>
+                        <option value="tuan" selected="@(Model.PackageFilter == "tuan")">1 tuần</option>
+                        <option value="thang" selected="@(Model.PackageFilter == "thang")">1 tháng</option>
+                        <option value="nam" selected="@(Model.PackageFilter == "nam")">1 năm</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Áp dụng</button>
+                    <a href="?tab=@Model.FilterTab" class="btn btn-light">Xóa bộ lọc</a>
+                </div>
+            </div>
+            <div class="filter-count-banner">
+                Đang hiển thị <strong>@Model.DisplayedCount</strong> yêu cầu.
+            </div>
+        </form>
+
+        <div class="payment-table-wrap">
+            <table class="payment-table">
+                <thead>
+                    <tr>
+                        <th style="width: 190px;">Thiết bị</th>
+                        <th style="width: 110px;">Gói</th>
+                        <th style="width: 160px;">Số tiền</th>
+                        <th>Nội dung CK</th>
+                        <th style="width: 180px;">Thời gian</th>
+                        <th style="width: 210px;">Thao tác / Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.DanhSach.Any())
+                    {
                         <tr>
-                            <th>Thiet bi</th>
-                            <th>Goi</th>
-                            <th>Số tiền</th>
-                            <th>Nội dung CK</th>
-                            <th>Thoi gian</th>
-                            <th>Ghi chu admin</th>
-                            <th>Thao tac</th>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Không có yêu cầu nào khớp bộ lọc.
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @if (!Model.DanhSach.Any())
-                        {
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    Không có yêu cầu nào.
-                                </td>
-                            </tr>
-                        }
-                        @foreach (var yc in Model.DanhSach)
+                    }
+                    else
+                    {
+                        foreach (var yc in Model.DanhSach)
                         {
                             <tr>
                                 <td>
-                                    <span class="font-monospace small fw-semibold" title="@yc.MaThietBi">
-                                        @(yc.MaThietBi.Length > 8 ? yc.MaThietBi[..8].ToUpperInvariant() : yc.MaThietBi.ToUpperInvariant())
-                                    </span>
-                                    <div class="text-muted" style="font-size:10px">ID thiết bị</div>
+                                    <div class="device-cell">
+                                        <span class="device-short">@yc.DeviceShort</span>
+                                        <div class="device-full">@yc.MaThietBi</div>
+                                    </div>
                                 </td>
                                 <td>
-                                    @switch (yc.LoaiGoi)
-                                    {
-                                        case "ngay":
-                                            <span class="badge bg-secondary">1 ngay</span>
-                                            break;
-                                        case "tuan":
-                                            <span class="badge bg-info text-dark">1 tuan</span>
-                                            break;
-                                        case "thang":
-                                            <span class="badge bg-primary">1 thang</span>
-                                            break;
-                                        case "nam":
-                                            <span class="badge bg-success">1 nam</span>
-                                            break;
-                                        default:
-                                            <span class="badge bg-light text-dark">@yc.LoaiGoi</span>
-                                            break;
-                                    }
+                                    <span class="pkg-pill pkg-@yc.LoaiGoi">@VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel.DescribePackage(yc.LoaiGoi)</span>
                                 </td>
-                                <td class="fw-semibold text-success">@yc.SoTien.ToString("N0")d</td>
+                                <td class="amount-big">@yc.SoTien.ToString("N0") đ</td>
                                 <td>
-                                    <code class="small">@yc.NoiDungChuyen</code>
+                                    <span class="transfer-code">@yc.NoiDungChuyen</span>
                                 </td>
-                                <td class="small text-muted">
-                                    @yc.NgayTao.ToLocalTime().ToString("dd/MM HH:mm")
-                                    @if (yc.NgayDuyet.HasValue)
-                                    {
-                                        <br />
-                                        <span class="text-info">-> @yc.NgayDuyet.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
-                                    }
+                                <td>
+                                    <div class="device-cell">
+                                        <strong>@VinhKhanhTour.CMS.Pages.DuyetThanhToan.IndexModel.DescribeRelativeTime(yc.NgayTao)</strong>
+                                        <span class="mini-note">@yc.NgayTao.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                        @if (yc.NgayDuyet.HasValue)
+                                        {
+                                            <span class="mini-note">Xử lý: @yc.NgayDuyet.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                        }
+                                    </div>
                                 </td>
-                                <td class="small text-muted">@(yc.GhiChuAdmin ?? "-")</td>
                                 <td>
                                     @if (yc.TrangThai == "cho_duyet")
                                     {
-                                        <form method="post" asp-page-handler="Approve" class="d-inline">
-                                            <input type="hidden" name="yeuCauId" value="@yc.Id" />
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-success me-1"
-                                                    onclick="return confirm('Xác nhận duyệt yêu cầu này?')">
-                                                Duyệt
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <form method="post" asp-page-handler="Approve" class="d-inline">
+                                                <input type="hidden" name="yeuCauId" value="@yc.Id" />
+                                                <button type="submit"
+                                                        class="action-btn action-approve"
+                                                        onclick="return confirm('Xác nhận duyệt yêu cầu này?')">
+                                                    Duyệt
+                                                </button>
+                                            </form>
+                                            <button type="button"
+                                                    class="action-btn action-reject"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalTuChoi"
+                                                    data-id="@yc.Id">
+                                                Từ chối
                                             </button>
-                                        </form>
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-danger"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalTuChoi"
-                                                data-id="@yc.Id">
-                                            Từ chối
-                                        </button>
+                                        </div>
                                     }
                                     else if (yc.TrangThai == "da_duyet")
                                     {
-                                        <span class="badge bg-success">Đã duyệt</span>
+                                        <span class="status-done">Đã duyệt</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-danger">Từ chối</span>
+                                        <div class="device-cell">
+                                            <span class="status-reject">Đã từ chối</span>
+                                            @if (!string.IsNullOrWhiteSpace(yc.GhiChuAdmin))
+                                            {
+                                                <span class="mini-note">Lý do: @yc.GhiChuAdmin</span>
+                                            }
+                                        </div>
                                     }
                                 </td>
                             </tr>
                         }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
-</div>
+</section>
 
 <div class="modal fade" id="modalTuChoi" tabindex="-1">
     <div class="modal-dialog">
@@ -175,7 +472,7 @@
                 <div class="modal-body">
                     <input type="hidden" id="tuChoiId" name="yeuCauId" />
                     <div class="mb-3">
-                        <label class="form-label">Ly do tu choi <span class="text-danger">*</span></label>
+                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
                         <textarea name="lyDo"
                                   class="form-control"
                                   rows="3"
@@ -185,7 +482,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-danger">Xac nhan tu choi</button>
+                    <button type="submit" class="btn btn-danger">Xác nhận từ chối</button>
                 </div>
             </div>
         </form>
@@ -232,7 +529,7 @@
 
     function updateBadge(count) {
         if (pendingBadge) {
-            pendingBadge.textContent = count + ' yêu cầu chờ duyệt';
+            pendingBadge.textContent = count;
         }
 
         document.title = count > 0 ? '(' + count + ') ' + currentTitle : currentTitle;
@@ -242,7 +539,7 @@
         if (!alertBox || !alertText) return;
 
         var detail = snapshot.latestTransferContent
-            ? ' Gan nhat: ' + snapshot.latestTransferContent
+            ? ' Gần nhất: ' + snapshot.latestTransferContent
             : '';
         var device = snapshot.latestDeviceShort
             ? ' (' + snapshot.latestDeviceShort + ')'
@@ -252,7 +549,7 @@
         alertBox.classList.remove('d-none');
 
         if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Vinh Khanh Tour', {
+            new Notification('Vĩnh Khanh Tour', {
                 body: 'Có ' + snapshot.count + ' yêu cầu thanh toán chờ duyệt.'
             });
         }
@@ -265,8 +562,6 @@
     }
 
     async function pollPendingPayments() {
-        if (document.hidden) return;
-
         try {
             var response = await fetch(snapshotUrl, {
                 headers: { 'Accept': 'application/json' },
@@ -296,17 +591,12 @@
                 }
             }
         } catch {
-            // Bo qua loi mang tam thoi; lan poll tiep theo se thu lai.
+            // Ignore transient network errors.
         }
     }
 
     updateBadge(lastCount);
-    window.setInterval(pollPendingPayments, 15000);
-    document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) {
-            pollPendingPayments();
-        }
-    });
+    window.setInterval(pollPendingPayments, 5000);
 })();
 </script>
 }

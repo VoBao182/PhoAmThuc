@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using VinhKhanhTour.API.Data;
 
 namespace VinhKhanhTour.CMS.Pages.ThanhToan;
@@ -29,69 +30,111 @@ public class IndexModel : PageModel
     public async Task OnGetAsync(string? msg)
     {
         ThongBao = msg;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                await LoadAsync();
+                return;
+            }
+            catch (Exception ex) when (attempt == 0 && IsDisposedWaitHandle(ex))
+            {
+                ClearNpgsqlPoolsQuietly();
+            }
+            catch (Exception ex)
+            {
+                DanhSachPOI = [];
+                SoQuanDaDong = 0;
+                SoQuanQuaHan = 0;
+                SoQuanSapHan = 0;
+                TongThuThang = 0m;
+                LoiMsg = IsDisposedWaitHandle(ex)
+                    ? "Tạm thời chưa tải được trang phí duy trì. Hãy tải lại sau vài giây."
+                    : $"Không thể tải trang phí duy trì: {ex.GetBaseException().Message}";
+                return;
+            }
+        }
+
+        DanhSachPOI = [];
+        LoiMsg ??= "Tạm thời chưa tải được trang phí duy trì. Hãy tải lại sau vài giây.";
+    }
+
+    private async Task LoadAsync()
+    {
         var now = DateTime.UtcNow;
 
+        var pois = await _db.POIs
+            .AsNoTracking()
+            .OrderBy(p => p.NgayHetHanDuyTri)
+            .Select(p => new PoiThanhToanViewModel
+            {
+                POIId = p.Id,
+                TenPOI = p.TenPOI,
+                DiaChi = p.DiaChi,
+                NgayHetHanDuyTri = p.NgayHetHanDuyTri,
+                PhiDuyTriThang = 50_000m
+            })
+            .ToListAsync();
+
+        var activeFees = await _db.DangKyDichVus
+            .AsNoTracking()
+            .Where(d => d.TrangThai)
+            .Select(d => new
+            {
+                d.POIId,
+                d.PhiDuyTriThang,
+                d.NgayBatDau
+            })
+            .ToListAsync();
+
+        var latestFeeByPoi = activeFees
+            .GroupBy(d => d.POIId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(d => d.NgayBatDau).First().PhiDuyTriThang);
+
+        foreach (var poi in pois)
+        {
+            if (latestFeeByPoi.TryGetValue(poi.POIId, out var fee))
+                poi.PhiDuyTriThang = fee;
+        }
+
+        DanhSachPOI = pois;
+        SoQuanQuaHan = DanhSachPOI.Count(p => p.NgayHetHanDuyTri == null || p.NgayHetHanDuyTri < now);
+        SoQuanSapHan = DanhSachPOI.Count(p =>
+            p.NgayHetHanDuyTri.HasValue &&
+            p.NgayHetHanDuyTri >= now &&
+            (p.NgayHetHanDuyTri.Value - now).TotalDays <= 7);
+        SoQuanDaDong = DanhSachPOI.Count(p =>
+            p.NgayHetHanDuyTri.HasValue && p.NgayHetHanDuyTri >= now);
+
+        var kyThang = now.ToString("yyyy-MM");
+        TongThuThang = await _db.HoaDons.AsNoTracking()
+            .Where(h => h.LoaiPhi == "duytri" && h.KyThanhToan == kyThang)
+            .Select(h => (decimal?)h.SoTien)
+            .SumAsync() ?? 0m;
+    }
+
+    private static bool IsDisposedWaitHandle(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is ObjectDisposedException od &&
+                string.Equals(od.ObjectName, "System.Threading.ManualResetEventSlim", StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    private static void ClearNpgsqlPoolsQuietly()
+    {
         try
         {
-            var pois = await _db.POIs
-                .AsNoTracking()
-                .OrderBy(p => p.NgayHetHanDuyTri)
-                .Select(p => new PoiThanhToanViewModel
-                {
-                    POIId = p.Id,
-                    TenPOI = p.TenPOI,
-                    DiaChi = p.DiaChi,
-                    NgayHetHanDuyTri = p.NgayHetHanDuyTri,
-                    PhiDuyTriThang = 50_000m
-                })
-                .ToListAsync();
-
-            var activeFees = await _db.DangKyDichVus
-                .AsNoTracking()
-                .Where(d => d.TrangThai)
-                .Select(d => new
-                {
-                    d.POIId,
-                    d.PhiDuyTriThang,
-                    d.NgayBatDau
-                })
-                .ToListAsync();
-
-            var latestFeeByPoi = activeFees
-                .GroupBy(d => d.POIId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(d => d.NgayBatDau).First().PhiDuyTriThang);
-
-            foreach (var poi in pois)
-            {
-                if (latestFeeByPoi.TryGetValue(poi.POIId, out var fee))
-                    poi.PhiDuyTriThang = fee;
-            }
-
-            DanhSachPOI = pois;
-            SoQuanQuaHan = DanhSachPOI.Count(p => p.NgayHetHanDuyTri == null || p.NgayHetHanDuyTri < now);
-            SoQuanSapHan = DanhSachPOI.Count(p =>
-                p.NgayHetHanDuyTri.HasValue &&
-                p.NgayHetHanDuyTri >= now &&
-                (p.NgayHetHanDuyTri.Value - now).TotalDays <= 7);
-            SoQuanDaDong = DanhSachPOI.Count(p =>
-                p.NgayHetHanDuyTri.HasValue && p.NgayHetHanDuyTri >= now);
-
-            var kyThang = now.ToString("yyyy-MM");
-            TongThuThang = await _db.HoaDons.AsNoTracking()
-                .Where(h => h.LoaiPhi == "duytri" && h.KyThanhToan == kyThang)
-                .Select(h => (decimal?)h.SoTien)
-                .SumAsync() ?? 0m;
+            NpgsqlConnection.ClearAllPools();
         }
-        catch (Exception ex)
+        catch
         {
-            DanhSachPOI = [];
-            SoQuanDaDong = 0;
-            SoQuanQuaHan = 0;
-            SoQuanSapHan = 0;
-            TongThuThang = 0m;
-            LoiMsg = $"Không thể tải trang phí duy trì: {ex.GetBaseException().Message}";
         }
     }
 }

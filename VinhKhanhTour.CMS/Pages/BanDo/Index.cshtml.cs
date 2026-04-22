@@ -169,7 +169,9 @@ public class IndexModel : PageModel
                 CurrentPoiName = currentPoi,
                 LastHeartbeat = lastHeartbeat,
                 IsOnline = isOnline,
-                IsAtPoi = currentPoi != null
+                IsAtPoi = currentPoi != null,
+                Lat = location?.Lat,
+                Lng = location?.Lng
             };
         }).ToList();
     }
@@ -241,7 +243,7 @@ public class IndexModel : PageModel
             await using var command = connection.CreateCommand();
             command.CommandTimeout = (int)ActivityStatsTimeout.TotalSeconds;
             command.CommandText = """
-                SELECT mathietbi, lancuoi_heartbeat, poiid_hientai, ten_poi_hientai
+                SELECT mathietbi, lancuoi_heartbeat, poiid_hientai, ten_poi_hientai, lat, lng
                 FROM vitrikhach
                 WHERE mathietbi IS NOT NULL
                 """;
@@ -255,7 +257,9 @@ public class IndexModel : PageModel
                     MaThietBi = reader.GetString(0),
                     LanCuoiHeartbeat = reader.GetDateTime(1),
                     PoiIdHienTai = reader.IsDBNull(2) ? null : reader.GetGuid(2),
-                    TenPoiHienTai = reader.IsDBNull(3) ? null : reader.GetString(3)
+                    TenPoiHienTai = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Lat = reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                    Lng = reader.IsDBNull(5) ? null : reader.GetDouble(5)
                 });
             }
 
@@ -473,6 +477,13 @@ public class IndexModel : PageModel
         public DateTime? LastHeartbeat { get; init; }
         public bool IsOnline { get; init; }
         public bool IsAtPoi { get; init; }
+        public double? Lat { get; init; }
+        public double? Lng { get; init; }
+
+        public bool HasCoordinates => Lat.HasValue && Lng.HasValue;
+        public string? MapsUrl => HasCoordinates
+            ? $"https://www.google.com/maps?q={Lat!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{Lng!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+            : null;
     }
 
     private sealed class DevicePoiCount
@@ -495,5 +506,7 @@ public class IndexModel : PageModel
         public DateTime LanCuoiHeartbeat { get; init; }
         public Guid? PoiIdHienTai { get; init; }
         public string? TenPoiHienTai { get; init; }
+        public double? Lat { get; init; }
+        public double? Lng { get; init; }
     }
 }

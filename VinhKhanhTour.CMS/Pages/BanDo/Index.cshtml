@@ -199,6 +199,12 @@
     .poi-name { font-weight: 700; color: #111827; }
     .poi-empty { color: #9ca3af; font-style: italic; }
 
+    .poi-link {
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(249, 115, 22, 0.45);
+    }
+    .poi-link:hover { color: #c2410c; border-bottom-color: #c2410c; }
+
     .activity-card {
         display: grid;
         grid-template-columns: auto auto;
@@ -322,7 +328,7 @@
             </div>
         </div>
         <div class="filter-count-banner">
-            Đang hiển thị <strong>@Model.DisplayedCustomers</strong> / @Model.TotalCustomers khách hàng theo bộ lọc hiện tại.
+            Đang hiển thị <strong>@Model.DisplayedCustomers</strong> khách hàng.
         </div>
     </form>
 
@@ -331,7 +337,7 @@
             <div>
                 <div class="eyebrow">Bảng khách hàng</div>
                 <h2>Chi tiết từng thiết bị</h2>
-                <p>Tự động làm mới mỗi 60 giây. Nhấp hàng để xem nhanh; dùng bộ lọc phía trên để tập trung vào nhóm khách cần xử lý.</p>
+                <p>Tự động làm mới mỗi 60 giây và nhấp hàng để xem nhanh.</p>
             </div>
         </div>
 
@@ -412,11 +418,29 @@
                                 <div class="device-cell">
                                     @if (!string.IsNullOrWhiteSpace(customer.CurrentPoiName))
                                     {
-                                        <div class="poi-name">@customer.CurrentPoiName</div>
+                                        @if (customer.HasCoordinates)
+                                        {
+                                            <a class="poi-name poi-link" href="@customer.MapsUrl" target="_blank" rel="noopener">@customer.CurrentPoiName</a>
+                                        }
+                                        else
+                                        {
+                                            <div class="poi-name">@customer.CurrentPoiName</div>
+                                        }
                                     }
                                     else if (customer.IsOnline)
                                     {
-                                        <div class="poi-empty">Đang di chuyển</div>
+                                        @if (customer.HasCoordinates)
+                                        {
+                                            <a class="poi-link poi-empty" href="@customer.MapsUrl" target="_blank" rel="noopener">Đang di chuyển — xem vị trí</a>
+                                        }
+                                        else
+                                        {
+                                            <div class="poi-empty">Đang di chuyển</div>
+                                        }
+                                    }
+                                    else if (customer.HasCoordinates)
+                                    {
+                                        <a class="poi-link poi-empty" href="@customer.MapsUrl" target="_blank" rel="noopener">Xem vị trí cuối</a>
                                     }
                                     else
                                     {

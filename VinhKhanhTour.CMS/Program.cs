@@ -80,6 +80,21 @@ static string ConfigureConnectionString(
         builder.SslMode = SslMode.Disable;
     }
 
+    // Stay below Supabase pooler's session-mode client cap. The CMS opens a few raw
+    // NpgsqlConnections (BanDo page) on top of EF's pool; without a cap Npgsql may hoard
+    // slots and Supabase returns "MaxClientsInSessionMode" when the API also connects.
+    if (builder.MaxPoolSize > 4 || builder.MaxPoolSize == 0)
+        builder.MaxPoolSize = 4;
+
+    if (builder.MinPoolSize > 0)
+        builder.MinPoolSize = 0;
+
+    if (builder.ConnectionIdleLifetime == 0 || builder.ConnectionIdleLifetime > 30)
+        builder.ConnectionIdleLifetime = 30;
+
+    if (builder.ConnectionPruningInterval == 0 || builder.ConnectionPruningInterval > 10)
+        builder.ConnectionPruningInterval = 10;
+
     return builder.ConnectionString;
 }
 
