@@ -62,7 +62,7 @@ public class CreateModel : PageModel
                 MoTa     = m.MoTa,
                 HinhAnh  = m.HinhAnh,
                 PhanLoai = m.PhanLoai,
-                DonGia   = m.DonGia,
+                DonGia   = m.DonGia ?? 0m,
                 TinhTrang = true
             }).ToList();
 

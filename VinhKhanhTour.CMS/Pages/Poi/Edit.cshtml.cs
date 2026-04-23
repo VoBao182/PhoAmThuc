@@ -127,7 +127,7 @@ public class EditModel : PageModel
                     MoTa      = input.MoTa,
                     HinhAnh   = input.HinhAnh,
                     PhanLoai  = input.PhanLoai,
-                    DonGia    = input.DonGia,
+                    DonGia    = input.DonGia ?? 0m,
                     TinhTrang = true
                 });
             }
@@ -140,7 +140,7 @@ public class EditModel : PageModel
                 mon.MoTa      = input.MoTa;
                 mon.HinhAnh   = input.HinhAnh;
                 mon.PhanLoai  = input.PhanLoai;
-                mon.DonGia    = input.DonGia;
+                mon.DonGia    = input.DonGia ?? 0m;
                 mon.TinhTrang = true;
             }
         }
@@ -187,6 +187,6 @@ public class MonAnInput
     public string? MoTa     { get; set; }
     public string? HinhAnh  { get; set; }
     public string? PhanLoai { get; set; }
-    public decimal DonGia   { get; set; }
+    public decimal? DonGia  { get; set; }
     public bool TinhTrang   { get; set; } = true;
 }

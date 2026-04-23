@@ -442,7 +442,7 @@ function addMonAn() {
                    oninput="updateMonAnImg(this,${i})" />
         </div>
         <input name="MonAns[${i}].PhanLoai" placeholder="VD: Khai vị" class="form-input" />
-        <input name="MonAns[${i}].DonGia" type="number" placeholder="0" class="form-input" />
+        <input name="MonAns[${i}].DonGia" type="number" value="0" placeholder="0" class="form-input" />
         <button type="button" class="remove-btn" onclick="removeMonAn(${i})">×</button>
         <input type="hidden" name="MonAns[${i}].TinhTrang" value="true" />
     `;
