@@ -31,7 +31,8 @@ public partial class MainPage : ContentPage
     private const int ExperiencePerLevel = 500;
     private const double PoiSwitchDistanceBufferMeters = 5;
     private const double MapMarkerOverlapMeters = 24;
-    private const double MapMarkerSpreadRadiusMeters = 18;
+    private const double MapMarkerBaseSpreadRadiusMeters = 18;
+    private const double MapCircleSpacingPaddingMeters = 8;
 
     private readonly HttpClient _http = new(new HttpClientHandler
     {
@@ -960,8 +961,6 @@ public partial class MainPage : ContentPage
         {
             string lat = poiVisual.DisplayViDo.ToString(CultureInfo.InvariantCulture);
             string lng = poiVisual.DisplayKinhDo.ToString(CultureInfo.InvariantCulture);
-            string circleLat = poiVisual.Poi.ViDo.ToString(CultureInfo.InvariantCulture);
-            string circleLng = poiVisual.Poi.KinhDo.ToString(CultureInfo.InvariantCulture);
             string poiId = poiVisual.Poi.Id.ToString();
             string cleanId = poiId.Replace("-", "");
             string pinText = $"P{poiVisual.Poi.MucUuTien}";
@@ -969,7 +968,7 @@ public partial class MainPage : ContentPage
             string jsTitle = title.Replace("\\", "\\\\").Replace("'", "\\'");
 
             markersJs.Append($@"
-                L.circle([{circleLat},{circleLng}], {{
+                L.circle([{lat},{lng}], {{
                     pane:'poiCircles',
                     radius: {poiVisual.Poi.BanKinh}, color:'#FF6600',
                     fillColor:'#FF6600', fillOpacity:0.10, weight:2
@@ -1119,15 +1118,16 @@ public partial class MainPage : ContentPage
 
             var centerLat = cluster.Average(p => p.ViDo);
             var centerLng = cluster.Average(p => p.KinhDo);
+            var spreadRadiusMeters = CalculateClusterSpreadRadiusMeters(cluster);
             for (var index = 0; index < cluster.Count; index++)
             {
                 var poi = cluster[index];
                 var angle = (2 * Math.PI * index) / cluster.Count;
-                var latOffset = (MapMarkerSpreadRadiusMeters / 111_320d) * Math.Cos(angle);
+                var latOffset = (spreadRadiusMeters / 111_320d) * Math.Cos(angle);
                 var lngDivisor = 111_320d * Math.Cos(centerLat * Math.PI / 180d);
                 var lngOffset = lngDivisor == 0d
                     ? 0d
-                    : (MapMarkerSpreadRadiusMeters / lngDivisor) * Math.Sin(angle);
+                    : (spreadRadiusMeters / lngDivisor) * Math.Sin(angle);
 
                 yield return new PoiVisualPosition(
                     poi,
@@ -1135,6 +1135,23 @@ public partial class MainPage : ContentPage
                     centerLng + lngOffset);
             }
         }
+    }
+
+    private static double CalculateClusterSpreadRadiusMeters(IReadOnlyCollection<PoiDto> cluster)
+    {
+        if (cluster.Count <= 1)
+            return 0d;
+
+        var largestRadiusMeters = cluster.Max(poi => Math.Max(0, poi.BanKinh));
+        var minCenterSpacingMeters = (largestRadiusMeters * 2d) + MapCircleSpacingPaddingMeters;
+        var divisor = 2d * Math.Sin(Math.PI / cluster.Count);
+
+        if (divisor <= 0d)
+            return MapMarkerBaseSpreadRadiusMeters;
+
+        return Math.Max(
+            MapMarkerBaseSpreadRadiusMeters,
+            minCenterSpacingMeters / divisor);
     }
 
     private static double DistanceMeters(PoiDto first, PoiDto second)
