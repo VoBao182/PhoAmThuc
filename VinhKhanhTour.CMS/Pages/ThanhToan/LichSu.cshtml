@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = $"Lịch sử thanh toán — {Model.TenPOI}";
     Layout = "/Pages/Shared/_Layout.cshtml";
+    ViewData["AutoRefreshSeconds"] = 10;
 }
 
 <div class="container py-4" style="max-width: 800px">

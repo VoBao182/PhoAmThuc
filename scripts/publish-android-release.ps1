@@ -3,7 +3,7 @@ param(
 
     [string]$Configuration = "Release",
 
-    [string]$RuntimeIdentifier = "android-arm64",
+    [string]$RuntimeIdentifier = "",
 
     [string]$OutputDir = ""
 )
@@ -31,19 +31,60 @@ if ([string]::IsNullOrWhiteSpace($HostedApiBaseUrl)) {
 } else {
     Write-Host "HostedApiBaseUrl: $HostedApiBaseUrl"
 }
-Write-Host "RuntimeIdentifier: $RuntimeIdentifier"
+if ([string]::IsNullOrWhiteSpace($RuntimeIdentifier)) {
+    Write-Host "RuntimeIdentifier(s): project defaults"
+} else {
+    Write-Host "RuntimeIdentifier: $RuntimeIdentifier"
+}
 
-$publishArgs = @(
-    "publish"
+$commonAndroidArgs = @(
     $projectPath
     "-f"
     "net10.0-android"
     "-c"
     $Configuration
-    "-r"
-    $RuntimeIdentifier
-    "/p:AndroidPackageFormat=apk"
 )
+
+if (-not [string]::IsNullOrWhiteSpace($RuntimeIdentifier)) {
+    $commonAndroidArgs += @(
+        "-r"
+        $RuntimeIdentifier
+    )
+}
+
+$restoreArgs = @(
+    "restore"
+    $projectPath
+    "/p:TargetFramework=net10.0-android"
+    "/p:Configuration=$Configuration"
+    "/p:RestoreIgnoreFailedSources=true"
+)
+
+if (-not [string]::IsNullOrWhiteSpace($RuntimeIdentifier)) {
+    $restoreArgs += "/p:RuntimeIdentifier=$RuntimeIdentifier"
+}
+
+& dotnet @restoreArgs
+
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet restore failed with exit code $LASTEXITCODE"
+}
+
+$cleanArgs = @(
+    "clean"
+) + $commonAndroidArgs
+
+& dotnet @cleanArgs
+
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet clean failed with exit code $LASTEXITCODE"
+}
+
+$publishArgs = @(
+    "publish"
+    "--no-restore"
+    "/p:AndroidPackageFormat=apk"
+) + $commonAndroidArgs
 
 if (-not [string]::IsNullOrWhiteSpace($HostedApiBaseUrl)) {
     $publishArgs += "/p:HostedApiBaseUrl=$HostedApiBaseUrl"

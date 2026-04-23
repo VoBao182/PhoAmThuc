@@ -57,8 +57,9 @@
 		<RuntimeIdentifier>android-x64</RuntimeIdentifier>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-		<RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == '' and '$(RuntimeIdentifiers)' == '' and '$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<!-- Publish one release APK that includes both phone and emulator native runtimes. -->
+		<RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">

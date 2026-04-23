@@ -1,3 +1,10 @@
+@{
+    var autoRefreshSeconds = 0;
+    if (int.TryParse(ViewData["AutoRefreshSeconds"]?.ToString(), out var parsedAutoRefreshSeconds) && parsedAutoRefreshSeconds > 0)
+    {
+        autoRefreshSeconds = parsedAutoRefreshSeconds;
+    }
+}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -447,7 +454,7 @@
         }
     </style>
 </head>
-<body>
+<body data-auto-refresh-seconds="@autoRefreshSeconds">
     <div class="cms-shell">
         <aside class="cms-sidebar">
             <div class="brand-block">
@@ -491,6 +498,47 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (() => {
+            const refreshSeconds = Number(document.body.dataset.autoRefreshSeconds || '0');
+            if (!Number.isFinite(refreshSeconds) || refreshSeconds <= 0) {
+                return;
+            }
+
+            const refreshIntervalMs = Math.max(3000, refreshSeconds * 1000);
+            let hasDirtyForm = false;
+
+            const markDirty = (event) => {
+                if (event.target instanceof HTMLElement && event.target.closest('form')) {
+                    hasDirtyForm = true;
+                }
+            };
+
+            document.addEventListener('input', markDirty, true);
+            document.addEventListener('change', markDirty, true);
+            document.addEventListener('submit', () => { hasDirtyForm = false; }, true);
+
+            const shouldPauseRefresh = () => {
+                if (document.hidden || hasDirtyForm) {
+                    return true;
+                }
+
+                if (document.querySelector('.modal.show')) {
+                    return true;
+                }
+
+                const activeElement = document.activeElement;
+                return activeElement instanceof HTMLElement
+                    && activeElement.matches('input, textarea, select, [contenteditable="true"]');
+            };
+
+            window.setInterval(() => {
+                if (!shouldPauseRefresh()) {
+                    window.location.reload();
+                }
+            }, refreshIntervalMs);
+        })();
+    </script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>

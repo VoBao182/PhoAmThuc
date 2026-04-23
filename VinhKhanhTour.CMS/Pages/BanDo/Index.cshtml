@@ -4,14 +4,8 @@
     ViewData["Title"] = "Khách hàng";
     ViewData["Page"] = "bando";
     Layout = "/Pages/Shared/_Layout.cshtml";
+    ViewData["AutoRefreshSeconds"] = 10;
 }
-<script>
-    window.setInterval(() => {
-        if (!document.hidden) {
-            window.location.reload();
-        }
-    }, 60000);
-</script>
 
 <style>
     .customer-shell { display: grid; gap: 24px; }
