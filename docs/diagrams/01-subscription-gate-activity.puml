@@ -1,18 +1,19 @@
 @startuml
-' Diagram: F01 - Kich hoat quyen su dung app (Activity)
+' Diagram: F01 - Kich hoat va khoi phuc quyen su dung app (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD 29947b2
+' Baseline: branch master, HEAD b618c08
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs: OnAppearing(), RouteAsync(), OnRetryClicked()
 ' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord()
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), KiemTraSubscription(), RestoreSubscriptionStateAsync()
-' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateTrialButtonState(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), ExitSubscriptionGateAsync()
-' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateRecoveryCard(), UpdateTrialButtonState(), OnCopyRecoveryCodeClicked(), OnPasteRecoveryCodeClicked(), OnEnterRecoveryCodeClicked(), OnScanRecoveryQrClicked(), RestoreFromRecoveryCodeAsync(), ActivateFreeTrialAsync(), ExitSubscriptionGateAsync()
+' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId(), BuildRecoveryPayload(), BuildQrCodeUrl(), TrySetDeviceIdOverride()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync(), PromptForApiBaseUrlAsync()
-' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: Purchase()
-' Note: Code hien tai khoi dong qua LaunchPage; khong con BuildMissingConfigurationPage/ShouldBlockPublishedAndroidApp trong App.xaml.cs.
-title F01 - Kich hoat quyen su dung app
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus(), Purchase()
+' Note: Da bo sung luong recovery code/QR trong SubscriptionPage va giu nguyen luong goi thu/goi tra phi theo code hien tai.
+title F01 - Kich hoat va khoi phuc quyen su dung app
 start
 :App.CreateWindow();
 :Tao NavigationPage(new LaunchPage());
@@ -35,23 +36,70 @@ endif
 if (targetPage la MainPage?) then (Co)
   :MainPage.OnAppearing();
   if (KiemTraSubscription() con han?) then (Co)
-    :Tiep tuc LoadPoisFromApi / GPS o F02-F03;
+    :Tiep tuc F02-F03;
   else (Khong)
     :RestoreSubscriptionStateAsync();
-    if (server restore thanh cong va con han?) then (Co)
-      :Tiep tuc LoadPoisFromApi / GPS o F02-F03;
+    if (Server tra ve goi con han?) then (Co)
+      :Tiep tuc F02-F03;
     else (Khong)
       :Navigation.PushModalAsync(new SubscriptionPage(hetHan));
     endif
   endif
 else (SubscriptionPage)
   :SubscriptionPage.OnAppearing();
+  :UpdateRecoveryCard();
   :UpdateTrialButtonState();
   :HideApiGuide();
 endif
 
+if (Nguoi dung sao chep recovery code?) then (Co)
+  :OnCopyRecoveryCodeClicked();
+  :DeviceIdentity.BuildRecoveryPayload();
+  :Clipboard.SetTextAsync(payload);
+endif
+
+if (Nguoi dung khoi phuc bang paste / nhap / QR?) then (Co)
+  if (Khoi phuc bang QR?) then (Co)
+    :OnScanRecoveryQrClicked();
+    :Request camera permission;
+    if (Duoc cap quyen?) then (Co)
+      :Navigation.PushModalAsync(new QrScannerPage(RestoreFromRecoveryCodeAsync));
+      :QrScannerPage.OnBarcodesDetected();
+      :RestoreFromRecoveryCodeAsync(rawCode);
+    else (Khong)
+      :Hien thong bao can quyen camera;
+    endif
+  else (Paste/Nhap)
+    :OnPasteRecoveryCodeClicked() hoac OnEnterRecoveryCodeClicked();
+    :RestoreFromRecoveryCodeAsync(rawCode);
+  endif
+
+  :DeviceIdentity.TrySetDeviceIdOverride(rawCode, out restoredDeviceId);
+  if (Ma hop le?) then (Co)
+    :UpdateRecoveryCard();
+    :SetLoading(true);
+    :RestoreSubscriptionStateAsync(restoredDeviceId);
+    :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();
+    :GET /api/subscription/status/{restoredDeviceId};
+    :Preferences.Set(da_dung_thu);
+    if (NgayHetHan co gia tri?) then (Co)
+      :Preferences.Set(sub_ngay_het_han);
+    endif
+    :UpdateTrialButtonState();
+    if (Co dang ky va chua het han?) then (Co)
+      :DisplayAlert da khoi phuc;
+      :ExitSubscriptionGateAsync();
+    else (Khong)
+      :LblRecoveryStatus = da chuyen ma nhung chua co goi active;
+    endif
+    :SetLoading(false);
+  else (Khong)
+    :LblRecoveryStatus = ma khoi phuc khong hop le;
+  endif
+endif
+
 if (Nguoi dung chon goi dung thu?) then (Co)
-  :SubscriptionPage.OnMuaGoiClicked("thu");
+  :OnMuaGoiClicked("thu");
   :DeviceIdentity.GetDeviceId();
   :ActivateFreeTrialAsync(deviceId);
   :ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync();

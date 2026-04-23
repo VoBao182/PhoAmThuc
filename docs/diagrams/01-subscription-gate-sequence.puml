@@ -1,19 +1,20 @@
 @startuml
-' Diagram: F01 - Kich hoat quyen su dung app (Sequence)
+' Diagram: F01 - Kich hoat va khoi phuc quyen su dung app (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 29947b2
+' Baseline: branch master, HEAD b618c08
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs: RouteAsync()
 ' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord()
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), RestoreSubscriptionStateAsync()
-' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked(), ActivateFreeTrialAsync(), UpdateTrialButtonState()
-' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
+' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateRecoveryCard(), OnCopyRecoveryCodeClicked(), OnPasteRecoveryCodeClicked(), OnEnterRecoveryCodeClicked(), OnScanRecoveryQrClicked(), RestoreFromRecoveryCodeAsync(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), UpdateTrialButtonState(), ExitSubscriptionGateAsync()
+' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId(), BuildRecoveryPayload(), BuildQrCodeUrl(), TrySetDeviceIdOverride()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus(), Purchase()
-' Note: Sequence da doi theo LaunchPage hien tai; khong ve luong BuildMissingConfigurationPage vi code khong con goi ham nay.
-title F01 - Kich hoat quyen su dung app
+' Note: Sequence da cap nhat them luong recovery code/QR cua SubscriptionPage va giu luong subscription gate hien tai.
+title F01 - Kich hoat va khoi phuc quyen su dung app
 
 actor Guest
 participant App
@@ -23,6 +24,8 @@ participant MainPage
 participant Preferences
 participant DeviceIdentity
 participant SubscriptionPage
+participant Clipboard
+participant QrScannerPage
 participant PaymentPage
 participant ApiConnectionPrompt
 participant AppConfig
@@ -45,6 +48,12 @@ else chua co / het han local
   SubscriptionState -> Preferences: ContainsKey(sub_ngay_het_han)
   SubscriptionState --> LaunchPage: hetHan
   LaunchPage -> SubscriptionPage: PushAsync(new SubscriptionPage(hetHan))
+  SubscriptionPage -> SubscriptionPage: OnAppearing()
+  SubscriptionPage -> DeviceIdentity: BuildRecoveryPayload()
+  DeviceIdentity --> SubscriptionPage: payload
+  SubscriptionPage -> DeviceIdentity: BuildQrCodeUrl()
+  DeviceIdentity --> SubscriptionPage: qrUrl
+  SubscriptionPage -> SubscriptionPage: UpdateRecoveryCard()\nUpdateTrialButtonState()
 end
 
 opt MainPage xuat hien nhung subscription local khong hop le
@@ -59,6 +68,74 @@ opt MainPage xuat hien nhung subscription local khong hop le
   MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han)
   alt van chua co goi hop le
     MainPage -> SubscriptionPage: PushModalAsync(new SubscriptionPage(hetHan))
+  end
+end
+
+alt nguoi dung copy recovery code
+  Guest -> SubscriptionPage: OnCopyRecoveryCodeClicked()
+  SubscriptionPage -> DeviceIdentity: BuildRecoveryPayload()
+  DeviceIdentity --> SubscriptionPage: payload
+  SubscriptionPage -> Clipboard: SetTextAsync(payload)
+else nguoi dung paste / nhap recovery code
+  Guest -> SubscriptionPage: OnPasteRecoveryCodeClicked() / OnEnterRecoveryCodeClicked()
+  SubscriptionPage -> SubscriptionPage: RestoreFromRecoveryCodeAsync(rawCode)
+  SubscriptionPage -> DeviceIdentity: TrySetDeviceIdOverride(rawCode)
+  alt ma hop le
+    DeviceIdentity --> SubscriptionPage: restoredDeviceId
+    SubscriptionPage -> SubscriptionPage: UpdateRecoveryCard()\nSetLoading(true)
+    SubscriptionPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
+    ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
+    AppConfig --> ApiConnectionPrompt: apiBaseUrl?
+    ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
+    SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
+    SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
+    DB --> SubscriptionController: status
+    SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan, DaDungThu
+    SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
+    SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
+    alt goi da duoc khoi phuc va con han
+      SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+    else chi doi ma thiet bi, chua co goi active
+      SubscriptionPage -> Guest: hien LblRecoveryStatus
+    end
+    SubscriptionPage -> SubscriptionPage: SetLoading(false)
+  else ma khong hop le
+    DeviceIdentity --> SubscriptionPage: false
+    SubscriptionPage -> Guest: hien LblRecoveryStatus
+  end
+else nguoi dung scan QR recovery
+  Guest -> SubscriptionPage: OnScanRecoveryQrClicked()
+  SubscriptionPage -> SubscriptionPage: RequestAsync<Permissions.Camera>()
+  alt duoc cap quyen camera
+    SubscriptionPage -> QrScannerPage: PushModalAsync(new QrScannerPage(RestoreFromRecoveryCodeAsync))
+    QrScannerPage -> QrScannerPage: OnBarcodesDetected()
+    QrScannerPage -> SubscriptionPage: RestoreFromRecoveryCodeAsync(rawCode)
+    SubscriptionPage -> DeviceIdentity: TrySetDeviceIdOverride(rawCode)
+    alt ma hop le
+      DeviceIdentity --> SubscriptionPage: restoredDeviceId
+      SubscriptionPage -> SubscriptionPage: UpdateRecoveryCard()\nSetLoading(true)
+      SubscriptionPage -> ApiConnectionPrompt: EnsureConnectedApiBaseUrlAsync(this, http)
+      ApiConnectionPrompt -> AppConfig: EnsureApiBaseUrlAsync()
+      AppConfig --> ApiConnectionPrompt: apiBaseUrl?
+      ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
+      SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
+      SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
+      DB --> SubscriptionController: status
+      SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan, DaDungThu
+      SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
+      SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
+      alt goi da duoc khoi phuc va con han
+        SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+      else chi doi ma thiet bi, chua co goi active
+        SubscriptionPage -> Guest: hien LblRecoveryStatus
+      end
+      SubscriptionPage -> SubscriptionPage: SetLoading(false)
+    else ma khong hop le
+      DeviceIdentity --> SubscriptionPage: false
+      SubscriptionPage -> Guest: hien LblRecoveryStatus
+    end
+  else bi tu choi quyen camera
+    SubscriptionPage -> Guest: hien thong bao can quyen camera
   end
 end
 

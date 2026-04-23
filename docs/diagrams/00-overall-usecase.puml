@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F00 - Use case tong the he thong
 ' Status: WIP
-' Baseline: branch master, HEAD 29947b2
+' Baseline: branch master, HEAD b618c08
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs
@@ -10,6 +10,7 @@
 ' - VinhKhanhTourDemo/MainPage.xaml.cs
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs
+' - VinhKhanhTourDemo/QrScannerPage.xaml.cs
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs
@@ -25,7 +26,7 @@
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs
-' Note: Da cap nhat theo HEAD 29947b2: LaunchPage, DeviceIdentity, restore profile/XP, payment polling, BanDo filter/sort/XP, va dashboard monitoring.
+' Note: Da cap nhat theo HEAD b618c08, bo sung recovery code/QR cho subscription gate va khoi phuc ma thiet bi trong MainPage, dong thoi giu cac luong monitoring CMS hien tai.
 left to right direction
 skinparam packageStyle rectangle
 
@@ -36,8 +37,8 @@ actor "Google Maps / Browser" as Maps
 actor "VietQR / Ngan hang" as Bank
 
 rectangle "VinhKhanhTour" {
-  usecase "F01\nKhoi dong va kich hoat\nquyen su dung app" as UC01
-  usecase "F02\nKham pha POI,\ndong bo lich su/XP" as UC02
+  usecase "F01\nKhoi dong, kich hoat va\nkhoi phuc quyen su dung app" as UC01
+  usecase "F02\nKham pha POI,\ndong bo lich su/XP va\nkhoi phuc ma thiet bi" as UC02
   usecase "F03\nTheo doi GPS,\ngeofence, auto audio" as UC03
   usecase "F04\nXem chi tiet POI,\nthuc don, audio, maps" as UC04
   usecase "F05\nThanh toan goi\ntra phi va cho duyet" as UC05

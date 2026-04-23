@@ -1,27 +1,36 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD 29947b2
+' Baseline: branch master, HEAD b618c08
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestorePoiHistoryAsync(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync()
-' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
+' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
+' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId(), BuildRecoveryPayload(), BuildQrCodeUrl(), TrySetDeviceIdOverride()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
-' Note: Da cap nhat theo luong restore profile/XP va refresh 20 giay trong MainPage hien tai.
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus()
+' Note: Da cap nhat them luong khoi phuc ma thiet bi trong MainPage va giu luong explore/refresh 20 giay.
 title F02 - Tai va kham pha danh sach POI
 
 actor Guest
 participant MainPage
 participant DeviceIdentity
+participant Clipboard
+participant QrScannerPage
 participant AppConfig
 participant "PoiController" as PoiController
 participant "HeartbeatController" as HeartbeatController
+participant "SubscriptionController" as SubscriptionController
 participant Preferences
 participant DetailPage
 database DB
 
 Guest -> MainPage: mo man Explore
 MainPage -> MainPage: OnAppearing()\nApplyLocalizedUiText()\nUpdateCaiDatUI()
+MainPage -> DeviceIdentity: BuildRecoveryPayload()
+DeviceIdentity --> MainPage: payload
+MainPage -> DeviceIdentity: BuildQrCodeUrl()
+DeviceIdentity --> MainPage: qrUrl
 MainPage -> AppConfig: EnsureApiBaseUrlAsync()
 MainPage -> PoiController: GET /api/poi
 PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri > now
@@ -62,6 +71,82 @@ HeartbeatController -> DB: bo sung lich su local neu can
 DB --> HeartbeatController: synced
 MainPage -> MainPage: UpdateCaiDatUI()
 MainPage -> DetailPage: PushAsync(new DetailPage(poi))
+
+alt nguoi dung copy ma thiet bi trong Cai dat
+  Guest -> MainPage: OnCopyDeviceCodeClicked()
+  MainPage -> DeviceIdentity: BuildRecoveryPayload()
+  DeviceIdentity --> MainPage: payload
+  MainPage -> Clipboard: SetTextAsync(payload)
+else nguoi dung paste / nhap ma thiet bi
+  Guest -> MainPage: OnPasteDeviceCodeClicked() / OnRestoreDeviceCodeClicked()
+  MainPage -> MainPage: RestoreDeviceCodeAsync(code)
+  MainPage -> DeviceIdentity: TrySetDeviceIdOverride(code)
+  alt ma hop le
+    DeviceIdentity --> MainPage: true
+    MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+    MainPage -> DeviceIdentity: GetDeviceId()
+    MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
+    SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
+    DB --> SubscriptionController: status
+    SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+    MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
+    MainPage -> DeviceIdentity: GetDeviceId()
+    MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
+    HeartbeatController -> DB: doc VIEW/GPS + XP/level
+    DB --> HeartbeatController: profile
+    HeartbeatController --> MainPage: UserExperienceProfileResponse
+    MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
+    HeartbeatController -> DB: bo sung lich su local neu can
+    DB --> HeartbeatController: synced
+    MainPage -> MainPage: UpdateCaiDatUI()
+    MainPage -> DeviceIdentity: BuildRecoveryPayload()
+    DeviceIdentity --> MainPage: payload moi
+    MainPage -> DeviceIdentity: BuildQrCodeUrl()
+    DeviceIdentity --> MainPage: qrUrl moi
+    MainPage -> Guest: DisplayAlert("Da khoi phuc")
+  else ma khong hop le
+    DeviceIdentity --> MainPage: false
+    MainPage -> Guest: DisplayAlert("Ma khong hop le")
+  end
+else nguoi dung scan QR trong Cai dat
+  Guest -> MainPage: OnScanDeviceQrClicked()
+  MainPage -> MainPage: RequestAsync<Permissions.Camera>()
+  alt duoc cap quyen camera
+    MainPage -> QrScannerPage: PushModalAsync(new QrScannerPage(RestoreDeviceCodeAsync))
+    QrScannerPage -> QrScannerPage: OnBarcodesDetected()
+    QrScannerPage -> MainPage: RestoreDeviceCodeAsync(code)
+    MainPage -> DeviceIdentity: TrySetDeviceIdOverride(code)
+    alt ma hop le
+      DeviceIdentity --> MainPage: true
+      MainPage -> AppConfig: EnsureApiBaseUrlAsync()
+      MainPage -> DeviceIdentity: GetDeviceId()
+      MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
+      SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
+      DB --> SubscriptionController: status
+      SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+      MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
+      MainPage -> DeviceIdentity: GetDeviceId()
+      MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
+      HeartbeatController -> DB: doc VIEW/GPS + XP/level
+      DB --> HeartbeatController: profile
+      HeartbeatController --> MainPage: UserExperienceProfileResponse
+      MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
+      HeartbeatController -> DB: bo sung lich su local neu can
+      DB --> HeartbeatController: synced
+      MainPage -> MainPage: UpdateCaiDatUI()
+      MainPage -> DeviceIdentity: BuildRecoveryPayload()
+      DeviceIdentity --> MainPage: payload moi
+      MainPage -> DeviceIdentity: BuildQrCodeUrl()
+      DeviceIdentity --> MainPage: qrUrl moi
+      MainPage -> Guest: DisplayAlert("Da khoi phuc")
+    else ma khong hop le
+      DeviceIdentity --> MainPage: false
+      MainPage -> Guest: DisplayAlert("Ma khong hop le")
+    end
+  else bi tu choi quyen camera
+    MainPage -> Guest: hien thong bao can quyen camera
+  end
+end
 
 opt refresh nen 20 giay
   MainPage -> AppConfig: EnsureApiBaseUrlAsync()
