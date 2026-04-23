@@ -260,6 +260,9 @@
     <form method="get" class="range-toolbar" id="rangeForm">
         <div class="range-current">
             <span class="muted">Khung đang xem:</span> @Model.RangeLabel
+            <div style="font-weight:500;color:#6b7280;font-size:0.82rem;margin-top:4px">
+                Các nút nhanh phía trên chỉ thay đổi khung xem, không làm mất lựa chọn bên dưới.
+            </div>
         </div>
         <div class="range-custom-row" id="rangeCustomRow" data-mode="@(IsAbsolute(Model.Mode) ? Model.Mode : "day")">
             <div class="range-field">
@@ -490,6 +493,9 @@
     const revenue  = @Html.Raw(Model.RevenueJson);
     const geo      = @Html.Raw(Model.GeoJson);
     const granularity = '@Model.Granularity';
+    const currentMode = '@Model.Mode';
+    const PICKER_STORAGE_KEY = 'vktAnalyticsPicker_v1';
+    const ROLLING_MODES = ['today', 'last7', 'last30', 'last12m'];
 
     function bucketLabel(iso, g) {
         const d = new Date(iso);
@@ -503,14 +509,66 @@
     const modeSelect = document.getElementById('modeSelect');
     const customRow = document.getElementById('rangeCustomRow');
     const rangeForm = document.getElementById('rangeForm');
+    const dateInput = document.getElementById('dateInput');
+    const weekInput = document.getElementById('weekInput');
+    const monthInput = document.getElementById('monthInput');
+    const yearInput = document.getElementById('yearInput');
+    const fromInput = document.getElementById('fromInput');
+    const toInput = document.getElementById('toInput');
+
     function syncModeUi() {
         if (!customRow || !modeSelect) return;
         customRow.dataset.mode = modeSelect.value;
     }
+
+    function snapshotPicker() {
+        return {
+            mode: modeSelect ? modeSelect.value : 'day',
+            date: dateInput ? dateInput.value : '',
+            week: weekInput ? weekInput.value : '',
+            month: monthInput ? monthInput.value : '',
+            year: yearInput ? yearInput.value : '',
+            from: fromInput ? fromInput.value : '',
+            to: toInput ? toInput.value : ''
+        };
+    }
+
+    function applyPickerSnapshot(saved) {
+        if (!saved) return;
+        if (saved.mode && modeSelect) modeSelect.value = saved.mode;
+        if (saved.date && dateInput) dateInput.value = saved.date;
+        if (saved.week && weekInput) weekInput.value = saved.week;
+        if (saved.month && monthInput) monthInput.value = saved.month;
+        if (saved.year && yearInput) yearInput.value = saved.year;
+        if (saved.from && fromInput) fromInput.value = saved.from;
+        if (saved.to && toInput) toInput.value = saved.to;
+        syncModeUi();
+    }
+
+    // When the active view is a rolling preset (today / 7 days / 30 days / 12 months),
+    // the quick buttons did NOT reset what the admin had selected in the picker. Restore
+    // that from storage so the picker keeps its independent state.
+    if (ROLLING_MODES.includes(currentMode)) {
+        try {
+            const saved = JSON.parse(localStorage.getItem(PICKER_STORAGE_KEY) || 'null');
+            if (saved) applyPickerSnapshot(saved);
+        } catch { /* ignore corrupt storage */ }
+    } else {
+        // Admin just applied the picker: persist those values so they survive future quick-view clicks.
+        try {
+            localStorage.setItem(PICKER_STORAGE_KEY, JSON.stringify(snapshotPicker()));
+        } catch { /* storage unavailable */ }
+    }
+
     if (modeSelect) { modeSelect.addEventListener('change', syncModeUi); syncModeUi(); }
 
     if (rangeForm) {
         rangeForm.addEventListener('submit', function () {
+            // Save the snapshot BEFORE we disable fields so the stored state has real values.
+            try {
+                localStorage.setItem(PICKER_STORAGE_KEY, JSON.stringify(snapshotPicker()));
+            } catch { /* storage unavailable */ }
+
             const keep = {
                 day:    ['mode', 'date'],
                 week:   ['mode', 'week'],
