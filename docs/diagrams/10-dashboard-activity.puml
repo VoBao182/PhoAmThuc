@@ -1,21 +1,50 @@
 @startuml
-' Diagram: F10 - Dashboard tong quan CMS (Activity)
-' Status: VERIFIED
-' Baseline: branch master, HEAD 0b9ca4b + working tree 2026-04-22
+' Diagram: F10 - Dashboard tong quan va monitoring CMS (Activity)
+' Status: WIP
+' Baseline: branch master, HEAD 29947b2
 ' Source:
-' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync()
-' Note: Luong don gian va da doi chieu truc tiep voi code IndexModel hien tai; chi can sync lai neu thay doi metric hoac truy van dashboard.
-title F10 - Dashboard tong quan CMS
+' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
+' - VinhKhanhTour.CMS/Pages/Index.cshtml
+' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi()
+' Note: Da sync theo dashboard hien tai co monitoring/analytics, retry ClearNpgsqlPoolsQuietly, va cac truy van raw Npgsql.
+title F10 - Dashboard tong quan va monitoring CMS
 start
-:Index.OnGetAsync();
-:_db.POIs.Include(MonAns).OrderBy(MucUuTien).ToListAsync();
-if (Truy van DB thanh cong?) then (Co)
-  :Tinh TongPOI = so POI dang hien thi;
-  :Tinh TongMonAn = so mon dang hoat dong;
-  :Tinh SoQuanQuaHan = POI dang hien thi nhung het han duy tri;
-  :Render dashboard CMS;
+:Index.OnGetAsync(mode,date,week,month,year,from,to);
+:ResolveRange();
+:Gan SinceUtc, UntilUtc, Granularity, RangeLabel;
+
+:LoadPoiSectionAsync();
+if (Load POI thanh cong?) then (Co)
+  :_db.POIs.AsNoTracking()\n.Include(MonAns).OrderBy(MucUuTien);
+  :Tinh TongPOI, TongMonAn, SoQuanQuaHan;
+  :Index.cshtml dung ImageUrlHelper.ResolvePoi de hien anh;
 else (Khong)
-  :Gan ErrorMessage;\nTongPOI = 0;\nTongMonAn = 0;\nSoQuanQuaHan = 0;
+  :Neu IsDisposedWaitHandle va attempt dau -> ClearNpgsqlPoolsQuietly();
+  :Gan ErrorMessage va reset POI stats;
 endif
+
+:LoadAnalyticsWithRetryAsync();
+if (Analytics thanh cong?) then (Co)
+  :LoadAnalyticsAsync();
+  :Mo DbConnection neu chua open;
+  :LoadActivityAsync();
+  :Raw SQL lichsuphat theo bucket -> ActivityBuckets;
+  :LoadGeoAsync();
+  :Raw SQL lichsuphat join poi -> GeoPoints;
+  :LoadTopPoiAsync();
+  :Raw SQL top POI theo views/visits;
+  :LoadRevenueAsync();
+  :Raw SQL dangkyapp + hoadon -> RevenueBuckets;
+  :LoadSummaryAsync();
+  :Tinh TotalActiveDevices, TotalViews, TotalVisits, TotalRevenue;
+  :FillMissingBuckets();
+else (Khong)
+  :Neu IsDisposedWaitHandle va attempt dau -> ClearNpgsqlPoolsQuietly();
+  :ResetAnalytics();
+  :Gan AnalyticsError;
+endif
+
+:Serialize ActivityJson, GeoJson, RevenueJson;
+:Render dashboard + monitoring section trong Index.cshtml;
 stop
 @enduml
