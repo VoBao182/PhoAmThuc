@@ -102,8 +102,8 @@ public class EditModel : PageModel
         // ── 3. Món ăn ──
         // Ẩn món không còn trong form
         var formIds = MonAns
-            .Where(m => m.Id != Guid.Empty)
-            .Select(m => m.Id)
+            .Where(m => m.Id.HasValue && m.Id.Value != Guid.Empty)
+            .Select(m => m.Id!.Value)
             .ToHashSet();
 
         foreach (var existing in poi.MonAns)
@@ -116,7 +116,7 @@ public class EditModel : PageModel
         {
             if (string.IsNullOrWhiteSpace(input.TenMonAn)) continue;
 
-            if (input.Id == Guid.Empty)
+            if (!input.Id.HasValue || input.Id.Value == Guid.Empty)
             {
                 // Thêm mới
                 poi.MonAns.Add(new MonAn
@@ -134,7 +134,7 @@ public class EditModel : PageModel
             else
             {
                 // Cập nhật
-                var mon = poi.MonAns.FirstOrDefault(m => m.Id == input.Id);
+                var mon = poi.MonAns.FirstOrDefault(m => m.Id == input.Id!.Value);
                 if (mon == null) continue;
                 mon.TenMonAn  = input.TenMonAn;
                 mon.MoTa      = input.MoTa;
@@ -182,7 +182,7 @@ public class EditModel : PageModel
 // DTO nhận từ form (tránh conflict với Model MonAn)
 public class MonAnInput
 {
-    public Guid   Id        { get; set; }
+    public Guid?  Id        { get; set; }
     public string TenMonAn  { get; set; } = "";
     public string? MoTa     { get; set; }
     public string? HinhAnh  { get; set; }
