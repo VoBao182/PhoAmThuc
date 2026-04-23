@@ -1,13 +1,13 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), UseFallback(), ConfigureAudioPlayer(), RenderMenu(), OnNgheClicked(), OnMapClicked()
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource(), TryCreateImageSource()
 ' - VinhKhanhTourDemo/AppConfig.cs: ResolveImageUrl()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
-' Note: Da bo sung dung logic fallback anh hien tai qua FoodImageCatalog; van giu WIP vi DetailPage/audio bridge dang duoc kiem tra.
+' Note: Da bo sung dung logic fallback anh hien tai qua FoodImageCatalog; luong activity khop voi DetailPage hien tai.
 title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
 start
 :Tao DetailPage(poiBasic);

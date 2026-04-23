@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnDaChuyenKhoanClicked()
@@ -9,7 +9,7 @@
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Sequence da bo Preferences.GetDeviceId() vi code hien dung DeviceIdentity.GetDeviceId().
+' Note: Sequence da khop voi DeviceIdentity.GetDeviceId(), polling 10 giay, va ClosePaymentFlowAsync hien tai.
 title F05 - Thanh toan goi tra phi va cho duyet
 
 actor Guest

@@ -1,43 +1,42 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), ApplySearchFilter(), ApplyStatusFilter(), ApplyExpiryFilter(), ApplySort(), GetStatusText(), GetSubscriptionText()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort(), DescribeRemaining(), SubscriptionBadgeClass(), ActivityBadgeClass(), ActivityBadgeText()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
 ' - VinhKhanhTour.API/Models/VitriKhach.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs
-' Note: Da sync theo BanDo hien tai: render server-side, raw Npgsql read co timeout/retry, filter/sort, tinh XP/level.
+' Note: Da sync theo BanDo hien tai: render server-side, raw Npgsql read co timeout/retry, filter/sort, tinh XP/level, va helper badge/remaining moi.
 title F09 - Theo doi khach hang va trang thai su dung
 start
-:BanDo/Index.OnGetAsync(search,status,expiry,sort,dir);
-:NormalizeOption cho status/expiry/sort/dir;
+:BanDo/Index.OnGetAsync(search,filter,sort,dir);
+:NormalizeOption cho filter/sort va chot sortDir;
 :now = DateTime.UtcNow;
 :onlineCutoff = now - 2 phut;
+:expiringSoonCutoff = now + 7 ngay;
 :LoadSubscriptionsAsync();
 :ExecuteRawReadAsync("goi dang ky");
-:Raw SQL max(ngayhethan) group by mathietbi;
+:Raw SQL max(ngayhethan), count goi paid,\ntong spent group by mathietbi;
 :LoadLocationsAsync();
 :ExecuteRawReadAsync("vi tri khach hang");
 :Raw SQL tu vitrikhach;
 :LoadPoiActivityCountsAsync(VisitedSourceValues);
 :Dem DISTINCT poiid cho Nguon GPS/APP-GEOFENCE/APP_GEOFENCE/GEOFENCE;
 :LoadPoiActivityCountsAsync(ViewedSourceValues);
-:Dem DISTINCT poiid cho Nguon VIEW/GPS/APP-GEOFENCE/APP_GEOFENCE/GEOFENCE;
-:Hop nhat deviceIds tu subscription, location, viewed, visited;
-:Tinh hasSubscription, remainingDays,\nviewedCount, visitedCount;
+:Dem DISTINCT poiid cho Nguon VIEW;
+:BuildCustomerRows() tu subscription,\nlocation, viewed, visited;
+:Hop nhat deviceIds va tinh ExpiresAt,\nremainingDays, remainingHours;
+:Tinh viewedCount, visitedCount,\npaidPackagesCount, totalSpent;
 :Tinh ExperiencePoints = viewed*50 + visited*100;
 :Tinh Level va ExperienceProgressPercent;
-:Tinh trang thai online / o quan / het han / chua ghi nhan;
-:GetStatusText(...);
-:GetSubscriptionText(...);
-:ApplySearchFilter();
-:ApplyStatusFilter();
-:ApplyExpiryFilter();
+:Tinh trang thai online / o quan /\ncon han / sap het han / chua heartbeat;
+:Tinh TotalCustomers, OnlineCustomers,\nActiveSubscriptionCustomers, ExpiringSoonCustomers;
+:ApplySearch();
+:ApplyFilter();
 :ApplySort();
-:Tinh TotalCustomers, DisplayedCustomers,\nTotalRecordedDevices, ActiveCustomers,\nCustomersAtPoi, ExpiredCustomers,\nTotalExperiencePoints, HighestCustomerLevel;
-:Render bang thong ke trong Index.cshtml;
+:Render bang + badge text/class trong Index.cshtml;
 
 stop
 @enduml

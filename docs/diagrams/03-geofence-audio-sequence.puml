@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
@@ -54,7 +54,7 @@ loop moi 5 giay
 
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat/visit
-    HeartbeatController -> DB: dedup 10 phut + insert LichSuPhat(Nguon="GPS")
+    HeartbeatController -> DB: dedup 10 phut + insert LichSuPhat(Nguon="app-geofence")
     DB --> HeartbeatController: saved
 
     MainPage -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode

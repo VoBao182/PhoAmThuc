@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshPoisInBackgroundAsync(), RefreshMapIfNeeded(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
@@ -10,6 +10,7 @@
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus()
 ' Note: Da bo sung luong khoi phuc ma thiet bi trong tab Cai dat cua MainPage va giu luong explore/refresh 20 giay theo code hien tai.
+' Note: Luong ghi nhan "visit" khi geofence trigger (RecordPoiVisitAsync -> POST /api/heartbeat/visit) duoc mo hinh o F03 (Geofence/Audio) de tach concern.
 title F02 - Tai va kham pha danh sach POI
 start
 :MainPage.OnAppearing();

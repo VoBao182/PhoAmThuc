@@ -1,14 +1,14 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: OnAppearing(), StartPollingAsync(), PollStatusAsync(), ShowSuccess(), ShowRejected(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Da sync theo code hien tai: PaymentPage dung DeviceIdentity.GetDeviceId(), PaymentStatusPage dong flow bang ClosePaymentFlowAsync thay vi GoToAsync.
+' Note: Luong thanh toan goi tra phi, polling 10 giay, va dong modal stack da khop voi PaymentPage/PaymentStatusPage hien tai.
 title F05 - Thanh toan goi tra phi va cho duyet
 start
 :SubscriptionPage.OnMuaGoiClicked(loaiGoi != "thu");

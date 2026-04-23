@@ -1,12 +1,12 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Sequence)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/LichSu.cshtml.cs: OnGetAsync()
-' Note: Sequence nay mo ta dung luong Razor PageModel hien tai, khong mo ta API PaymentController du phong de tranh suy dien vuot qua code dang chay.
+' Note: Sequence mo ta dung luong Razor PageModel hien tai, khong suy dien them PaymentController du phong.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 
 actor Admin

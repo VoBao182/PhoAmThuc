@@ -1,12 +1,12 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Sequence)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), ApplySearchFilter(), ApplyStatusFilter(), ApplyExpiryFilter(), ApplySort()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Data/AppDbContext.cs
-' Note: Sequence cap nhat theo raw Npgsql query hien tai va cac summary XP/level; khong con JS fetch HeartbeatController.
+' Note: Sequence cap nhat theo raw Npgsql query hien tai, summary online/subscription/XP, va khong con JS fetch HeartbeatController.
 title F09 - Theo doi khach hang va trang thai su dung
 
 actor Admin
@@ -15,8 +15,8 @@ participant AppDbContext
 participant "NpgsqlConnection" as Npgsql
 database DB
 
-Admin -> IndexModel: mo /BanDo?search&status&expiry&sort&dir
-IndexModel -> IndexModel: NormalizeOption()\nnow, onlineCutoff
+Admin -> IndexModel: mo /BanDo?search&filter&sort&dir
+IndexModel -> IndexModel: NormalizeOption(filter/sort)\nSortDir\nnow, onlineCutoff, expiringSoonCutoff
 
 IndexModel -> AppDbContext: Database.GetConnectionString()
 IndexModel -> Npgsql: ExecuteRawReadAsync("goi dang ky")
@@ -35,12 +35,13 @@ DB --> Npgsql: visitedCounts
 Npgsql --> IndexModel: DevicePoiCount[]
 
 IndexModel -> Npgsql: LoadPoiActivityCountsAsync(ViewedSourceValues)
-Npgsql -> DB: count DISTINCT poiid theo mathietbi\nWHERE nguon = ANY(viewedSources)
+Npgsql -> DB: count DISTINCT poiid theo mathietbi\nWHERE nguon = ANY(['VIEW'])
 DB --> Npgsql: viewedCounts
 Npgsql --> IndexModel: DevicePoiCount[]
 
-IndexModel -> IndexModel: hop nhat deviceIds\nTinh status/subscription/XP/level
-IndexModel -> IndexModel: ApplySearchFilter()\nApplyStatusFilter()\nApplyExpiryFilter()\nApplySort()
-IndexModel -> IndexModel: tinh summary tiles
+IndexModel -> IndexModel: BuildCustomerRows()\nTinh expiresAt/currentPoi/isOnline\nTinh viewed/visited/XP/level
+IndexModel -> IndexModel: tinh TotalCustomers/OnlineCustomers\nActiveSubscriptionCustomers/ExpiringSoonCustomers
+IndexModel -> IndexModel: ApplySearch()\nApplyFilter()\nApplySort()
+IndexModel -> IndexModel: tinh DisplayedCustomers
 IndexModel --> Admin: render bang khach hang + summary tiles
 @enduml

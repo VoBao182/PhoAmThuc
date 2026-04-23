@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Sequence)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), ConfigureAudioPlayer(), OnNgheClicked(), OnAudioWebViewNavigated(), OnAudioWebViewNavigating(), OnMapClicked()
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource()
@@ -24,14 +24,23 @@ Guest -> DetailPage: mo DetailPage(poi)
 DetailPage -> DetailPage: InitializeAudioBridge()\nApplyLocalizedLabels()
 DetailPage -> AppConfig: EnsureApiBaseUrlAsync()
 DetailPage -> PoiController: GET /api/poi/{id}?lang=_lang
-PoiController -> DB: Include MonAns + ThuyetMinhs + BanDichs
-DB --> PoiController: poi detail
-PoiController --> DetailPage: PoiDetailDto
-DetailPage -> FoodImageCatalog: GetPoiImageSource(AnhDaiDien, TenPOI)
-FoodImageCatalog -> AppConfig: ResolveImageUrl(raw/fallback)
-FoodImageCatalog --> DetailPage: ImageSource
-DetailPage -> DetailPage: ConfigureAudioPlayer()\nRenderMenu(monAns)
-DetailPage -> FoodImageCatalog: GetDishImageSource(HinhAnh, TenMonAn, PhanLoai)
+
+alt API tra ve PoiDetailDto thanh cong
+  PoiController -> DB: Include MonAns + ThuyetMinhs + BanDichs
+  DB --> PoiController: poi detail
+  PoiController --> DetailPage: PoiDetailDto
+  DetailPage -> FoodImageCatalog: GetPoiImageSource(AnhDaiDien, TenPOI)
+  FoodImageCatalog -> AppConfig: ResolveImageUrl(raw/fallback)
+  FoodImageCatalog --> DetailPage: ImageSource
+  DetailPage -> DetailPage: ConfigureAudioPlayer()\nRenderMenu(monAns)
+  DetailPage -> FoodImageCatalog: GetDishImageSource(HinhAnh, TenMonAn, PhanLoai)
+else API null hoac ngoai le
+  PoiController --> DetailPage: null / exception
+  DetailPage -> DetailPage: UseFallback(tenPoi)
+  DetailPage -> FoodImageCatalog: GetPoiImageSource(_poiBasic.AnhDaiDien, tenPoi)
+  FoodImageCatalog --> DetailPage: ImageSource fallback
+  DetailPage -> DetailPage: an AudioControls, an SectionMenu, set LblThuyetMinh = FallbackIntro
+end
 
 alt co FileAudio
   Guest -> DetailPage: OnNgheClicked()

@@ -1,12 +1,12 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan va monitoring CMS (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi()
-' Note: Da sync theo dashboard hien tai co monitoring/analytics, retry ClearNpgsqlPoolsQuietly, va cac truy van raw Npgsql.
+' Note: Dashboard monitoring/analytics, range resolver, retry ClearNpgsqlPoolsQuietly, va raw Npgsql queries da khop code hien tai.
 title F10 - Dashboard tong quan va monitoring CMS
 start
 :Index.OnGetAsync(mode,date,week,month,year,from,to);

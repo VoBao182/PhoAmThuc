@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
@@ -9,7 +9,7 @@
 ' - VinhKhanhTour.API/Models/POI.cs
 ' - VinhKhanhTour.API/Models/DangKyDichVu.cs
 ' - VinhKhanhTour.API/Models/HoaDon.cs
-' Note: Luong chinh van khop code hien tai; cap nhat them viec Index doc DangKyDichVus active de lay PhiDuyTriThang.
+' Note: Luong ghi nhan/gia han phi duy tri va truy van lich su hoa don da khop voi Razor PageModel hien tai.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 start
 :ThanhToan/Index.OnGetAsync();

@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), ApplyStatusFilter(), ApplyExpiryFilter(), ApplySort(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
@@ -11,7 +11,7 @@
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
 ' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
-' Note: Da them filter/sort/search va fallback anh CMS, dong thoi bo sung logic MonAns moi trong Create/Edit: bo qua row rong, mac dinh DonGia=0, va giu input dang nhap khi validation loi tren Edit.
+' Note: Luong CMS POI hien tai da khop code: filter/sort/search, upload anh, va xu ly MonAns trong Create/Edit.
 title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
 start
 :Admin mo /Poi hoac /Poi/Create hoac /Poi/Edit/{id};

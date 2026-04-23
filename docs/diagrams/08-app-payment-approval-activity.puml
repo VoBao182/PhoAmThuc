@@ -1,13 +1,13 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Activity)
-' Status: WIP
-' Baseline: branch master, HEAD adb1a28
+' Status: VERIFIED
+' Baseline: branch master, HEAD b946abe
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: snapshotUrl, polling JS
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
-' Note: Da bo sung PendingSnapshot va retry clear Npgsql pools theo code CMS hien tai.
+' Note: Luong duyet/tu choi, PendingSnapshot polling, va retry clear Npgsql pools da khop code CMS hien tai.
 title F08 - Duyet hoac tu choi thanh toan goi app
 start
 :DuyetThanhToan/Index.OnGetAsync(tab,...);
