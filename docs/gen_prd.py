@@ -1,700 +1,555 @@
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+
 from docx import Document
-from docx.shared import Pt, RGBColor, Cm, Inches
+from docx.enum.section import WD_SECTION
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import copy, os
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt, RGBColor
 
-PNG_DIR = os.path.join(os.path.dirname(__file__), "diagrams", "png")
 
-doc = Document()
+BASE_DIR = Path(__file__).resolve().parent
+DIAGRAM_PNG_DIR = BASE_DIR / "diagrams" / "png"
+OUT_DOCX = BASE_DIR / "PRD_VinhKhanhTour.docx"
 
-# ── Page margins ──────────────────────────────────────────────────────────────
-for section in doc.sections:
-    section.top_margin    = Cm(2.5)
-    section.bottom_margin = Cm(2.5)
-    section.left_margin   = Cm(3.0)
-    section.right_margin  = Cm(2.0)
 
-# ── Style helpers ─────────────────────────────────────────────────────────────
-def set_font(run, name="Times New Roman", size=13, bold=False, italic=False, color=None):
-    run.font.name = name
+USE_CASE_SUMMARY = {
+    "title": "Use case tổng thể hệ thống",
+    "image": "00-overall-usecase.png",
+    "description": (
+        "Sơ đồ use case tổng thể mô tả toàn bộ phạm vi chức năng đang có trong đồ án. "
+        "Các chức năng chính đã phủ hết các màn hình MAUI, các controller API đang được gọi thật, "
+        "và các Razor PageModel trong CMS."
+    ),
+    "coverage_note": (
+        "Sau khi đối chiếu lại code hiện tại, chưa phát hiện thêm chức năng nghiệp vụ độc lập nào "
+        "cần tách thành một use case mới ngoài F01 đến F10. Các luồng như khôi phục gói bằng mã QR, "
+        "khôi phục mã thiết bị, polling, upload ảnh, geofence và analytics đều đã được mô hình hóa "
+        "như chức năng chính hoặc subflow của các feature hiện có."
+    ),
+}
+
+
+FEATURES = [
+    {
+        "id": "F01",
+        "title": "Khởi động, kích hoạt và khôi phục quyền sử dụng app",
+        "actor": "Khách du lịch",
+        "status": "VERIFIED",
+        "activity_image": "01-subscription-gate-activity.png",
+        "sequence_image": "01-subscription-gate-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả chức năng mở ứng dụng, kiểm tra gói đang có, chặn người dùng khi chưa đủ điều kiện sử dụng, "
+            "và cho phép khôi phục gói cũ bằng recovery code hoặc mã QR."
+        ),
+        "capabilities": [
+            "Điều hướng khởi động qua LaunchPage rồi quyết định vào MainPage hay SubscriptionPage.",
+            "Kiểm tra subscription cục bộ trước, sau đó thử phục hồi trạng thái gói từ server nếu dữ liệu local không còn hợp lệ.",
+            "Cho phép dùng gói dùng thử hoặc chuyển sang luồng thanh toán gói trả phí.",
+            "Hiển thị recovery payload và QR để người dùng sao chép, nhập tay, dán từ clipboard hoặc quét mã QR để khôi phục thiết bị cũ.",
+        ],
+        "operation": [
+            "Khi app mở, LaunchPage chờ ngắn rồi gọi RouteAsync để kiểm tra SubscriptionState.",
+            "Nếu local subscription còn hạn, app đi thẳng vào MainPage; nếu không thì mở SubscriptionPage.",
+            "Trong SubscriptionPage, người dùng có thể sao chép recovery code hoặc quét QR; app yêu cầu quyền camera trước khi mở QrScannerPage.",
+            "Khi nhận được mã hợp lệ, app gọi TrySetDeviceIdOverride(), sau đó GET /api/subscription/status/{deviceId} để khôi phục trạng thái gói.",
+            "Nếu server trả về gói còn hạn, app cập nhật Preferences, cập nhật nút dùng thử và đóng subscription gate.",
+        ],
+    },
+    {
+        "id": "F02",
+        "title": "Khám phá danh sách POI, đồng bộ lịch sử và khôi phục mã thiết bị",
+        "actor": "Khách du lịch",
+        "status": "VERIFIED",
+        "activity_image": "02-poi-explore-activity.png",
+        "sequence_image": "02-poi-explore-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả chức năng tải danh sách quán ăn/POI, tìm kiếm, mở trang chi tiết, đồng bộ lịch sử xem/thăm, "
+            "và khôi phục lại mã thiết bị ngay trong tab cài đặt của MainPage."
+        ),
+        "capabilities": [
+            "Tải danh sách POI từ API và dùng fallback data khi API lỗi.",
+            "Đồng bộ hồ sơ trải nghiệm, XP, viewed/visited POI từ /api/heartbeat/profile và /api/heartbeat/sync-history.",
+            "Hỗ trợ tìm kiếm trực tiếp và render lại card/map theo từ khóa.",
+            "Cho phép sao chép hoặc khôi phục mã thiết bị bằng nhập tay, clipboard hoặc quét QR trong tab cài đặt.",
+        ],
+        "operation": [
+            "Khi MainPage xuất hiện lần đầu, app chạy LoadPoisFromApi() rồi gọi GET /api/poi.",
+            "Sau khi có dữ liệu, app phục hồi lịch sử từ server, đồng bộ lại local history và render card/map.",
+            "Mỗi 20 giây app có thể refresh danh sách POI nền để dữ liệu hiển thị không quá cũ.",
+            "Khi người dùng mở chi tiết POI, app ghi viewed local, POST /api/heartbeat/view, rồi đồng bộ lịch sử.",
+            "Trong tab cài đặt, khi người dùng nhập hoặc quét mã QR cũ, app gọi RestoreDeviceCodeAsync() để khôi phục subscription, lịch sử xem/thăm và mã QR mới của thiết bị.",
+        ],
+    },
+    {
+        "id": "F03",
+        "title": "Theo dõi GPS, geofence và tự động phát thuyết minh",
+        "actor": "Khách du lịch",
+        "status": "VERIFIED",
+        "activity_image": "03-geofence-audio-activity.png",
+        "sequence_image": "03-geofence-audio-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả phần lõi vận hành theo vị trí: lấy GPS, gửi heartbeat, xác định POI gần nhất, "
+            "ghi nhận visit và tự động phát thuyết minh khi người dùng đi vào vùng geofence."
+        ),
+        "capabilities": [
+            "Lấy vị trí định kỳ và cập nhật trạng thái người dùng trên bản đồ.",
+            "Gửi heartbeat vị trí về server để CMS biết thiết bị nào đang online.",
+            "Xác định geofence theo bán kính từng POI và chống phát lặp bằng cooldown.",
+            "Tự động đọc nội dung thuyết minh và ghi log phát audio.",
+        ],
+        "operation": [
+            "MainPage gọi EnsureGpsTrackingAsync(), xin quyền vị trí và bắt đầu vòng lặp GPS.",
+            "App lấy vị trí mỗi 5 giây bằng Geolocation.Default.GetLocationAsync().",
+            "Heartbeat được gửi mỗi 10 giây dựa trên HEARTBEAT_EVERY_TICKS = 2; refresh POI nền mỗi 20 giây dựa trên POI_REFRESH_EVERY_TICKS = 4.",
+            "Khi phát hiện người dùng vừa đi vào một POI mới và đã qua cooldown, app ghi visited local, POST /api/heartbeat/sync-history, POST /api/heartbeat/visit rồi cập nhật UI.",
+            "Sau đó app lấy thuyết minh qua /api/thuyet-minh/{poiId}, đọc bằng TTS hoặc nội dung phù hợp và POST /api/log để lưu lịch sử phát.",
+        ],
+    },
+    {
+        "id": "F04",
+        "title": "Xem chi tiết POI, thực đơn, audio guide và chỉ đường",
+        "actor": "Khách du lịch",
+        "status": "VERIFIED",
+        "activity_image": "04-poi-detail-activity.png",
+        "sequence_image": "04-poi-detail-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả trang chi tiết quán ăn: tải nội dung POI, hiện ảnh bìa và món ăn, "
+            "phát audio/thuyết minh và mở chỉ đường ngoài app."
+        ),
+        "capabilities": [
+            "Tải chi tiết POI theo ngôn ngữ đang dùng.",
+            "Dùng FoodImageCatalog để sinh ảnh fallback cho quán và món ăn khi URL ảnh lỗi hoặc thiếu.",
+            "Phát audio file bằng AudioWebView khi có file, hoặc đọc text bằng TextToSpeech khi chỉ có nội dung chữ.",
+            "Mở Google Maps / browser để chỉ đường đến quán.",
+        ],
+        "operation": [
+            "DetailPage khởi tạo audio bridge, apply label rồi gọi LoadDetail().",
+            "Nếu API GET /api/poi/{id}?lang=... thành công, trang render toàn bộ thông tin quán, menu và cấu hình player audio.",
+            "Nếu API lỗi hoặc không trả về dữ liệu hợp lệ, trang chuyển sang UseFallback(tenPoi), dùng ảnh fallback và ẩn các vùng không đủ dữ liệu.",
+            "Khi bấm Nghe, nếu có FileAudio thì AudioWebView thực hiện play/pause/stop/seek; nếu không có file thì dùng TextToSpeech đọc nội dung thuyết minh.",
+            "Khi bấm Chỉ đường, app mở Google Maps bằng tọa độ của POI.",
+        ],
+    },
+    {
+        "id": "F05",
+        "title": "Thanh toán gói trả phí và chờ duyệt",
+        "actor": "Khách du lịch",
+        "status": "VERIFIED",
+        "activity_image": "05-paid-plan-activity.png",
+        "sequence_image": "05-paid-plan-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả luồng thanh toán gói app bằng mã QR chuyển khoản, từ lúc tạo nội dung chuyển khoản "
+            "đến lúc polling trạng thái duyệt và quay lại app."
+        ),
+        "capabilities": [
+            "Sinh nội dung chuyển khoản dạng VKT <GOI> <SHORTID> và URL QR VietQR.",
+            "Tạo yêu cầu thanh toán trên server qua /api/subscription/request.",
+            "Poll trạng thái duyệt của yêu cầu để biết đã duyệt, từ chối hay còn chờ.",
+            "Đóng modal stack đúng logic khi bắt đầu dùng hoặc quay lại thử thanh toán tiếp.",
+        ],
+        "operation": [
+            "Từ SubscriptionPage, người dùng chọn gói trả phí và mở PaymentPage.",
+            "PaymentPage gọi DeviceIdentity.GetDeviceId(), dựng _noiDungChuyen và hiển thị QR chuyển khoản.",
+            "Khi người dùng bấm Đã chuyển khoản, app POST /api/subscription/request để tạo yêu cầu chờ duyệt.",
+            "Sau đó PaymentStatusPage bắt đầu polling GET /api/subscription/request/{id} mỗi 10 giây.",
+            "Nếu duyệt thành công, app lưu ngày hết hạn vào Preferences và chạy ClosePaymentFlowAsync(closeSubscriptionPage:true); nếu bị từ chối thì hiển thị lý do và cho phép thử lại hoặc đóng.",
+        ],
+    },
+    {
+        "id": "F06",
+        "title": "Quản lý POI, ảnh, geofence, thuyết minh và menu trong CMS",
+        "actor": "Quản trị viên CMS",
+        "status": "VERIFIED",
+        "activity_image": "06-cms-poi-management-activity.png",
+        "sequence_image": "06-cms-poi-management-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả chức năng quản trị nội dung quán ăn trong CMS, bao gồm danh sách POI, tạo/sửa quán, "
+            "upload ảnh, cập nhật geofence, thuyết minh đa ngôn ngữ và thực đơn món ăn."
+        ),
+        "capabilities": [
+            "Danh sách /Poi hỗ trợ search, status filter, expiry filter và sort.",
+            "Upload ảnh cover hoặc ảnh món ăn qua /api/upload rồi lưu URL vào form.",
+            "Tạo và sửa thuyết minh đa ngôn ngữ Việt/Anh/Trung.",
+            "Quản lý danh sách MonAns với logic bỏ qua row rỗng, mặc định DonGia = 0 khi null, và bảo toàn input người dùng khi validation POI lỗi.",
+        ],
+        "operation": [
+            "Admin có thể vào /Poi để xem toàn bộ quán, lọc trạng thái hiển thị và sắp xếp theo tiêu chí đang hỗ trợ.",
+            "Ở trang Create/Edit, khi chọn file ảnh, JS gọi doUpload() để POST /api/upload rồi cập nhật preview ngay trên form.",
+            "CreateModel.OnPostAsync() tạo mới POI, thuyết minh, bản dịch và danh sách món ăn hợp lệ từ form.",
+            "EditModel.OnPostAsync() loại các lỗi validation trên MonAns trống, giữ lại phần user vừa nhập khi POI còn lỗi, đồng thời deactivate món không còn trong form và add/update món còn lại.",
+            "ImageUrlHelper.ResolvePoi() và ResolveDish() được dùng trong view để hiển thị đúng ảnh thật hoặc ảnh fallback cho quán và món ăn.",
+        ],
+    },
+    {
+        "id": "F07",
+        "title": "Ghi nhận phí duy trì và lịch sử hóa đơn POI",
+        "actor": "Quản trị viên CMS",
+        "status": "VERIFIED",
+        "activity_image": "07-maintenance-payment-activity.png",
+        "sequence_image": "07-maintenance-payment-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả nghiệp vụ thu phí duy trì hằng tháng cho quán ăn và tra cứu lại lịch sử hóa đơn của từng POI."
+        ),
+        "capabilities": [
+            "Trang /ThanhToan tổng hợp trạng thái hạn duy trì, số quán đã đóng, số quán quá hạn, số quán sắp hết hạn và tổng thu tháng.",
+            "Trang /ThanhToan/GhiNhan cho phép gia hạn theo số tháng và cập nhật đơn giá phí duy trì.",
+            "Tạo một bản ghi HoaDon cho từng kỳ thanh toán khi gia hạn nhiều tháng.",
+            "Trang /ThanhToan/LichSu cho phép xem đầy đủ lịch sử hóa đơn của từng POI.",
+        ],
+        "operation": [
+            "IndexModel.OnGetAsync() tải danh sách POI, các gói DangKyDichVu active và doanh thu tháng hiện tại.",
+            "Khi admin chọn một POI để ghi nhận phí, GhiNhanModel.LoadPoiAsync() nạp thông tin quán, gói active và 5 hóa đơn gần nhất.",
+            "Khi submit, hệ thống tính mốc gia hạn mới dựa trên hạn cũ hoặc thời điểm hiện tại, cập nhật poi.NgayHetHanDuyTri và bảo đảm poi.TrangThai = true.",
+            "Nếu chưa có DangKyDichVu active thì tạo mới; nếu đã có thì cập nhật PhiDuyTriThang và NgayHetHan.",
+            "Sau đó hệ thống tạo một HoaDon cho mỗi tháng gia hạn rồi lưu toàn bộ thay đổi vào database.",
+        ],
+    },
+    {
+        "id": "F08",
+        "title": "Duyệt hoặc từ chối thanh toán gói app",
+        "actor": "Quản trị viên CMS",
+        "status": "VERIFIED",
+        "activity_image": "08-app-payment-approval-activity.png",
+        "sequence_image": "08-app-payment-approval-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả luồng CMS dùng để xử lý các yêu cầu thanh toán gói app mà khách gửi từ mobile app."
+        ),
+        "capabilities": [
+            "Tải danh sách yêu cầu theo tab chờ duyệt, đã duyệt và đã từ chối.",
+            "Cập nhật badge và cảnh báo bằng AJAX polling qua handler PendingSnapshot.",
+            "Duyệt yêu cầu để tạo DangKyApp mới và tính lại hạn sử dụng.",
+            "Từ chối yêu cầu và lưu lý do cho người dùng xem lại ở phía app.",
+        ],
+        "operation": [
+            "Khi trang /DuyetThanhToan mở, CMS tải thống kê toàn bộ yêu cầu và danh sách yêu cầu theo tab đang chọn.",
+            "JavaScript trên trang gọi ?handler=PendingSnapshot mỗi 5 giây để cập nhật số lượng chờ duyệt và phát hiện yêu cầu mới.",
+            "Nếu admin bấm Duyệt, OnPostApproveAsync() tìm gói tương ứng, tính mốc bắt đầu và hết hạn mới, tạo DangKyApp rồi cập nhật YeuCauThanhToan sang da_duyet.",
+            "Nếu admin bấm Từ chối, OnPostRejectAsync() chuyển trạng thái sang tu_choi, lưu NgayDuyet và GhiChuAdmin.",
+            "Kết quả xử lý được redirect về đúng tab để admin tiếp tục theo dõi các yêu cầu còn lại.",
+        ],
+    },
+    {
+        "id": "F09",
+        "title": "Theo dõi khách hàng, trạng thái sử dụng, XP và hành trình",
+        "actor": "Quản trị viên CMS",
+        "status": "VERIFIED",
+        "activity_image": "09-live-map-activity.png",
+        "sequence_image": "09-live-map-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả trang BanDo trong CMS dùng để theo dõi thiết bị khách, trạng thái online, gói sử dụng, "
+            "mức độ tương tác với POI và chỉ số trải nghiệm."
+        ),
+        "capabilities": [
+            "Đọc dữ liệu thuê bao, vị trí hiện tại và lịch sử hoạt động bằng raw Npgsql query.",
+            "Tính viewed POI, visited POI, XP, level, progress, total spent và số gói đã mua cho từng thiết bị.",
+            "Hỗ trợ search, filter và sort server-side.",
+            "Tạo badge trạng thái online, ở quán, hết hạn và helper mô tả thời gian còn lại.",
+        ],
+        "operation": [
+            "BanDo/Index.OnGetAsync() chuẩn hóa filter/sort rồi nạp dữ liệu từ các truy vấn raw Npgsql có timeout và retry.",
+            "Hệ thống đọc max hạn gói từ dangkyapp, vị trí từ vitrikhach, số POI đã ghé và đã xem từ lichsuphat.",
+            "BuildCustomerRows() hợp nhất các nguồn dữ liệu theo deviceId để tạo ra trạng thái online, current POI, viewedCount, visitedCount và thông tin gói.",
+            "XP được tính theo công thức viewed * 50 + visited * 100; level được suy ra với ExperiencePerLevel = 500.",
+            "Trang BanDo hiện tại render server-side, chưa có chu kỳ auto-refresh cố định trong code; admin xem dữ liệu mới bằng lần tải trang kế tiếp.",
+        ],
+    },
+    {
+        "id": "F10",
+        "title": "Dashboard tổng quan và monitoring CMS",
+        "actor": "Quản trị viên CMS",
+        "status": "VERIFIED",
+        "activity_image": "10-dashboard-activity.png",
+        "sequence_image": "10-dashboard-sequence.png",
+        "function_text": (
+            "Nhóm sơ đồ này mô tả dashboard tổng hợp của CMS, bao gồm danh sách POI, các chỉ số monitoring, heatmap hoạt động, "
+            "top POI và doanh thu theo khoảng thời gian."
+        ),
+        "capabilities": [
+            "Hỗ trợ nhiều chế độ khoảng thời gian: today, last7, last30, last12m, day, week, month, year và custom.",
+            "Tách riêng phần tải danh sách POI và phần analytics có retry.",
+            "Đọc activity, geo heat, top POI, revenue và summary bằng raw Npgsql trên shared EF connection.",
+            "Bù bucket thiếu bằng FillMissingBuckets() để biểu đồ không bị thủng mốc thời gian.",
+        ],
+        "operation": [
+            "Index.OnGetAsync() nhận tham số mode/date/week/month/year/from/to rồi ResolveRange() để xác định SinceUtc, UntilUtc, Granularity và RangeLabel.",
+            "LoadPoiSectionAsync() tải danh sách POI và tính TongPOI, TongMonAn, SoQuanQuaHan với cơ chế retry khi gặp lỗi disposed wait handle.",
+            "LoadAnalyticsWithRetryAsync() gọi LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync() và LoadSummaryAsync() trên shared DbConnection.",
+            "Sau khi có dữ liệu, hệ thống chạy FillMissingBuckets() rồi serialize ActivityJson, GeoJson và RevenueJson để giao diện JS dùng trực tiếp.",
+            "Dashboard hiện tại không polling tự động; dữ liệu cập nhật theo mỗi lần admin đổi mốc thời gian hoặc tải lại trang.",
+        ],
+    },
+]
+
+
+def set_run_font(run, size=12, bold=False, italic=False, color: tuple[int, int, int] | None = None):
+    run.font.name = "Times New Roman"
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.italic = italic
     if color:
         run.font.color.rgb = RGBColor(*color)
-    # force Vietnamese font
-    rPr = run._r.get_or_add_rPr()
-    rFonts = OxmlElement('w:rFonts')
-    rFonts.set(qn('w:ascii'),    name)
-    rFonts.set(qn('w:hAnsi'),    name)
-    rFonts.set(qn('w:cs'),       name)
-    rFonts.set(qn('w:eastAsia'), name)
-    existing = rPr.find(qn('w:rFonts'))
+
+    r_pr = run._r.get_or_add_rPr()
+    r_fonts = OxmlElement("w:rFonts")
+    for key in ("ascii", "hAnsi", "cs", "eastAsia"):
+        r_fonts.set(qn(f"w:{key}"), "Times New Roman")
+    existing = r_pr.find(qn("w:rFonts"))
     if existing is not None:
-        rPr.remove(existing)
-    rPr.insert(0, rFonts)
+        r_pr.remove(existing)
+    r_pr.insert(0, r_fonts)
 
-def para(text, style='Normal', align=WD_ALIGN_PARAGRAPH.LEFT,
-         bold=False, size=13, color=None, space_before=0, space_after=6, italic=False):
-    p = doc.add_paragraph(style=style)
-    p.alignment = align
-    p.paragraph_format.space_before = Pt(space_before)
-    p.paragraph_format.space_after  = Pt(space_after)
-    run = p.add_run(text)
-    set_font(run, size=size, bold=bold, color=color, italic=italic)
-    return p
 
-def heading1(text):
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p.paragraph_format.space_before = Pt(12)
-    p.paragraph_format.space_after  = Pt(6)
-    run = p.add_run(text)
-    set_font(run, size=14, bold=True, color=(0, 70, 127))
-    # bottom border
-    pPr = p._p.get_or_add_pPr()
-    pBdr = OxmlElement('w:pBdr')
-    bottom = OxmlElement('w:bottom')
-    bottom.set(qn('w:val'), 'single')
-    bottom.set(qn('w:sz'), '6')
-    bottom.set(qn('w:space'), '1')
-    bottom.set(qn('w:color'), '00468F')
-    pBdr.append(bottom)
-    pPr.append(pBdr)
-    return p
+def add_paragraph(doc: Document, text: str, *, size=12, bold=False, italic=False,
+                  align=WD_ALIGN_PARAGRAPH.LEFT, space_before=0, space_after=6,
+                  color: tuple[int, int, int] | None = None):
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = align
+    paragraph.paragraph_format.space_before = Pt(space_before)
+    paragraph.paragraph_format.space_after = Pt(space_after)
+    run = paragraph.add_run(text)
+    set_run_font(run, size=size, bold=bold, italic=italic, color=color)
+    return paragraph
 
-def heading2(text):
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(8)
-    p.paragraph_format.space_after  = Pt(4)
-    run = p.add_run(text)
-    set_font(run, size=13, bold=True, color=(31, 73, 125))
-    return p
 
-def bullet(text, level=0):
-    p = doc.add_paragraph(style='List Bullet')
-    p.paragraph_format.space_after = Pt(3)
-    p.paragraph_format.left_indent = Cm(1.0 + level * 0.5)
-    run = p.add_run(text)
-    set_font(run, size=12)
-    return p
+def add_heading(doc: Document, text: str, level=1):
+    sizes = {1: 15, 2: 13.5, 3: 12.5}
+    colors = {
+        1: (0, 70, 127),
+        2: (31, 73, 125),
+        3: (63, 63, 63),
+    }
+    return add_paragraph(
+        doc,
+        text,
+        size=sizes.get(level, 12),
+        bold=True,
+        color=colors.get(level),
+        space_before=12 if level == 1 else 8,
+        space_after=6 if level == 1 else 4,
+    )
 
-def table(headers, rows, col_widths=None):
-    t = doc.add_table(rows=1 + len(rows), cols=len(headers))
-    t.style = 'Table Grid'
-    t.alignment = WD_TABLE_ALIGNMENT.CENTER
-    # header row
-    hrow = t.rows[0]
-    for i, h in enumerate(headers):
-        cell = hrow.cells[i]
+
+def add_bullet(doc: Document, text: str, level=0):
+    paragraph = doc.add_paragraph(style="List Bullet")
+    paragraph.paragraph_format.left_indent = Cm(0.8 + (level * 0.5))
+    paragraph.paragraph_format.space_after = Pt(3)
+    run = paragraph.add_run(text)
+    set_run_font(run, size=11.5)
+    return paragraph
+
+
+def add_table(doc: Document, headers: list[str], rows: list[list[str]], widths_cm: list[float] | None = None):
+    table = doc.add_table(rows=1 + len(rows), cols=len(headers))
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    for i, header in enumerate(headers):
+        cell = table.rows[0].cells[i]
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-        # shade header
-        tc = cell._tc
-        tcPr = tc.get_or_add_tcPr()
-        shd = OxmlElement('w:shd')
-        shd.set(qn('w:val'),   'clear')
-        shd.set(qn('w:color'), 'auto')
-        shd.set(qn('w:fill'),  '1F497D')
-        tcPr.append(shd)
-        p2 = cell.paragraphs[0]
-        p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p2.add_run(h)
-        set_font(run, size=12, bold=True, color=(255,255,255))
-    # data rows
-    for ri, row in enumerate(rows):
-        fill = 'EAF1FB' if ri % 2 == 0 else 'FFFFFF'
-        for ci, val in enumerate(row):
-            cell = t.rows[ri+1].cells[ci]
+        tc_pr = cell._tc.get_or_add_tcPr()
+        shading = OxmlElement("w:shd")
+        shading.set(qn("w:val"), "clear")
+        shading.set(qn("w:color"), "auto")
+        shading.set(qn("w:fill"), "1F497D")
+        tc_pr.append(shading)
+        paragraph = cell.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = paragraph.add_run(header)
+        set_run_font(run, size=11, bold=True, color=(255, 255, 255))
+
+    for row_index, row in enumerate(rows, start=1):
+        fill = "EAF1FB" if row_index % 2 == 1 else "FFFFFF"
+        for col_index, value in enumerate(row):
+            cell = table.rows[row_index].cells[col_index]
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
-            shd = OxmlElement('w:shd')
-            shd.set(qn('w:val'),   'clear')
-            shd.set(qn('w:color'), 'auto')
-            shd.set(qn('w:fill'),  fill)
-            tcPr.append(shd)
-            p2 = cell.paragraphs[0]
-            run = p2.add_run(str(val))
-            set_font(run, size=11)
-    # column widths
-    if col_widths:
-        for row in t.rows:
-            for i, w in enumerate(col_widths):
-                row.cells[i].width = Cm(w)
-    return t
+            tc_pr = cell._tc.get_or_add_tcPr()
+            shading = OxmlElement("w:shd")
+            shading.set(qn("w:val"), "clear")
+            shading.set(qn("w:color"), "auto")
+            shading.set(qn("w:fill"), fill)
+            tc_pr.append(shading)
+            run = cell.paragraphs[0].add_run(str(value))
+            set_run_font(run, size=10.5)
 
-def code_block(text):
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(4)
-    p.paragraph_format.space_after  = Pt(4)
-    p.paragraph_format.left_indent  = Cm(1)
-    pPr = p._p.get_or_add_pPr()
-    shd = OxmlElement('w:shd')
-    shd.set(qn('w:val'),   'clear')
-    shd.set(qn('w:color'), 'auto')
-    shd.set(qn('w:fill'),  'F2F2F2')
-    pPr.append(shd)
-    run = p.add_run(text)
-    set_font(run, name='Courier New', size=10)
-    return p
+    if widths_cm:
+        for row in table.rows:
+            for cell, width in zip(row.cells, widths_cm):
+                cell.width = Cm(width)
 
-def hline():
-    p = doc.add_paragraph()
-    p.paragraph_format.space_before = Pt(2)
-    p.paragraph_format.space_after  = Pt(2)
+    return table
 
-def add_diagram(label, png_name, width_cm=15.0):
-    """Chèn ảnh sơ đồ với caption căn giữa."""
-    path = os.path.join(PNG_DIR, png_name)
-    if not os.path.exists(path):
+
+def add_image(doc: Document, image_name: str, caption: str, width_cm: float):
+    path = DIAGRAM_PNG_DIR / image_name
+    if not path.exists():
+        add_paragraph(doc, f"[Thiếu ảnh: {image_name}]", size=11, italic=True, color=(192, 0, 0))
         return
-    # Caption
-    cap = doc.add_paragraph()
-    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    cap.paragraph_format.space_before = Pt(8)
-    cap.paragraph_format.space_after  = Pt(2)
-    run = cap.add_run(label)
-    set_font(run, size=11, bold=True, italic=True, color=(89, 89, 89))
-    # Ảnh
-    pic = doc.add_paragraph()
-    pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    pic.paragraph_format.space_after = Pt(10)
-    pic.add_run().add_picture(path, width=Cm(width_cm))
 
-# ══════════════════════════════════════════════════════════════════════════════
-# COVER PAGE
-# ══════════════════════════════════════════════════════════════════════════════
-para("TRƯỜNG ĐẠI HỌC ...", align=WD_ALIGN_PARAGRAPH.CENTER, size=13, bold=True, space_before=0, space_after=2)
-para("KHOA CÔNG NGHỆ THÔNG TIN", align=WD_ALIGN_PARAGRAPH.CENTER, size=13, bold=True, space_before=0, space_after=40)
+    caption_paragraph = add_paragraph(
+        doc,
+        caption,
+        size=10.5,
+        bold=True,
+        italic=True,
+        color=(96, 96, 96),
+        align=WD_ALIGN_PARAGRAPH.CENTER,
+        space_before=8,
+        space_after=2,
+    )
+    caption_paragraph.paragraph_format.keep_with_next = True
 
-para("ĐỒ ÁN TỐT NGHIỆP", align=WD_ALIGN_PARAGRAPH.CENTER, size=18, bold=True,
-     color=(0,70,127), space_before=0, space_after=16)
+    picture_paragraph = doc.add_paragraph()
+    picture_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    picture_paragraph.paragraph_format.space_after = Pt(10)
+    picture_paragraph.add_run().add_picture(str(path), width=Cm(width_cm))
 
-para("Product Requirements Document", align=WD_ALIGN_PARAGRAPH.CENTER, size=14,
-     italic=True, color=(89,89,89), space_before=0, space_after=4)
 
-para("VinhKhanhTour", align=WD_ALIGN_PARAGRAPH.CENTER, size=22, bold=True,
-     color=(31,73,125), space_before=0, space_after=8)
+def build_document() -> Document:
+    doc = Document()
 
-para("Hệ thống hướng dẫn du lịch phố ẩm thực Vĩnh Khánh", align=WD_ALIGN_PARAGRAPH.CENTER,
-     size=14, italic=True, color=(89,89,89), space_before=0, space_after=60)
+    for section in doc.sections:
+        section.top_margin = Cm(2.2)
+        section.bottom_margin = Cm(2.2)
+        section.left_margin = Cm(2.8)
+        section.right_margin = Cm(2.0)
 
-tbl_info = doc.add_table(rows=4, cols=2)
-tbl_info.alignment = WD_TABLE_ALIGNMENT.CENTER
-info_data = [
-    ("Sinh viên thực hiện:", "Cao Hoàng Thịnh"),
-    ("Email:", "caohoangthinh2@gmail.com"),
-    ("Phiên bản:", "1.0"),
-    ("Ngày:", "17/04/2026"),
-]
-for i, (k, v) in enumerate(info_data):
-    c1, c2 = tbl_info.rows[i].cells
-    r1 = c1.paragraphs[0].add_run(k)
-    set_font(r1, size=12, bold=True)
-    r2 = c2.paragraphs[0].add_run(v)
-    set_font(r2, size=12)
-    c1.width = Cm(5)
-    c2.width = Cm(8)
+    # Cover
+    add_paragraph(doc, "PRODUCT REQUIREMENTS DOCUMENT", size=15, bold=True,
+                  align=WD_ALIGN_PARAGRAPH.CENTER, space_before=10, space_after=4, color=(0, 70, 127))
+    add_paragraph(doc, "VinhKhanhTour", size=22, bold=True,
+                  align=WD_ALIGN_PARAGRAPH.CENTER, space_before=0, space_after=6, color=(31, 73, 125))
+    add_paragraph(doc, "Bộ sơ đồ chức năng, activity và sequence đồng bộ theo code hiện tại",
+                  size=13, italic=True, align=WD_ALIGN_PARAGRAPH.CENTER,
+                  space_before=0, space_after=30, color=(89, 89, 89))
 
-doc.add_page_break()
+    add_table(
+        doc,
+        ["Mục", "Giá trị"],
+        [
+            ["Tài liệu", "PRD_VinhKhanhTour"],
+            ["Phạm vi", "Use case tổng thể + F01 đến F10"],
+            ["Nguồn sơ đồ", "docs/diagrams/*.puml"],
+            ["Baseline", "HEAD b946abe"],
+            ["Ngày cập nhật", datetime.now().strftime("%d/%m/%Y %H:%M")],
+        ],
+        widths_cm=[5.0, 10.0],
+    )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. TỔNG QUAN DỰ ÁN
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("1. TỔNG QUAN DỰ ÁN")
+    add_paragraph(
+        doc,
+        "Tài liệu này được dựng lại để thay thế bộ sơ đồ cũ trong PRD bằng đúng các sơ đồ PlantUML mới nhất, "
+        "đồng thời bổ sung phần mô tả chức năng, tính năng chính và cách hoạt động theo code hiện tại.",
+        size=11.5,
+        space_before=14,
+        space_after=8,
+    )
 
-heading2("1.1 Bối cảnh")
-para("Phố ẩm thực Vĩnh Khánh (Quận 4, TP.HCM) là một trong những tuyến phố ẩm thực nổi tiếng tại TP.HCM, thu hút hàng nghìn lượt khách mỗi ngày. Tuy nhiên, khách du lịch — đặc biệt khách nước ngoài — gặp nhiều khó khăn trong việc khám phá: không biết quán nào nổi tiếng, không có thông tin tiếng Anh, thiếu hướng dẫn bản đồ, không biết gọi món gì.")
+    doc.add_page_break()
 
-heading2("1.2 Mô tả sản phẩm")
-para("VinhKhanhTour là hệ thống du lịch thông minh gồm ba thành phần:")
+    # Overview
+    add_heading(doc, "1. Kiểm tra độ phủ của bộ use case", level=1)
+    add_paragraph(
+        doc,
+        "Kết quả đối chiếu code hiện tại cho thấy bộ use case F01 đến F10 đã đủ phủ các chức năng nghiệp vụ chính của đồ án. "
+        "Không phát hiện thêm chức năng độc lập nào cần tách thành một use case mới.",
+        size=11.5,
+    )
+    add_bullet(doc, "Các màn hình MAUI đang chạy thật: LaunchPage, SubscriptionPage, MainPage, DetailPage, PaymentPage, PaymentStatusPage, QrScannerPage.")
+    add_bullet(doc, "Các controller API đang được dùng thật trong luồng nghiệp vụ: PoiController, SubscriptionController, HeartbeatController, ThuyetMinhController, LogController, UploadController.")
+    add_bullet(doc, "Các Razor PageModel chính của CMS đều đã có use case tương ứng: Poi, ThanhToan, DuyetThanhToan, BanDo, Dashboard.")
+    add_bullet(doc, "Các phần như AuthController, PaymentController dự phòng, WeatherForecastController, Privacy/Error không được mô hình hóa thành chức năng vì không nằm trong luồng chính của đồ án hiện tại.")
 
-table(
-    ["Thành phần", "Mô tả", "Công nghệ"],
-    [
-        ("Mobile App", "Ứng dụng cho khách tham quan", ".NET MAUI (Android / Windows)"),
-        ("REST API",   "Backend trung tâm",             "ASP.NET Core 10, EF Core, PostgreSQL"),
-        ("CMS Web",    "Bảng điều khiển quản trị",      "ASP.NET Core Razor Pages"),
-    ],
-    col_widths=[3.5, 5.5, 6.0]
-)
-hline()
-para("Cơ sở dữ liệu: Supabase PostgreSQL (cloud-hosted)", size=12, italic=True)
+    add_heading(doc, "2. Sơ đồ use case tổng thể", level=1)
+    add_paragraph(doc, USE_CASE_SUMMARY["description"], size=11.5)
+    add_paragraph(doc, USE_CASE_SUMMARY["coverage_note"], size=11.5)
+    add_image(doc, USE_CASE_SUMMARY["image"], "Hình 1 - Use case tổng thể của hệ thống", 15.8)
 
-heading2("1.3 Mục tiêu")
-for t in [
-    "Cung cấp hướng dẫn tham quan tự động (audio guide) khi khách bước vào khu vực quán.",
-    "Hỗ trợ đa ngôn ngữ: Việt, Anh, Trung.",
-    "Cho phép theo dõi vị trí khách thực tế (live map) phục vụ quản lý.",
-    "Mô hình kinh doanh rõ ràng: gói subscription cho khách, phí duy trì tháng cho chủ quán.",
-]:
-    bullet(t)
+    add_heading(doc, "3. Nguyên tắc đọc bộ sơ đồ", level=1)
+    add_bullet(doc, "Use case cho biết chức năng cấp nghiệp vụ và actor nào sử dụng chức năng đó.")
+    add_bullet(doc, "Activity mô tả luồng xử lý nội bộ của chức năng, bao gồm điều kiện rẽ nhánh và các lời gọi method/API quan trọng.")
+    add_bullet(doc, "Sequence mô tả thứ tự tương tác giữa UI, service, controller, database hoặc thành phần ngoài hệ thống.")
+    add_bullet(doc, "PlantUML là nguồn sơ đồ chính; ảnh trong tài liệu này được render lại từ docs/diagrams/*.puml mới nhất.")
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. ĐỐI TƯỢNG SỬ DỤNG
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("2. ĐỐI TƯỢNG SỬ DỤNG")
+    add_heading(doc, "4. Phân tích chi tiết từng chức năng", level=1)
 
-heading2("2.1 Khách du lịch (App User)")
-bullet("Đặc điểm: Người dùng ẩn danh, định danh bằng Device UUID (không đăng nhập).")
-bullet("Nhu cầu: Khám phá quán ăn, nghe thuyết minh tự động, xem thực đơn, chỉ đường.")
-bullet("Hành vi: Cài app → chọn gói → dạo phố → app tự động phát thuyết minh khi đến gần quán.")
+    for index, feature in enumerate(FEATURES, start=1):
+        doc.add_page_break()
 
-heading2("2.2 Quản trị viên (Admin CMS)")
-bullet("Đặc điểm: Nhân viên quản lý hệ thống, truy cập CMS web nội bộ.")
-bullet("Nhu cầu: Quản lý nội dung POI, thu phí duy trì, duyệt thanh toán, xem bản đồ live.")
+        add_heading(doc, f"4.{index} {feature['id']} - {feature['title']}", level=2)
+        add_paragraph(doc, f"Actor chính: {feature['actor']} | Trạng thái đối chiếu: {feature['status']}", size=11, italic=True, color=(89, 89, 89))
 
-heading2("2.3 Chủ quán (POI Owner)")
-bullet("Đặc điểm: Đăng ký dịch vụ hướng dẫn cho quán của mình.")
-bullet("Nhu cầu: Cập nhật thực đơn, nội dung thuyết minh, thanh toán phí duy trì hàng tháng.")
+        add_heading(doc, "Chức năng mà sơ đồ mô tả", level=3)
+        add_paragraph(doc, feature["function_text"], size=11.5)
 
-# 3. KIẾN TRÚC HỆ THỐNG
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("3. KIẾN TRÚC HỆ THỐNG")
+        add_heading(doc, "Tính năng chính", level=3)
+        for item in feature["capabilities"]:
+            add_bullet(doc, item)
 
-code_block(
-    "┌──────────────────────────────────────────────────────────┐\n"
-    "│                         CLIENTS                          │\n"
-    "│  ┌──────────────────┐        ┌────────────────────────┐  │\n"
-    "│  │  MAUI Mobile App │        │  CMS Web (Razor Pages) │  │\n"
-    "│  │  (Android/Win)   │        │  (Admin Panel)         │  │\n"
-    "│  └────────┬─────────┘        └──────────┬─────────────┘  │\n"
-    "└───────────┼──────────────────────────────┼───────────────┘\n"
-    "            │ HTTP/REST                    │ HTTP + EF Core\n"
-    "            ▼                             ▼\n"
-    "┌──────────────────────────────────────────────────────────┐\n"
-    "│                ASP.NET Core 10 REST API                  │\n"
-    "│  Auth │ Poi │ Subscription │ Heartbeat │ Payment │ Upload │\n"
-    "└──────────────────────────────┬───────────────────────────┘\n"
-    "                               │ EF Core + Npgsql\n"
-    "                               ▼\n"
-    "                    ┌────────────────────┐\n"
-    "                    │ Supabase PostgreSQL │\n"
-    "                    │   (11 tables)       │\n"
-    "                    └────────────────────┘"
-)
+        add_heading(doc, "Cách hoạt động theo code hiện tại", level=3)
+        for item in feature["operation"]:
+            add_bullet(doc, item)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. CẤU TRÚC DỮ LIỆU
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("4. CẤU TRÚC DỮ LIỆU")
+        add_image(
+            doc,
+            feature["activity_image"],
+            f"Hình {index + 1}a - {feature['id']} Activity: {feature['title']}",
+            14.0,
+        )
+        add_paragraph(
+            doc,
+            f"Sơ đồ activity của {feature['id']} mô tả luồng xử lý nội bộ của chức năng {feature['title'].lower()}, "
+            "từ điều kiện đầu vào, các bước gọi method/API, đến các nhánh thành công hoặc lỗi.",
+            size=11,
+            italic=True,
+            color=(89, 89, 89),
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+            space_before=0,
+            space_after=6,
+        )
 
-heading2("4.1 Danh sách bảng")
-table(
-    ["Bảng", "Mô tả", "Cột quan trọng"],
-    [
-        ("poi",               "Điểm du lịch / quán ăn",         "KinhDo, ViDo, BanKinh, NgayHetHanDuyTri"),
-        ("thuyetminh",        "Nội dung audio guide của POI",    "POIId, ThuTu, TrangThai"),
-        ("bandich",           "Bản dịch thuyết minh",           "NgonNgu (vi/en/zh), NoiDung, FileAudio"),
-        ("monan",             "Thực đơn quán",                  "TenMonAn, DonGia, PhanLoai, HinhAnh"),
-        ("dangkyapp",         "Gói đăng ký app của khách",       "MaThietBi, LoaiGoi, NgayBatDau, NgayHetHan"),
-        ("yeucauthanhtoan",   "Yêu cầu thanh toán QR",          "MaThietBi, LoaiGoi, SoTien, TrangThai"),
-        ("vitrikhach",        "Vị trí GPS real-time",           "MaThietBi (UNIQUE), Lat, Lng, LanCuoiHeartbeat"),
-        ("dangkydichvu",      "Gói dịch vụ POI",                "POIId, PhiDuyTriThang, PhiConvert"),
-        ("hoadon",            "Hóa đơn thanh toán POI",         "LoaiPhi (duytri/convert), KyThanhToan"),
-        ("lichsuphat",        "Log xem/nghe thuyết minh",       "Nguon (GPS/VIEW), NgonNguDung, MaThietBi"),
-        ("taikhoan",          "Tài khoản admin CMS",            "TenDangNhap, VaiTro"),
-    ],
-    col_widths=[3.5, 4.5, 7.0]
-)
+        add_image(
+            doc,
+            feature["sequence_image"],
+            f"Hình {index + 1}b - {feature['id']} Sequence: {feature['title']}",
+            15.6,
+        )
+        add_paragraph(
+            doc,
+            f"Sơ đồ sequence của {feature['id']} cho thấy thứ tự tương tác giữa các thành phần tham gia vào chức năng này, "
+            "giúp nhìn rõ lời gọi hàm, endpoint và dữ liệu được trao đổi trong quá trình xử lý.",
+            size=11,
+            italic=True,
+            color=(89, 89, 89),
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+            space_before=0,
+            space_after=6,
+        )
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. MÔ HÌNH GÓI DỊCH VỤ
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("5. MÔ HÌNH GÓI DỊCH VỤ")
+    doc.add_page_break()
+    add_heading(doc, "5. Kết luận", level=1)
+    add_paragraph(
+        doc,
+        "Bộ sơ đồ hiện tại đã đủ để chốt phần mô tả chức năng của đồ án vì đã phủ toàn bộ các luồng nghiệp vụ chính đang chạy trong code. "
+        "Các ảnh trong tài liệu này là ảnh mới được render lại từ PlantUML hiện tại, không còn dùng bộ PNG cũ trước đó.",
+        size=11.5,
+    )
+    add_bullet(doc, "Không bổ sung use case mới vì chưa phát hiện chức năng nghiệp vụ độc lập bị thiếu.")
+    add_bullet(doc, "Mỗi chức năng F01 đến F10 đều đã có cặp activity + sequence tương ứng.")
+    add_bullet(doc, "Nội dung mô tả đã bổ sung thêm các chi tiết vận hành quan trọng như chu kỳ polling, heartbeat, refresh, fallback ảnh, audio và khôi phục mã QR.")
 
-heading2("5.1 Gói đăng ký App (khách tham quan)")
-table(
-    ["Mã gói", "Tên", "Giá", "Thời hạn", "Ghi chú"],
-    [
-        ("thu",   "Dùng thử",  "0đ",         "3 ngày",   "1 lần/thiết bị, kích hoạt ngay"),
-        ("ngay",  "1 ngày",    "29.000đ",     "1 ngày",   "Thanh toán qua QR"),
-        ("tuan",  "1 tuần",    "99.000đ",     "7 ngày",   "Thanh toán qua QR"),
-        ("thang", "1 tháng",   "199.000đ",    "30 ngày",  "Thanh toán qua QR"),
-        ("nam",   "1 năm",     "999.000đ",    "365 ngày", "Thanh toán qua QR"),
-    ],
-    col_widths=[2.0, 2.5, 2.5, 2.5, 5.5]
-)
-hline()
-para("Gói nối tiếp: nếu chưa hết hạn gói cũ → NgayBatDau = NgayHetHan cũ.", size=12, italic=True)
+    return doc
 
-heading2("5.2 Phí dịch vụ POI (chủ quán)")
-table(
-    ["Loại phí", "Mức phí", "Chu kỳ", "Ghi chú"],
-    [
-        ("Phí duy trì",    "50.000đ/tháng", "Hàng tháng",   "Quá hạn → POI bị ẩn khỏi app"),
-        ("Phí convert TTS","20.000đ/lần",   "Mỗi lần convert","Chuyển text → audio"),
-    ],
-    col_widths=[3.5, 3.5, 3.5, 4.5]
-)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 6. YÊU CẦU CHỨC NĂNG
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("6. YÊU CẦU CHỨC NĂNG")
+def main():
+    document = build_document()
+    document.save(str(OUT_DOCX))
+    print(f"Saved: {OUT_DOCX}")
 
-heading2("6.0 Tổng quan use case")
-add_diagram("Hình 0 – Use case tổng thể hệ thống VinhKhanhTour", "00-overall-usecase.png", width_cm=15.0)
 
-# F01
-heading2("F01 – Khởi động & Subscription Gate")
-para("Mỗi lần mở app, kiểm tra xem thiết bị có gói hợp lệ không.", size=12)
-para("Luồng chính:", size=12, bold=True)
-for s in [
-    "MainPage.OnAppearing() → đọc sub_ngay_het_han từ Preferences",
-    "Nếu hết hạn hoặc chưa có → điều hướng sang SubscriptionPage",
-    "Nếu còn hạn → tải danh sách POI và bắt đầu GPS tracking",
-]:
-    bullet(s)
-para("Điều kiện biên:", size=12, bold=True)
-bullet("Gói miễn phí 'thu': chỉ được dùng 1 lần/thiết bị (kiểm tra flag da_dung_thu)")
-bullet("Gói trả phí: cần trải qua luồng QR → admin duyệt")
-add_diagram("Hình 1a – F01: Sơ đồ tuần tự – Kích hoạt quyền sử dụng app", "01-subscription-gate-sequence.png")
-add_diagram("Hình 1b – F01: Sơ đồ hoạt động – Kích hoạt quyền sử dụng app", "01-subscription-gate-activity.png", width_cm=11.0)
-
-# F02
-heading2("F02 – Danh sách & Tìm kiếm POI")
-para("Hiển thị danh sách quán/điểm tham quan, hỗ trợ tìm kiếm.", size=12)
-para("API: GET /api/poi", size=12, bold=True)
-para("Điều kiện lọc: TrangThai = true AND (NgayHetHanDuyTri IS NULL OR NgayHetHanDuyTri > now())", size=11, italic=True)
-para("Tính năng:", size=12, bold=True)
-bullet("Tìm kiếm văn bản: lọc theo tên POI (normalize dấu tiếng Việt)")
-bullet("Sắp xếp theo MucUuTien")
-bullet("Hiển thị ảnh đại diện, tên, địa chỉ, số điện thoại")
-add_diagram("Hình 2a – F02: Sơ đồ tuần tự – Tải và khám phá danh sách POI", "02-poi-explore-sequence.png")
-add_diagram("Hình 2b – F02: Sơ đồ hoạt động – Tải và khám phá danh sách POI", "02-poi-explore-activity.png", width_cm=11.0)
-
-# F03
-heading2("F03 – Tự động phát thuyết minh (Geofence + Audio)")
-para("Khi khách bước vào vùng bán kính của quán, app tự động phát audio guide.", size=12)
-para("Luồng:", size=12, bold=True)
-for s in [
-    "GPS poll mỗi 5 giây",
-    "Tính khoảng cách đến từng POI bằng công thức Haversine",
-    "Nếu khoảng cách ≤ BanKinh (30m) → đánh dấu 'đang trong geofence'",
-    "Gọi SpeakPoiAsync() → GET /api/thuyet-minh/{poiId}?lang={ngonNgu}",
-    "Phát audio file; nếu không có audio → TTS văn bản",
-    "Ghi log: POST /api/log với Nguon='GPS'",
-    "Dedup: không phát lại trong vòng 10 phút/POI",
-]:
-    bullet(s)
-para("Heartbeat GPS: POST /api/heartbeat mỗi 15 giây với {Lat, Lng, PoiIdHienTai}", size=12, italic=True)
-add_diagram("Hình 3a – F03: Sơ đồ tuần tự – Theo dõi GPS, geofence và tự động phát thuyết minh", "03-geofence-audio-sequence.png")
-add_diagram("Hình 3b – F03: Sơ đồ hoạt động – Theo dõi GPS, geofence và tự động phát thuyết minh", "03-geofence-audio-activity.png", width_cm=11.0)
-
-# F04
-heading2("F04 – Chi tiết POI")
-para("Xem thông tin đầy đủ một quán: thuyết minh, thực đơn, nút nghe audio, chỉ đường.", size=12)
-for s in [
-    "Chọn ngôn ngữ (vi/en/zh) → tải lại thuyết minh",
-    "Nút 'Nghe' → phát audio hoặc TTS",
-    "Nút 'Chỉ đường' → mở Google Maps với tọa độ POI",
-    "Ghi log: POST /api/heartbeat/view khi mở trang (Nguon='VIEW')",
-]:
-    bullet(s)
-add_diagram("Hình 4a – F04: Sơ đồ tuần tự – Xem chi tiết POI, thực đơn, audio guide và chỉ đường", "04-poi-detail-sequence.png")
-add_diagram("Hình 4b – F04: Sơ đồ hoạt động – Xem chi tiết POI, thực đơn, audio guide và chỉ đường", "04-poi-detail-activity.png", width_cm=11.0)
-
-# F05
-heading2("F05 – Thanh toán QR & Phê duyệt")
-para("Luồng thanh toán gói trả phí qua QR VietQR MBBank, admin duyệt thủ công.", size=12)
-para("Luồng phía khách:", size=12, bold=True)
-for s in [
-    "SubscriptionPage → chọn gói → POST /api/subscription/request",
-    "API tạo YeuCauThanhToan (status=cho_duyet) → trả về {YeuCauId, NoiDungChuyen}",
-    "PaymentPage → hiển thị QR (VietQR) + nội dung CK (VD: VKT THANG A1B2C3)",
-    "Khách chuyển khoản → nhấn 'Đã chuyển' → PaymentStatusPage",
-    "Polling GET /api/subscription/request/{id} mỗi 10 giây",
-    "Khi status=da_duyet → lưu NgayHetHan vào Preferences → đóng luồng",
-]:
-    bullet(s)
-para("Luồng Admin CMS (/DuyetThanhToan):", size=12, bold=True)
-for s in [
-    "Tab 3 trạng thái: Chờ duyệt / Đã duyệt / Từ chối",
-    "Nút 'Duyệt' → POST /api/subscription/approve/{id} → tạo DangKyApp",
-    "Nút 'Từ chối' → modal nhập lý do → POST /api/subscription/reject/{id}",
-]:
-    bullet(s)
-add_diagram("Hình 5a – F05: Sơ đồ tuần tự – Thanh toán gói trả phí và chờ duyệt", "05-paid-plan-sequence.png")
-add_diagram("Hình 5b – F05: Sơ đồ hoạt động – Thanh toán gói trả phí và chờ duyệt", "05-paid-plan-activity.png", width_cm=11.0)
-add_diagram("Hình 5c – F05: Sơ đồ tuần tự – Duyệt / từ chối thanh toán (Admin CMS)", "08-app-payment-approval-sequence.png")
-add_diagram("Hình 5d – F05: Sơ đồ hoạt động – Duyệt / từ chối thanh toán (Admin CMS)", "08-app-payment-approval-activity.png", width_cm=11.0)
-
-# F06
-heading2("F06 – Theo dõi khách hàng & Trạng thái sử dụng (CMS)")
-para("CMS hiển thị bảng tổng hợp tất cả thiết bị đã sử dụng app, trạng thái gói và hành trình tham quan — render server-side, không cần JavaScript realtime.", size=12)
-para("Dữ liệu tổng hợp từ 4 nguồn:", size=12, bold=True)
-for s in [
-    "DangKyApps → hạn gói hiện tại của từng thiết bị",
-    "VitriKhachs → thời điểm heartbeat cuối (xác định online/offline, ngưỡng 2 phút)",
-    "LichSuPhat (Nguon=GPS) → số POI đã ghé thực tế",
-    "LichSuPhat (Nguon=VIEW) → số POI đã xem chi tiết",
-]:
-    bullet(s)
-para("Thống kê hiển thị:", size=12, bold=True)
-for s in [
-    "TotalCustomers, ActiveCustomers, CustomersAtPoi, ExpiredCustomers",
-    "Trạng thái từng thiết bị: GetStatusText() / GetSubscriptionText()",
-    "Cột: Device ID, POI đang ở, số ghé, số xem, hạn gói, trạng thái",
-]:
-    bullet(s)
-add_diagram("Hình 6a – F06: Sơ đồ tuần tự – Theo dõi khách hàng và trạng thái sử dụng", "09-live-map-sequence.png")
-add_diagram("Hình 6b – F06: Sơ đồ hoạt động – Theo dõi khách hàng và trạng thái sử dụng", "09-live-map-activity.png", width_cm=11.0)
-
-# F07
-heading2("F07 – Quản lý POI (CMS)")
-table(
-    ["Chức năng", "URL CMS", "Ghi chú"],
-    [
-        ("Danh sách POI",     "/Poi",               "Xem, lọc, tìm kiếm"),
-        ("Tạo POI mới",       "/Poi/Create",         "Upload ảnh qua /api/upload"),
-        ("Chỉnh sửa POI",     "/Poi/Edit/{id}",      "Sửa thông tin, menu"),
-        ("Quản lý thuyết minh","/ThuyetMinh/Edit/{id}","Nội dung + bản dịch đa ngôn ngữ"),
-        ("Dashboard tổng quan","/",                  "TongPOI, TongMonAn, SoQuanQuaHan"),
-    ],
-    col_widths=[4.0, 4.5, 6.5]
-)
-hline()
-para("Upload ảnh: POST /api/upload — tối đa 5MB, định dạng: .jpg, .jpeg, .png, .webp, .gif", size=12, italic=True)
-add_diagram("Hình 7a – F07: Sơ đồ tuần tự – Quản lý POI, ảnh, thuyết minh và menu", "06-cms-poi-management-sequence.png")
-add_diagram("Hình 7b – F07: Sơ đồ hoạt động – Quản lý POI, ảnh, thuyết minh và menu", "06-cms-poi-management-activity.png", width_cm=11.0)
-
-# F08
-heading2("F08 – Quản lý Phí Duy Trì POI")
-para("Admin ghi nhận thanh toán phí hàng tháng của chủ quán.", size=12)
-for s in [
-    "/ThanhToan → danh sách POI với trạng thái hạn duy trì",
-    "/ThanhToan/GhiNhan/{poiId} → chọn số tháng → POST /api/payment/maintenance",
-    "API tạo HoaDon (mỗi tháng một dòng) + gia hạn NgayHetHanDuyTri",
-    "/ThanhToan/LichSu/{poiId} → xem lịch sử hóa đơn",
-    "Cảnh báo: Dashboard hiển thị số quán quá hạn; POI quá hạn bị ẩn khỏi app",
-]:
-    bullet(s)
-add_diagram("Hình 8a – F08: Sơ đồ tuần tự – Ghi nhận phí duy trì và lịch sử hóa đơn POI", "07-maintenance-payment-sequence.png")
-add_diagram("Hình 8b – F08: Sơ đồ hoạt động – Ghi nhận phí duy trì và lịch sử hóa đơn POI", "07-maintenance-payment-activity.png", width_cm=11.0)
-
-# F09
-heading2("F09 – Dashboard tổng quan CMS")
-para("Trang chủ CMS hiển thị các chỉ số tổng quan hệ thống, tải khi admin mở trang.", size=12)
-for s in [
-    "_db.POIs.Include(MonAns).OrderBy(MucUuTien).ToListAsync()",
-    "TongPOI — số POI đang hiển thị (TrangThai = true)",
-    "TongMonAn — số món ăn đang hoạt động trên toàn hệ thống",
-    "SoQuanQuaHan — POI đang hiển thị nhưng đã hết hạn duy trì",
-]:
-    bullet(s)
-add_diagram("Hình 9a – F09: Sơ đồ tuần tự – Dashboard tổng quan CMS", "10-dashboard-sequence.png")
-add_diagram("Hình 9b – F09: Sơ đồ hoạt động – Dashboard tổng quan CMS", "10-dashboard-activity.png", width_cm=11.0)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 7. YÊU CẦU PHI CHỨC NĂNG
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("7. YÊU CẦU PHI CHỨC NĂNG")
-
-heading2("7.1 Hiệu năng")
-table(
-    ["Chỉ số", "Mục tiêu"],
-    [
-        ("Thời gian phản hồi API",  "< 500ms (p95)"),
-        ("GPS poll interval",       "5 giây"),
-        ("Heartbeat interval",      "15 giây"),
-        ("CMS map auto-refresh",    "30 giây"),
-        ("App polling thanh toán",  "10 giây"),
-        ("API probe cache",         "5 phút (success) / 10 giây (fail)"),
-    ],
-    col_widths=[7.0, 8.0]
-)
-
-heading2("7.2 Độ tin cậy")
-for s in [
-    "Geofence dedup: không phát lại thuyết minh trong 10 phút/POI",
-    "Visit dedup: không ghi visit trong 5 phút/POI",
-    "Subscription rollover: gia hạn nối tiếp, không mất ngày còn lại",
-    "Image URL fallback: xử lý cả đường dẫn tương đối, localhost, và URL ngoài",
-]:
-    bullet(s)
-
-heading2("7.3 Khả năng mở rộng")
-for s in [
-    "Ngôn ngữ: thêm ngôn ngữ mới chỉ cần thêm bản dịch trong bảng bandich",
-    "Gói subscription: thêm gói mới bằng cách mở rộng enum trong SubscriptionController",
-    "Multi-platform: MAUI hỗ trợ Android, Windows; iOS sau",
-]:
-    bullet(s)
-
-heading2("7.4 Bảo mật")
-for s in [
-    "CMS chạy nội bộ (không public internet) — không cần auth phức tạp cho demo",
-    "App không lưu thông tin cá nhân — chỉ Device UUID (tự sinh, không liên kết danh tính)",
-    "Phiên bản demo dùng plain-text password; sản phẩm thực tế cần BCrypt + JWT",
-    "Supabase connection string không commit vào repository công khai",
-]:
-    bullet(s)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 8. API REFERENCE
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("8. API REFERENCE")
-
-heading2("8.1 POI")
-table(
-    ["Method", "Endpoint", "Mô tả"],
-    [
-        ("GET", "/api/poi",      "Danh sách POI đang hoạt động"),
-        ("GET", "/api/poi/{id}", "Chi tiết POI (kèm menu + thuyết minh)"),
-    ],
-    col_widths=[2.0, 5.5, 7.5]
-)
-
-heading2("8.2 Subscription")
-table(
-    ["Method", "Endpoint", "Mô tả"],
-    [
-        ("GET",  "/api/subscription/plans",           "Danh sách gói"),
-        ("GET",  "/api/subscription/status/{maThietBi}", "Trạng thái gói hiện tại"),
-        ("POST", "/api/subscription/purchase",        "Mua gói miễn phí (kích hoạt ngay)"),
-        ("POST", "/api/subscription/request",         "Tạo yêu cầu thanh toán QR"),
-        ("GET",  "/api/subscription/request/{id}",    "Kiểm tra trạng thái yêu cầu"),
-        ("POST", "/api/subscription/approve/{id}",    "Admin duyệt yêu cầu"),
-        ("POST", "/api/subscription/reject/{id}",     "Admin từ chối yêu cầu"),
-        ("GET",  "/api/subscription/requests",        "Danh sách yêu cầu (CMS)"),
-    ],
-    col_widths=[2.0, 5.5, 7.5]
-)
-
-heading2("8.3 Heartbeat & Tracking")
-table(
-    ["Method", "Endpoint", "Mô tả"],
-    [
-        ("POST", "/api/heartbeat",                        "Upsert vị trí + POI hiện tại"),
-        ("POST", "/api/heartbeat/visit",                  "Ghi nhận vào geofence POI"),
-        ("POST", "/api/heartbeat/view",                   "Ghi nhận mở chi tiết POI"),
-        ("POST", "/api/heartbeat/sync-history",           "Đồng bộ lịch sử (offline catch-up)"),
-        ("GET",  "/api/heartbeat/active",                 "Thiết bị online (2 phút qua)"),
-        ("GET",  "/api/heartbeat/history/{deviceShort}",  "Lịch sử POI (4 giờ gần nhất)"),
-    ],
-    col_widths=[2.0, 5.5, 7.5]
-)
-
-heading2("8.4 Thanh toán POI")
-table(
-    ["Method", "Endpoint", "Mô tả"],
-    [
-        ("GET",  "/api/payment/status/{poiId}",   "Trạng thái phí duy trì"),
-        ("GET",  "/api/payment/history/{poiId}",  "Lịch sử hóa đơn"),
-        ("POST", "/api/payment/maintenance",       "Ghi nhận phí duy trì (Admin)"),
-        ("POST", "/api/payment/convert/{poiId}",  "Thanh toán phí convert TTS"),
-        ("GET",  "/api/payment/overdue",           "POI quá hạn duy trì"),
-    ],
-    col_widths=[2.0, 5.5, 7.5]
-)
-
-heading2("8.5 Các endpoint khác")
-table(
-    ["Method", "Endpoint", "Mô tả"],
-    [
-        ("GET",  "/api/thuyet-minh/{poiId}?lang=vi", "Nội dung thuyết minh theo ngôn ngữ"),
-        ("POST", "/api/log",                          "Ghi log phát audio"),
-        ("POST", "/api/upload",                       "Upload ảnh (5MB, jpg/png/webp/gif)"),
-        ("POST", "/api/auth/login",                   "Đăng nhập CMS"),
-        ("POST", "/api/auth/register",                "Đăng ký tài khoản"),
-    ],
-    col_widths=[2.0, 5.5, 7.5]
-)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 9. CẤU TRÚC THƯ MỤC
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("9. CẤU TRÚC THƯ MỤC DỰ ÁN")
-
-code_block(
-    "VinhKhanhTourDemo/                  ← MAUI App\n"
-    "├── AppConfig.cs                    ← Cấu hình API URL, image URL resolver\n"
-    "├── MainPage.xaml(.cs)              ← Trang chính: POI list, GPS, geofence, audio\n"
-    "├── DetailPage.xaml(.cs)            ← Chi tiết POI, menu, audio player\n"
-    "├── SubscriptionPage.xaml(.cs)      ← Chọn gói đăng ký\n"
-    "├── PaymentPage.xaml(.cs)           ← Hiển thị QR thanh toán\n"
-    "└── PaymentStatusPage.xaml(.cs)     ← Polling trạng thái thanh toán\n"
-    "\n"
-    "VinhKhanhTour.API/\n"
-    "├── Controllers/\n"
-    "│   ├── AuthController.cs\n"
-    "│   ├── PoiController.cs\n"
-    "│   ├── SubscriptionController.cs\n"
-    "│   ├── HeartbeatController.cs\n"
-    "│   ├── PaymentController.cs\n"
-    "│   ├── ThuyetMinhController.cs\n"
-    "│   ├── LogController.cs\n"
-    "│   └── UploadController.cs\n"
-    "└── Models/                         ← Entity classes (EF Core)\n"
-    "\n"
-    "VinhKhanhTour.CMS/\n"
-    "└── Pages/\n"
-    "    ├── Index.cshtml(.cs)           ← Dashboard\n"
-    "    ├── Poi/                        ← CRUD quán ăn\n"
-    "    ├── ThuyetMinh/                 ← Quản lý thuyết minh\n"
-    "    ├── ThanhToan/                  ← Phí duy trì POI\n"
-    "    ├── DuyetThanhToan/             ← Duyệt thanh toán app\n"
-    "    └── BanDo/                      ← Bản đồ live"
-)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 10. PHẠM VI & TRẠNG THÁI
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("10. PHẠM VI & TRẠNG THÁI ĐỒ ÁN")
-
-table(
-    ["Tính năng", "Trạng thái"],
-    [
-        ("Hướng dẫn du lịch tự động (audio guide)",   "✅ Hoàn thành"),
-        ("Đa ngôn ngữ (vi/en/zh)",                     "✅ Hoàn thành"),
-        ("Geofence tự động phát thuyết minh",           "✅ Hoàn thành"),
-        ("Subscription & QR payment",                   "✅ Hoàn thành"),
-        ("CMS quản lý nội dung",                        "✅ Hoàn thành"),
-        ("Bản đồ live tracking",                        "✅ Hoàn thành"),
-        ("Duyệt thanh toán CMS",                        "✅ Hoàn thành"),
-        ("Phí duy trì POI",                             "✅ Hoàn thành"),
-        ("Xác thực JWT cho API",                        "❌ Ngoài phạm vi (demo plain text)"),
-        ("Push notification",                           "❌ Ngoài phạm vi"),
-        ("Hỗ trợ iOS",                                  "❌ Ngoài phạm vi"),
-        ("Đặt bàn / Order online",                      "❌ Ngoài phạm vi"),
-    ],
-    col_widths=[10.0, 5.0]
-)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 11. LUỒNG THANH TOÁN
-# ══════════════════════════════════════════════════════════════════════════════
-heading1("11. PHỤ LỤC – LUỒNG THANH TOÁN QR CHI TIẾT")
-
-code_block(
-    "App                        API                       Admin CMS\n"
-    " │                          │                             │\n"
-    " ├─ POST /subscription/request ──►                        │\n"
-    " │                          ├─ Tạo YeuCauThanhToan        │\n"
-    " │                          │  (status=cho_duyet)         │\n"
-    " │◄── {yeuCauId, noiDungCK} ─┤                            │\n"
-    " │                          │                             │\n"
-    " │  [Hiển thị QR + CK]      │  GET /requests?trangthai=   │\n"
-    " │  [Khách chuyển khoản]    │  cho_duyet ◄────────────────┤\n"
-    " │                          │                             │\n"
-    " │  polling (10s)           │  POST /approve/{id} ◄───────┤\n"
-    " ├─ GET /request/{id} ───────►  → tạo DangKyApp           │\n"
-    " │◄── {status:da_duyet} ────┤                             │\n"
-    " │                          │                             │\n"
-    " │  [Lưu NgayHetHan]        │                             │\n"
-    " │  [Chuyển MainPage]       │                             │"
-)
-
-# ── Footer ────────────────────────────────────────────────────────────────────
-hline()
-para("Tài liệu này mô tả toàn bộ phạm vi và yêu cầu của đồ án VinhKhanhTour phiên bản 1.0.",
-     align=WD_ALIGN_PARAGRAPH.CENTER, size=11, italic=True, color=(89,89,89))
-
-# ── Save ──────────────────────────────────────────────────────────────────────
-out = r"c:\Users\ASUS\OneDrive\Desktop\VinhKhanhTourDemo\docs\PRD_VinhKhanhTour.docx"
-doc.save(out)
-print(f"Saved: {out}")
+if __name__ == "__main__":
+    main()
