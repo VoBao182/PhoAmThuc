@@ -271,7 +271,7 @@
             <Border BackgroundColor="#1F2933"
                     Stroke="Transparent"
                     StrokeThickness="0"
-                    Margin="0,0,0,28">
+                    Margin="0,0,0,16">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="16"/>
                 </Border.StrokeShape>
@@ -321,6 +321,98 @@
                                 CommandParameter="nam"/>
                     </VerticalStackLayout>
                 </Grid>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#FED7AA"
+                    StrokeThickness="1"
+                    Margin="0,0,0,28">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16"/>
+                </Border.StrokeShape>
+                <Border.Shadow>
+                    <Shadow Brush="Black" Offset="0,1" Opacity="0.05" Radius="5"/>
+                </Border.Shadow>
+                <VerticalStackLayout Padding="18,16" Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="3">
+                            <Label Text="Khôi phục dữ liệu"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="#1F2933"/>
+                            <Label Text="Dùng khi cài lại app hoặc đổi thiết bị"
+                                   FontSize="12"
+                                   TextColor="#6B7280"/>
+                        </VerticalStackLayout>
+                        <Image Grid.Column="1"
+                               x:Name="ImgRecoveryQr"
+                               HeightRequest="86"
+                               WidthRequest="86"
+                               Aspect="AspectFit"/>
+                    </Grid>
+
+                    <Border BackgroundColor="#FFF7ED"
+                            Stroke="#FED7AA"
+                            StrokeThickness="1"
+                            Padding="10">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12"/>
+                        </Border.StrokeShape>
+                        <Label x:Name="LblRecoveryCode"
+                               Text="VKT-DEVICE:"
+                               FontSize="11"
+                               TextColor="#7C2D12"
+                               LineBreakMode="CharacterWrap"/>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                        <Button x:Name="BtnScanRecoveryQr"
+                                Grid.Column="0"
+                                Text="Quét QR"
+                                BackgroundColor="#F97316"
+                                TextColor="White"
+                                CornerRadius="12"
+                                FontSize="13"
+                                FontAttributes="Bold"
+                                Clicked="OnScanRecoveryQrClicked"/>
+                        <Button x:Name="BtnEnterRecoveryCode"
+                                Grid.Column="1"
+                                Text="Nhập mã"
+                                BackgroundColor="#1F2937"
+                                TextColor="White"
+                                CornerRadius="12"
+                                FontSize="13"
+                                FontAttributes="Bold"
+                                Clicked="OnEnterRecoveryCodeClicked"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                        <Button x:Name="BtnPasteRecoveryCode"
+                                Grid.Column="0"
+                                Text="Dán mã"
+                                BackgroundColor="#FFEDD5"
+                                TextColor="#C2410C"
+                                CornerRadius="12"
+                                FontSize="13"
+                                FontAttributes="Bold"
+                                Clicked="OnPasteRecoveryCodeClicked"/>
+                        <Button x:Name="BtnCopyRecoveryCode"
+                                Grid.Column="1"
+                                Text="Copy mã hiện tại"
+                                BackgroundColor="#F3F4F6"
+                                TextColor="#374151"
+                                CornerRadius="12"
+                                FontSize="13"
+                                FontAttributes="Bold"
+                                Clicked="OnCopyRecoveryCodeClicked"/>
+                    </Grid>
+
+                    <Label x:Name="LblRecoveryStatus"
+                           Text=""
+                           FontSize="12"
+                           TextColor="#C2410C"
+                           HorizontalTextAlignment="Center"/>
+                </VerticalStackLayout>
             </Border>
 
             <ActivityIndicator x:Name="LoadingIndicator"

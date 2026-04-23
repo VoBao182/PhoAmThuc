@@ -519,18 +519,18 @@
                                            HorizontalOptions="Center"
                                            Aspect="AspectFit"/>
                                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
-                                        <Button x:Name="BtnCopyDeviceCode"
+                                        <Button x:Name="BtnScanDeviceQr"
                                                 Grid.Column="0"
-                                                Text="Copy mã"
-                                                BackgroundColor="#FFEDD5"
-                                                TextColor="#C2410C"
+                                                Text="Quét QR"
+                                                BackgroundColor="#F97316"
+                                                TextColor="White"
                                                 CornerRadius="12"
                                                 FontSize="13"
                                                 FontAttributes="Bold"
-                                                Clicked="OnCopyDeviceCodeClicked"/>
+                                                Clicked="OnScanDeviceQrClicked"/>
                                         <Button x:Name="BtnRestoreDeviceCode"
                                                 Grid.Column="1"
-                                                Text="Nhập mã cũ"
+                                                Text="Nhập mã"
                                                 BackgroundColor="#1F2937"
                                                 TextColor="White"
                                                 CornerRadius="12"
@@ -538,6 +538,31 @@
                                                 FontAttributes="Bold"
                                                 Clicked="OnRestoreDeviceCodeClicked"/>
                                     </Grid>
+                                    <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
+                                        <Button x:Name="BtnPasteDeviceCode"
+                                                Grid.Column="0"
+                                                Text="Dán mã"
+                                                BackgroundColor="#FFEDD5"
+                                                TextColor="#C2410C"
+                                                CornerRadius="12"
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                Clicked="OnPasteDeviceCodeClicked"/>
+                                        <Button x:Name="BtnCopyDeviceCode"
+                                                Grid.Column="1"
+                                                Text="Copy mã"
+                                                BackgroundColor="#F3F4F6"
+                                                TextColor="#374151"
+                                                CornerRadius="12"
+                                                FontSize="13"
+                                                FontAttributes="Bold"
+                                                Clicked="OnCopyDeviceCodeClicked"/>
+                                    </Grid>
+                                    <Label x:Name="LblSettingsRecoveryStatus"
+                                           Text=""
+                                           FontSize="11"
+                                           TextColor="#C2410C"
+                                           HorizontalTextAlignment="Center"/>
                                     <Label Text="Nếu cài lại trên cùng thiết bị, app sẽ tự nhận lại mã này. Nếu cần hỗ trợ dữ liệu cũ, hãy lưu mã/QR trước khi xóa app."
                                            FontSize="11"
                                            TextColor="#9A3412"/>

@@ -29,6 +29,9 @@ public partial class MainPage : ContentPage
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+    private const double PoiSwitchDistanceBufferMeters = 5;
+    private const double MapMarkerOverlapMeters = 24;
+    private const double MapMarkerSpreadRadiusMeters = 18;
 
     private readonly HttpClient _http = new(new HttpClientHandler
     {
@@ -56,6 +59,10 @@ public partial class MainPage : ContentPage
     private readonly SemaphoreSlim _speakLock = new(1, 1);
     private readonly SemaphoreSlim _historySyncLock = new(1, 1);
     private readonly Dictionary<string, DateTime> _lastSpokenTime = new();
+    private readonly Queue<PoiDto> _speakQueue = new();
+    private readonly HashSet<Guid> _queuedSpeakPoiIds = [];
+    private readonly object _speakQueueGate = new();
+    private bool _isProcessingSpeakQueue;
     private int _heartbeatTick = 0;
     private int _poiRefreshTick = 0;
     private bool _subscriptionModalOpen;
@@ -712,20 +719,8 @@ public partial class MainPage : ContentPage
 
     private void CheckGeofence(Location userLoc)
     {
-        PoiDto? nearest = null;
-        double minDistance = double.MaxValue;
-
-        foreach (var poi in _pois)
-        {
-            var poiLoc = new Location(poi.ViDo, poi.KinhDo);
-            double distance = Location.CalculateDistance(userLoc, poiLoc, DistanceUnits.Kilometers) * 1000;
-
-            if (distance < poi.BanKinh && distance < minDistance)
-            {
-                minDistance = distance;
-                nearest = poi;
-            }
-        }
+        var selectedCandidate = SelectPoiForLocation(userLoc);
+        var nearest = selectedCandidate?.Poi;
 
         if (nearest != null)
         {
@@ -756,7 +751,7 @@ public partial class MainPage : ContentPage
                 _ = RecordPoiVisitAsync(nearest);
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    _ = SpeakPoiAsync(nearest);
+                    QueuePoiPlayback(nearest);
                     HighlightNearestPoi(nearest.Id);
                     RenderPoiCards();
                     UpdateCaiDatUI();
@@ -779,10 +774,87 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private NearbyPoiCandidate? SelectPoiForLocation(Location userLoc)
+    {
+        var candidates = _pois
+            .Select(poi =>
+            {
+                var poiLoc = new Location(poi.ViDo, poi.KinhDo);
+                double distance = Location.CalculateDistance(userLoc, poiLoc, DistanceUnits.Kilometers) * 1000;
+                return new NearbyPoiCandidate(poi, distance);
+            })
+            .Where(candidate => candidate.DistanceMeters <= candidate.Poi.BanKinh)
+            .OrderBy(candidate => candidate.Poi.MucUuTien)
+            .ThenBy(candidate => candidate.DistanceMeters)
+            .ThenBy(candidate => candidate.Poi.TenPOI, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        if (candidates.Count == 0)
+            return null;
+
+        var selected = candidates[0];
+        if (_currentPoi is null || _currentPoi.Id == selected.Poi.Id)
+            return selected;
+
+        var currentCandidate = candidates.FirstOrDefault(candidate => candidate.Poi.Id == _currentPoi.Id);
+        if (currentCandidate is not null
+            && currentCandidate.Poi.MucUuTien == selected.Poi.MucUuTien
+            && currentCandidate.DistanceMeters <= selected.DistanceMeters + PoiSwitchDistanceBufferMeters)
+        {
+            return currentCandidate;
+        }
+
+        return selected;
+    }
+
+    private void QueuePoiPlayback(PoiDto poi)
+    {
+        bool shouldStartProcessor = false;
+
+        lock (_speakQueueGate)
+        {
+            if (_playingPoi?.Id == poi.Id || _queuedSpeakPoiIds.Contains(poi.Id))
+                return;
+
+            _speakQueue.Enqueue(poi);
+            _queuedSpeakPoiIds.Add(poi.Id);
+
+            if (!_isProcessingSpeakQueue)
+            {
+                _isProcessingSpeakQueue = true;
+                shouldStartProcessor = true;
+            }
+        }
+
+        if (shouldStartProcessor)
+            MainThread.BeginInvokeOnMainThread(() => _ = ProcessSpeakQueueAsync());
+    }
+
+    private async Task ProcessSpeakQueueAsync()
+    {
+        while (true)
+        {
+            PoiDto poi;
+
+            lock (_speakQueueGate)
+            {
+                if (_speakQueue.Count == 0)
+                {
+                    _isProcessingSpeakQueue = false;
+                    return;
+                }
+
+                poi = _speakQueue.Dequeue();
+                _queuedSpeakPoiIds.Remove(poi.Id);
+            }
+
+            await SpeakPoiAsync(poi);
+        }
+    }
+
     private async Task SpeakPoiAsync(PoiDto poi)
     {
-        if (!await _speakLock.WaitAsync(0))
-            return;
+        await _speakLock.WaitAsync();
 
         try
         {
@@ -892,18 +964,22 @@ public partial class MainPage : ContentPage
             string circleLng = poiVisual.Poi.KinhDo.ToString(CultureInfo.InvariantCulture);
             string poiId = poiVisual.Poi.Id.ToString();
             string cleanId = poiId.Replace("-", "");
+            string pinText = $"P{poiVisual.Poi.MucUuTien}";
+            string title = System.Net.WebUtility.HtmlEncode(poiVisual.Poi.TenPOI);
+            string jsTitle = title.Replace("\\", "\\\\").Replace("'", "\\'");
 
             markersJs.Append($@"
                 L.circle([{circleLat},{circleLng}], {{
                     pane:'poiCircles',
                     radius: {poiVisual.Poi.BanKinh}, color:'#FF6600',
-                    fillColor:'#FF6600', fillOpacity:0.15, weight:2
+                    fillColor:'#FF6600', fillOpacity:0.10, weight:2
                 }}).addTo(map);
                 var icon_{cleanId} = L.divIcon({{
-                    html:'<div id=""poi_{cleanId}"" class=""poi-pin"" style=""cursor:pointer;transition:all .2s"">POI</div>',
-                    iconSize:[36,36], className:''
+                    html:'<div id=""poi_{cleanId}"" class=""poi-pin"" title=""{title}"" style=""cursor:pointer;transition:all .2s"">{pinText}</div>',
+                    iconSize:[42,42], iconAnchor:[21,21], className:''
                 }});
                 L.marker([{lat},{lng}],{{pane:'poiPins',zIndexOffset:200,icon:icon_{cleanId}}}).addTo(map)
+                    .bindTooltip('{jsTitle}', {{direction:'top',offset:[0,-16]}})
                     .on('click',function(){{ window.location.href='poi://{poiId}'; }});
             ");
         }
@@ -917,7 +993,7 @@ public partial class MainPage : ContentPage
     <style>
         body{{margin:0;padding:0;overflow:hidden;}}
         #map{{width:100vw;height:100vh;}}
-        .poi-pin{{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ff7a1a;color:white;font-size:12px;font-weight:800;box-shadow:0 6px 14px rgba(0,0,0,.24);border:3px solid rgba(255,255,255,.95);}}
+        .poi-pin{{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ff7a1a;color:white;font-size:12px;font-weight:800;box-shadow:0 6px 14px rgba(0,0,0,.24);border:3px solid rgba(255,255,255,.95);}}
         .user-dot{{width:20px;height:20px;background:#1565C0;border:3px solid white;border-radius:50%;box-shadow:0 0 0 8px rgba(21,101,192,0.22);}}
     </style>
 </head>
@@ -930,10 +1006,15 @@ public partial class MainPage : ContentPage
 
     map.createPane('poiCircles');
     map.getPane('poiCircles').style.zIndex = 350;
+    map.getPane('poiCircles').style.pointerEvents = 'none';
+    map.createPane('userAccuracy');
+    map.getPane('userAccuracy').style.zIndex = 360;
+    map.getPane('userAccuracy').style.pointerEvents = 'none';
     map.createPane('poiPins');
-    map.getPane('poiPins').style.zIndex = 420;
+    map.getPane('poiPins').style.zIndex = 720;
     map.createPane('userLayer');
-    map.getPane('userLayer').style.zIndex = 650;
+    map.getPane('userLayer').style.zIndex = 760;
+    map.getPane('userLayer').style.pointerEvents = 'none';
 
     {markersJs}
 
@@ -943,10 +1024,11 @@ public partial class MainPage : ContentPage
         if(accCircle) map.removeLayer(accCircle);
         userMarker=L.marker([lat,lng],{{
             pane:'userLayer',
+            interactive:false,
             zIndexOffset:1000,
             icon:L.divIcon({{html:'<div class=""user-dot""></div>',iconSize:[20,20],iconAnchor:[10,10],className:''}})
         }}).addTo(map);
-        if(acc&&acc<300) accCircle=L.circle([lat,lng],{{pane:'userLayer',radius:acc,color:'#1565C0',fillColor:'#1565C0',fillOpacity:0.08,weight:1}}).addTo(map);
+        if(acc&&acc<300) accCircle=L.circle([lat,lng],{{pane:'userAccuracy',interactive:false,radius:acc,color:'#1565C0',fillColor:'#1565C0',fillOpacity:0.08,weight:1}}).addTo(map);
         userMarker && userMarker.setZIndexOffset(1000);
         window.location.href='location://'+lat+','+lng;
     }}
@@ -969,8 +1051,17 @@ public partial class MainPage : ContentPage
 
     private void RefreshMapIfNeeded()
     {
-        if (_mapRequested || DeviceInfo.Platform != DevicePlatform.Android)
+        if (!_mapRequested && DeviceInfo.Platform == DevicePlatform.Android)
+            return;
+
+        if (_mapWebView is null)
+        {
             LoadMap();
+            return;
+        }
+
+        if (_isMapReady && _userLocation is not null)
+            UpdateUserLocationOnMap(_userLocation);
     }
 
     private WebView EnsureMapWebView()
@@ -993,34 +1084,64 @@ public partial class MainPage : ContentPage
 
     private IEnumerable<PoiVisualPosition> GetPoiVisualPositions()
     {
-        foreach (var group in _pois.GroupBy(p => $"{p.ViDo:F6}|{p.KinhDo:F6}"))
+        var pois = _pois
+            .OrderBy(p => p.MucUuTien)
+            .ThenBy(p => p.TenPOI, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+        var used = new bool[pois.Count];
+
+        for (var i = 0; i < pois.Count; i++)
         {
-            var poisAtSameLocation = group.ToList();
-            if (poisAtSameLocation.Count == 1)
+            if (used[i])
+                continue;
+
+            var seed = pois[i];
+            var cluster = new List<PoiDto> { seed };
+            used[i] = true;
+
+            for (var j = i + 1; j < pois.Count; j++)
             {
-                var poi = poisAtSameLocation[0];
-                yield return new PoiVisualPosition(poi, poi.ViDo, poi.KinhDo);
+                if (used[j])
+                    continue;
+
+                if (DistanceMeters(seed, pois[j]) <= MapMarkerOverlapMeters)
+                {
+                    cluster.Add(pois[j]);
+                    used[j] = true;
+                }
+            }
+
+            if (cluster.Count == 1)
+            {
+                yield return new PoiVisualPosition(seed, seed.ViDo, seed.KinhDo);
                 continue;
             }
 
-            // Spread overlapping markers in a small ring so the map shows each POI separately.
-            const double radiusMeters = 14d;
-            for (var index = 0; index < poisAtSameLocation.Count; index++)
+            var centerLat = cluster.Average(p => p.ViDo);
+            var centerLng = cluster.Average(p => p.KinhDo);
+            for (var index = 0; index < cluster.Count; index++)
             {
-                var poi = poisAtSameLocation[index];
-                var angle = (2 * Math.PI * index) / poisAtSameLocation.Count;
-                var latOffset = (radiusMeters / 111_320d) * Math.Cos(angle);
-                var lngDivisor = 111_320d * Math.Cos(poi.ViDo * Math.PI / 180d);
+                var poi = cluster[index];
+                var angle = (2 * Math.PI * index) / cluster.Count;
+                var latOffset = (MapMarkerSpreadRadiusMeters / 111_320d) * Math.Cos(angle);
+                var lngDivisor = 111_320d * Math.Cos(centerLat * Math.PI / 180d);
                 var lngOffset = lngDivisor == 0d
                     ? 0d
-                    : (radiusMeters / lngDivisor) * Math.Sin(angle);
+                    : (MapMarkerSpreadRadiusMeters / lngDivisor) * Math.Sin(angle);
 
                 yield return new PoiVisualPosition(
                     poi,
-                    poi.ViDo + latOffset,
-                    poi.KinhDo + lngOffset);
+                    centerLat + latOffset,
+                    centerLng + lngOffset);
             }
         }
+    }
+
+    private static double DistanceMeters(PoiDto first, PoiDto second)
+    {
+        var firstLocation = new Location(first.ViDo, first.KinhDo);
+        var secondLocation = new Location(second.ViDo, second.KinhDo);
+        return Location.CalculateDistance(firstLocation, secondLocation, DistanceUnits.Kilometers) * 1000;
     }
 
     private sealed record PoiVisualPosition(PoiDto Poi, double DisplayViDo, double DisplayKinhDo);
@@ -1550,12 +1671,44 @@ public partial class MainPage : ContentPage
     private async void OnCopyDeviceCodeClicked(object? sender, EventArgs e)
     {
         await Clipboard.SetTextAsync(DeviceIdentity.BuildRecoveryPayload());
+        if (LblSettingsRecoveryStatus is not null)
+            LblSettingsRecoveryStatus.Text = "Đã copy mã khôi phục.";
+
         if (BtnCopyDeviceCode is not null)
         {
             BtnCopyDeviceCode.Text = "Đã copy";
             await Task.Delay(1500);
             BtnCopyDeviceCode.Text = "Copy mã";
         }
+    }
+
+    private async void OnPasteDeviceCodeClicked(object? sender, EventArgs e)
+    {
+        var code = await Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            if (LblSettingsRecoveryStatus is not null)
+                LblSettingsRecoveryStatus.Text = "Clipboard chưa có mã khôi phục.";
+            return;
+        }
+
+        await RestoreDeviceCodeAsync(code);
+    }
+
+    private async void OnScanDeviceQrClicked(object? sender, EventArgs e)
+    {
+        var permission = await Permissions.CheckStatusAsync<Permissions.Camera>();
+        if (permission != PermissionStatus.Granted)
+            permission = await Permissions.RequestAsync<Permissions.Camera>();
+
+        if (permission != PermissionStatus.Granted)
+        {
+            if (LblSettingsRecoveryStatus is not null)
+                LblSettingsRecoveryStatus.Text = "Cần cấp quyền camera để quét QR.";
+            return;
+        }
+
+        await Navigation.PushModalAsync(new QrScannerPage(RestoreDeviceCodeAsync), animated: true);
     }
 
     private async void OnRestoreDeviceCodeClicked(object? sender, EventArgs e)
@@ -1573,6 +1726,11 @@ public partial class MainPage : ContentPage
         if (string.IsNullOrWhiteSpace(code))
             return;
 
+        await RestoreDeviceCodeAsync(code);
+    }
+
+    private async Task RestoreDeviceCodeAsync(string code)
+    {
         if (!DeviceIdentity.TrySetDeviceIdOverride(code, out _))
         {
             await DisplayAlertAsync(
@@ -1582,10 +1740,16 @@ public partial class MainPage : ContentPage
             return;
         }
 
+        if (LblSettingsRecoveryStatus is not null)
+            LblSettingsRecoveryStatus.Text = "Đã nhận mã cũ. Đang đồng bộ...";
+
         await RestoreSubscriptionStateAsync();
         await RestorePoiHistoryAsync();
         _ = SyncPoiHistoryAsync();
         UpdateCaiDatUI();
+
+        if (LblSettingsRecoveryStatus is not null)
+            LblSettingsRecoveryStatus.Text = "Đã khôi phục mã thiết bị và đồng bộ dữ liệu.";
 
         await DisplayAlertAsync(
             GetText("Đã khôi phục", "Restored", "已恢复"),
@@ -1654,7 +1818,7 @@ public partial class MainPage : ContentPage
     {
         if (_currentPoi != null)
         {
-            await SpeakPoiAsync(_currentPoi);
+            QueuePoiPlayback(_currentPoi);
             return;
         }
 
@@ -1666,6 +1830,8 @@ public partial class MainPage : ContentPage
                 "请靠近一个地点以开始语音导览。"),
             GetText("OK", "OK", "确定"));
     }
+
+    private sealed record NearbyPoiCandidate(PoiDto Poi, double DistanceMeters);
 }
 
 public class ThuyetMinhResponse

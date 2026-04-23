@@ -26,8 +26,15 @@ public partial class SubscriptionPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        UpdateRecoveryCard();
         UpdateTrialButtonState();
         HideApiGuide();
+    }
+
+    private void UpdateRecoveryCard()
+    {
+        LblRecoveryCode.Text = DeviceIdentity.BuildRecoveryPayload();
+        ImgRecoveryQr.Source = ImageSource.FromUri(new Uri(DeviceIdentity.BuildQrCodeUrl()));
     }
 
     private void UpdateTrialButtonState()
@@ -70,6 +77,114 @@ public partial class SubscriptionPage : ContentPage
             LblError.IsVisible = false;
             HideApiGuide();
         }
+    }
+
+    private async void OnCopyRecoveryCodeClicked(object? sender, EventArgs e)
+    {
+        await Clipboard.SetTextAsync(DeviceIdentity.BuildRecoveryPayload());
+        LblRecoveryStatus.Text = "Đã copy mã khôi phục hiện tại.";
+    }
+
+    private async void OnPasteRecoveryCodeClicked(object? sender, EventArgs e)
+    {
+        var code = await Clipboard.GetTextAsync();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            LblRecoveryStatus.Text = "Clipboard chưa có mã khôi phục.";
+            return;
+        }
+
+        await RestoreFromRecoveryCodeAsync(code);
+    }
+
+    private async void OnEnterRecoveryCodeClicked(object? sender, EventArgs e)
+    {
+        var code = await DisplayPromptAsync(
+            "Khôi phục dữ liệu",
+            "Nhập mã khôi phục hoặc nội dung quét từ QR.",
+            "Khôi phục",
+            "Hủy",
+            "VKT-DEVICE:...");
+
+        if (!string.IsNullOrWhiteSpace(code))
+            await RestoreFromRecoveryCodeAsync(code);
+    }
+
+    private async void OnScanRecoveryQrClicked(object? sender, EventArgs e)
+    {
+        var permission = await Permissions.CheckStatusAsync<Permissions.Camera>();
+        if (permission != PermissionStatus.Granted)
+            permission = await Permissions.RequestAsync<Permissions.Camera>();
+
+        if (permission != PermissionStatus.Granted)
+        {
+            LblRecoveryStatus.Text = "Cần cấp quyền camera để quét QR.";
+            return;
+        }
+
+        await Navigation.PushModalAsync(new QrScannerPage(RestoreFromRecoveryCodeAsync), animated: true);
+    }
+
+    private async Task RestoreFromRecoveryCodeAsync(string rawCode)
+    {
+        if (!DeviceIdentity.TrySetDeviceIdOverride(rawCode, out var restoredDeviceId))
+        {
+            LblRecoveryStatus.Text = "Mã khôi phục không hợp lệ.";
+            return;
+        }
+
+        UpdateRecoveryCard();
+        SetLoading(true);
+        LblError.IsVisible = false;
+        LblRecoveryStatus.Text = "Đã nhận mã cũ. Đang đồng bộ gói...";
+
+        try
+        {
+            var restored = await RestoreSubscriptionStateAsync(restoredDeviceId);
+            UpdateTrialButtonState();
+
+            if (restored)
+            {
+                await DisplayAlertAsync(
+                    "Đã khôi phục",
+                    "Ứng dụng đã đồng bộ lại gói sử dụng và mã thiết bị cũ.",
+                    "Tiếp tục");
+
+                await ExitSubscriptionGateAsync();
+                return;
+            }
+
+            LblRecoveryStatus.Text = "Đã đổi sang mã cũ, nhưng mã này chưa có gói còn hạn. Bạn có thể mua/dùng thử bằng mã này.";
+        }
+        catch (Exception ex)
+        {
+            LblRecoveryStatus.Text = AppConfig.BuildConnectionErrorMessage(ex);
+        }
+        finally
+        {
+            SetLoading(false);
+        }
+    }
+
+    private async Task<bool> RestoreSubscriptionStateAsync(string deviceId)
+    {
+        var apiBaseUrl = await ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync(this, _http);
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+            return false;
+
+        var url = $"{apiBaseUrl}/api/subscription/status/{Uri.EscapeDataString(deviceId)}";
+        var status = await _http.GetFromJsonAsync<SubscriptionStatusResponse>(url);
+        if (status == null)
+            return false;
+
+        Preferences.Set(PrefDaDungThu, status.DaDungThu);
+
+        if (status.NgayHetHan.HasValue)
+            Preferences.Set(PrefNgayHetHan, status.NgayHetHan.Value.ToString("O"));
+
+        return status.CoDangKy
+            && status.NgayHetHan.HasValue
+            && status.NgayHetHan.Value > DateTime.UtcNow;
     }
 
     private async Task ActivateFreeTrialAsync(string deviceId)
@@ -136,6 +251,10 @@ public partial class SubscriptionPage : ContentPage
         BtnMuaTuan.IsEnabled = !loading;
         BtnMuaThang.IsEnabled = !loading;
         BtnMuaNam.IsEnabled = !loading;
+        BtnScanRecoveryQr.IsEnabled = !loading;
+        BtnEnterRecoveryCode.IsEnabled = !loading;
+        BtnPasteRecoveryCode.IsEnabled = !loading;
+        BtnCopyRecoveryCode.IsEnabled = !loading;
     }
 
     private async Task ExitSubscriptionGateAsync()

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using ZXing.Net.Maui.Controls;
 
 namespace VinhKhanhTourDemo
 {
@@ -9,7 +10,8 @@ namespace VinhKhanhTourDemo
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
-                // KHÔNG dùng UseMauiMaps() — không cần vì đang dùng Leaflet WebView
+                .UseBarcodeReader()
+                // KHONG dung UseMauiMaps() vi dang dung Leaflet WebView.
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
