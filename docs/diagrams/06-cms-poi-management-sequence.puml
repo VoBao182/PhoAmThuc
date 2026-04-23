@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Sequence)
 ' Status: WIP
-' Baseline: branch master, HEAD b618c08
+' Baseline: branch master, HEAD adb1a28
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
@@ -10,7 +10,7 @@
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload()
 ' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
-' Note: Sequence bo sung doc danh sach POI voi filter/sort va ImageUrlHelper; khong them service nao khong co trong code.
+' Note: Sequence bo sung xu ly MonAns moi trong Create/Edit: bo qua row rong, DonGia=0 khi null, va giu input dang nhap neu validation POI loi.
 title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
 
 actor Admin
@@ -44,19 +44,30 @@ end
 
 alt tao POI moi
   Admin -> PageModel: submit /Poi/Create
-  PageModel -> PageModel: CreateModel.OnPostAsync()\nTao POI + ThuyetMinh + BanDich + MonAns
-  PageModel -> AppDbContext: Add(POI)
-  AppDbContext -> DB: INSERT poi/thuyetminh/bandich/monan
-  DB --> AppDbContext: saved
-  AppDbContext --> PageModel: SaveChangesAsync()
+  PageModel -> PageModel: CreateModel.OnPostAsync()
+  alt ModelState hop le
+    PageModel -> PageModel: Tao POI + ThuyetMinh + BanDich\nLoc MonAns co TenMonAn\nDonGia null -> 0
+    PageModel -> AppDbContext: Add(POI)
+    AppDbContext -> DB: INSERT poi/thuyetminh/bandich/monan
+    DB --> AppDbContext: saved
+    AppDbContext --> PageModel: SaveChangesAsync()
+  else ModelState khong hop le
+    PageModel --> Admin: return Page()
+  end
 else sua POI hien co
   Admin -> PageModel: submit /Poi/Edit/{id}
-  PageModel -> AppDbContext: load POI + MonAns + ThuyetMinhs
-  AppDbContext -> DB: SELECT data hien co
-  DB --> AppDbContext: entity graph
-  PageModel -> PageModel: cap nhat POI\nUpsertBanDich()\nadd/update/deactivate MonAns
-  AppDbContext -> DB: UPDATE + INSERT related rows
-  DB --> AppDbContext: saved
+  PageModel -> PageModel: EditModel.OnPostAsync()\nModelState.Remove("MonAns[*]")
+  alt van con loi validation tren POI
+    PageModel -> PageModel: TempData["Error"]\nRebuild POI.MonAns tu input dang nhap\nLoc MonAns rong\nDonGia null -> 0
+    PageModel --> Admin: return Page()
+  else du lieu hop le
+    PageModel -> AppDbContext: load POI + MonAns + ThuyetMinhs
+    AppDbContext -> DB: SELECT data hien co
+    DB --> AppDbContext: entity graph
+    PageModel -> PageModel: cap nhat POI\nUpsertBanDich()\nTim formIds co Id hop le\nDeactivate MonAns mat khoi form\nAdd/update MonAns co TenMonAn\nDonGia null -> 0
+    AppDbContext -> DB: UPDATE + INSERT related rows
+    DB --> AppDbContext: saved
+  end
 end
 
 opt bat/tat hien thi POI

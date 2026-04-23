@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F00 - Use case tong the he thong
 ' Status: WIP
-' Baseline: branch master, HEAD b618c08
+' Baseline: branch master, HEAD adb1a28
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs
@@ -26,7 +26,7 @@
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs
-' Note: Da cap nhat theo HEAD b618c08, bo sung recovery code/QR cho subscription gate va khoi phuc ma thiet bi trong MainPage, dong thoi giu cac luong monitoring CMS hien tai.
+' Note: Da cap nhat theo HEAD adb1a28, bo sung recovery code/QR cho subscription gate, khoi phuc ma thiet bi trong MainPage, va dong bo tiep cac thay doi CMS POI hien tai.
 left to right direction
 skinparam packageStyle rectangle
 

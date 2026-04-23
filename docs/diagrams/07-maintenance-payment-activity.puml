@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD b618c08
+' Baseline: branch master, HEAD adb1a28
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()

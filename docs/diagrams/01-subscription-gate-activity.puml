@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F01 - Kich hoat va khoi phuc quyen su dung app (Activity)
 ' Status: WIP
-' Baseline: branch master, HEAD b618c08
+' Baseline: branch master, HEAD adb1a28
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs: OnAppearing(), RouteAsync(), OnRetryClicked()
