@@ -1,118 +1,48 @@
-using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-var config = new ConfigurationBuilder()
-    .SetBasePath(Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "VinhKhanhTour.API")))
-    .AddJsonFile("appsettings.json", optional: true)
-    .AddJsonFile("appsettings.Development.json", optional: true)
-    .AddJsonFile("appsettings.Development.Local.json", optional: true)
-    .AddEnvironmentVariables()
-    .Build();
+var connStr = "Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.gdehuskbrhfswvrkfzkl;Password=VinhKhanhTour.;SSL Mode=Require;Trust Server Certificate=true";
 
-var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
-    ?? config.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Missing connection string.");
-
-await using var conn = new NpgsqlConnection(connectionString);
-await conn.OpenAsync();
-
-await PrintQueryAsync(
-    conn,
-    "Active POI visible to /api/poi filter",
-    """
-    select id::text,
-           tenpoi,
-           diachi,
-           vido,
-           kinhdo,
-           trangthai,
-           ngayhethanduytri,
-           count(*) over (partition by round(vido::numeric, 6), round(kinhdo::numeric, 6)) as same_coord_count
-    from poi
-    where trangthai = true
-      and (ngayhethanduytri is null or ngayhethanduytri > now())
-    order by mucuutien, tenpoi;
-    """);
-
-await PrintQueryAsync(
-    conn,
-    "All active POI regardless maintenance expiry",
-    """
-    select id::text,
-           tenpoi,
-           diachi,
-           vido,
-           kinhdo,
-           trangthai,
-           ngayhethanduytri,
-           case
-             when ngayhethanduytri is null then 'visible_null_expiry'
-             when ngayhethanduytri > now() then 'visible_paid'
-             else 'hidden_expired'
-           end as api_visibility
-    from poi
-    where trangthai = true
-    order by api_visibility, mucuutien, tenpoi;
-    """);
-
-await PrintQueryAsync(
-    conn,
-    "Device 46391152 matching IDs",
-    """
-    select source, mathietbi, count(*) as rows
-    from (
-        select 'lichsuphat' as source, mathietbi from lichsuphat where mathietbi ilike '46391152%'
-        union all
-        select 'vitrikhach' as source, mathietbi from vitrikhach where mathietbi ilike '46391152%'
-        union all
-        select 'dangkyapp' as source, mathietbi from dangkyapp where mathietbi ilike '46391152%'
-    ) x
-    group by source, mathietbi
-    order by source, mathietbi;
-    """);
-
-await PrintQueryAsync(
-    conn,
-    "Device 46391152 POI activity",
-    """
-    select coalesce(l.nguon, '') as nguon,
-           l.poiid::text,
-           coalesce(p.tenpoi, '(missing poi)') as tenpoi,
-           count(*) as rows,
-           min(l.thoigian) as first_seen,
-           max(l.thoigian) as last_seen
-    from lichsuphat l
-    left join poi p on p.id = l.poiid
-    where l.mathietbi ilike '46391152%'
-      and l.poiid is not null
-    group by coalesce(l.nguon, ''), l.poiid, coalesce(p.tenpoi, '(missing poi)')
-    order by tenpoi, nguon;
-    """);
-
-static async Task PrintQueryAsync(NpgsqlConnection conn, string title, string sql)
+var poiIds = new[]
 {
-    Console.WriteLine();
-    Console.WriteLine($"## {title}");
+    Guid.Parse("6d55af23-0791-4381-af61-50242a14a6e5"), // Bảo ký
+    Guid.Parse("526c4561-adda-4883-8ec3-44c72ff6085a"), // Bảo ký
+    Guid.Parse("1c780dee-90ba-42fe-9242-491e9c2a5975"), // Kỳ ký
+};
 
-    await using var cmd = new NpgsqlCommand(sql, conn)
-    {
-        CommandTimeout = 60
-    };
+await using var conn = new NpgsqlConnection(connStr);
+await conn.OpenAsync();
+Console.WriteLine("=== DRY-RUN: Khao sat cac hang bi anh huong (KHONG XOA) ===\n");
 
-    await using var reader = await cmd.ExecuteReaderAsync();
-    var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-    Console.WriteLine(string.Join(" | ", names));
+await Count(conn, "poi",            "SELECT COUNT(*) FROM poi WHERE id = ANY(@ids)",                                                         poiIds);
+await Count(conn, "monan",          "SELECT COUNT(*) FROM monan WHERE poiid = ANY(@ids)",                                                   poiIds);
+await Count(conn, "thuyetminh",     "SELECT COUNT(*) FROM thuyetminh WHERE poiid = ANY(@ids)",                                              poiIds);
+await Count(conn, "bandich (con)",  "SELECT COUNT(*) FROM bandich WHERE thuyetminhid IN (SELECT id FROM thuyetminh WHERE poiid = ANY(@ids))", poiIds);
+await Count(conn, "hoadon",         "SELECT COUNT(*) FROM hoadon WHERE poiid = ANY(@ids)",                                                  poiIds);
+await Count(conn, "dangkydichvu",   "SELECT COUNT(*) FROM dangkydichvu WHERE poiid = ANY(@ids)",                                            poiIds);
+await Count(conn, "lichsuphat (poiid)",       "SELECT COUNT(*) FROM lichsuphat WHERE poiid = ANY(@ids)",                                    poiIds);
+await Count(conn, "lichsuphat (thuyetminhid)","SELECT COUNT(*) FROM lichsuphat WHERE thuyetminhid IN (SELECT id FROM thuyetminh WHERE poiid = ANY(@ids))", poiIds);
+await Count(conn, "vitrikhach",     "SELECT COUNT(*) FROM vitrikhach WHERE poiid_hientai = ANY(@ids)",                                      poiIds);
+await Count(conn, "taikhoan",       "SELECT COUNT(*) FROM taikhoan WHERE poiid = ANY(@ids)",                                                poiIds);
 
-    while (await reader.ReadAsync())
-    {
-        var values = new object?[reader.FieldCount];
-        reader.GetValues(values);
-        Console.WriteLine(string.Join(" | ", values.Select(v => v switch
-        {
-            null => "",
-            DBNull => "",
-            DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => v.ToString()
-        })));
-    }
+Console.WriteLine("\nCac FK tim thay trong pg_constraint (de kiem tra cascade behavior):");
+var fkSql = @"
+SELECT conrelid::regclass AS tbl, conname, pg_get_constraintdef(oid) AS def
+FROM pg_constraint
+WHERE contype = 'f'
+  AND (confrelid = 'poi'::regclass OR confrelid = 'thuyetminh'::regclass)
+ORDER BY conrelid::regclass::text;";
+
+await using (var cmd = new NpgsqlCommand(fkSql, conn))
+await using (var rdr = await cmd.ExecuteReaderAsync())
+{
+    while (await rdr.ReadAsync())
+        Console.WriteLine($"  [{rdr.GetValue(0)}] {rdr.GetString(1)}: {rdr.GetString(2)}");
+}
+
+static async Task Count(NpgsqlConnection conn, string label, string sql, Guid[] ids)
+{
+    await using var cmd = new NpgsqlCommand(sql, conn);
+    cmd.Parameters.AddWithValue("ids", ids);
+    var n = (long)(await cmd.ExecuteScalarAsync() ?? 0L);
+    Console.WriteLine($"  {label,-28}: {n} hang");
 }

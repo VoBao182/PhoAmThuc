@@ -58,7 +58,7 @@ public class CreateModel : PageModel
             {
                 Id       = Guid.NewGuid(),
                 POIId    = POI.Id,
-                TenMonAn = m.TenMonAn,
+                TenMonAn = m.TenMonAn!,
                 MoTa     = m.MoTa,
                 HinhAnh  = m.HinhAnh,
                 PhanLoai = m.PhanLoai,

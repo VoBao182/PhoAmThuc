@@ -53,13 +53,32 @@ public class EditModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        // Bo qua cac loi validation tren item MonAns bi trong (user them row roi khong dien,
+        // hoac EXISTING row co truong trong). Loi tren POI thi van giu nguyen.
+        foreach (var key in ModelState.Keys.Where(k => k.StartsWith("MonAns[")).ToList())
+            ModelState.Remove(key);
+
         if (!ModelState.IsValid)
         {
-            // reload MonAns for display
-            var reloaded = await _db.POIs
-                .Include(p => p.MonAns.Where(m => m.TinhTrang))
-                .FirstOrDefaultAsync(p => p.Id == POI.Id);
-            POI.MonAns = reloaded?.MonAns.ToList() ?? [];
+            TempData["Error"] = "Khong the luu: " + string.Join(" | ", ModelState
+                .Where(kv => kv.Value!.Errors.Count > 0)
+                .Select(kv => $"{kv.Key}: {kv.Value!.Errors[0].ErrorMessage}"));
+
+            // giu nguyen input user da nhap thay vi load lai tu DB
+            POI.MonAns = MonAns
+                .Where(m => !string.IsNullOrWhiteSpace(m.TenMonAn))
+                .Select(m => new MonAn
+                {
+                    Id        = m.Id ?? Guid.Empty,
+                    POIId     = POI.Id,
+                    TenMonAn  = m.TenMonAn ?? "",
+                    MoTa      = m.MoTa,
+                    HinhAnh   = m.HinhAnh,
+                    PhanLoai  = m.PhanLoai,
+                    DonGia    = m.DonGia ?? 0m,
+                    TinhTrang = true
+                })
+                .ToList();
             return Page();
         }
 
@@ -123,7 +142,7 @@ public class EditModel : PageModel
                 {
                     Id        = Guid.NewGuid(),
                     POIId     = poi.Id,
-                    TenMonAn  = input.TenMonAn,
+                    TenMonAn  = input.TenMonAn!,
                     MoTa      = input.MoTa,
                     HinhAnh   = input.HinhAnh,
                     PhanLoai  = input.PhanLoai,
@@ -136,7 +155,7 @@ public class EditModel : PageModel
                 // Cập nhật
                 var mon = poi.MonAns.FirstOrDefault(m => m.Id == input.Id!.Value);
                 if (mon == null) continue;
-                mon.TenMonAn  = input.TenMonAn;
+                mon.TenMonAn  = input.TenMonAn!;
                 mon.MoTa      = input.MoTa;
                 mon.HinhAnh   = input.HinhAnh;
                 mon.PhanLoai  = input.PhanLoai;
@@ -182,11 +201,11 @@ public class EditModel : PageModel
 // DTO nhận từ form (tránh conflict với Model MonAn)
 public class MonAnInput
 {
-    public Guid?  Id        { get; set; }
-    public string TenMonAn  { get; set; } = "";
-    public string? MoTa     { get; set; }
-    public string? HinhAnh  { get; set; }
-    public string? PhanLoai { get; set; }
-    public decimal? DonGia  { get; set; }
-    public bool TinhTrang   { get; set; } = true;
+    public Guid?    Id        { get; set; }
+    public string?  TenMonAn  { get; set; }
+    public string?  MoTa      { get; set; }
+    public string?  HinhAnh   { get; set; }
+    public string?  PhanLoai  { get; set; }
+    public decimal? DonGia    { get; set; }
+    public bool     TinhTrang { get; set; } = true;
 }

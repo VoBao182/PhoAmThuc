@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,21 +22,39 @@ builder.Configuration
         reloadOnChange: true);
 
 var connectionString = GetConnectionString(builder.Configuration, builder.Environment);
+var port = Environment.GetEnvironmentVariable("PORT");
+
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 
 builder.Services.AddRazorPages();
+
+// Kết nối Supabase
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         connectionString,
-        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps =>
-            new ResilientExecutionStrategy(
-                deps,
-                maxRetryCount: 4,
-                maxRetryDelay: TimeSpan.FromSeconds(3)))));
+        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps => new ResilientExecutionStrategy(deps))));
+
+// Cho phép MAUI app gọi API
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
+});
 
 var app = builder.Build();
 
+// Phục vụ ảnh tải lên từ wwwroot/uploads
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
+Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles();
-app.UseRouting();
+
+app.UseCors("AllowAll");
+app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/health/db", async (AppDbContext db) =>
 {
@@ -67,7 +86,7 @@ static string GetConnectionString(ConfigurationManager configuration, IHostEnvir
     if (string.IsNullOrWhiteSpace(connectionString) || LooksLikePlaceholder(connectionString))
     {
         throw new InvalidOperationException(
-            "Missing Supabase database connection string. In Visual Studio, set SUPABASE_CONNECTION_STRING or create appsettings.Development.Local.json with ConnectionStrings:DefaultConnection from Supabase.");
+            "Missing Supabase database connection string. Set SUPABASE_CONNECTION_STRING or create appsettings.Development.Local.json with ConnectionStrings:DefaultConnection from Supabase.");
     }
 
     return ConfigureConnectionString(connectionString, configuration, environment);
@@ -86,11 +105,11 @@ static string ConfigureConnectionString(
         builder.SslMode = SslMode.Disable;
     }
 
-    // Stay below Supabase pooler's session-mode client cap. The CMS opens a few raw
-    // NpgsqlConnections (BanDo page) on top of EF's pool; without a cap Npgsql may hoard
-    // slots and Supabase returns "MaxClientsInSessionMode" when the API also connects.
-    if (builder.MaxPoolSize > 4 || builder.MaxPoolSize == 0)
-        builder.MaxPoolSize = 4;
+    // Stay below Supabase pooler's session-mode client cap. Free tier allocates a small
+    // number of slots per pooler role, shared between API and CMS. Without an explicit cap,
+    // Npgsql may hold 100 idle slots and trigger "MaxClientsInSessionMode" under load.
+    if (builder.MaxPoolSize > 6 || builder.MaxPoolSize == 0)
+        builder.MaxPoolSize = 6;
 
     if (builder.MinPoolSize > 0)
         builder.MinPoolSize = 0;
@@ -111,4 +130,3 @@ static bool LooksLikePlaceholder(string connectionString)
         || connectionString.Contains("PROJECT_REF", StringComparison.OrdinalIgnoreCase)
         || connectionString.Contains("YOUR_NEW_PASSWORD", StringComparison.OrdinalIgnoreCase);
 }
-
