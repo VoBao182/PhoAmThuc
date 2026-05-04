@@ -12,15 +12,15 @@ public class PoiController : ControllerBase
     private readonly AppDbContext _db;
     public PoiController(AppDbContext db) => _db = db;
 
-    // GET /api/poi — lấy POI đang hoạt động
-    // POI chưa cấu hình hạn duy trì vẫn được hiện để app không bị thiếu dữ liệu seed/demo.
+    // GET /api/poi — chỉ lấy POI đang hoạt động và còn hạn duy trì.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var now = DateTime.UtcNow;
         var pois = await _db.POIs
             .Where(p => p.TrangThai
-                     && (!p.NgayHetHanDuyTri.HasValue || p.NgayHetHanDuyTri > now))
+                     && p.NgayHetHanDuyTri.HasValue
+                     && p.NgayHetHanDuyTri.Value >= now)
             .OrderBy(p => p.MucUuTien)
             .Select(p => new {
                 p.Id,
@@ -40,11 +40,15 @@ public class PoiController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id, [FromQuery] string lang = "vi")
     {
+        var now = DateTime.UtcNow;
         var poi = await _db.POIs
             .Include(p => p.MonAns.Where(m => m.TinhTrang))
             .Include(p => p.ThuyetMinhs.Where(t => t.TrangThai))
                 .ThenInclude(t => t.BanDichs)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id
+                                   && p.TrangThai
+                                   && p.NgayHetHanDuyTri.HasValue
+                                   && p.NgayHetHanDuyTri.Value >= now);
 
         if (poi == null) return NotFound();
 

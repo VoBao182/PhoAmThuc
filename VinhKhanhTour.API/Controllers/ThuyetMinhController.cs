@@ -20,9 +20,22 @@ public class ThuyetMinhController(AppDbContext db, ILogger<ThuyetMinhController>
         CancellationToken cancellationToken = default)
     {
         var langCode = NormalizeLanguageCode(lang);
+        var now = DateTime.UtcNow;
 
         try
         {
+            var isVisiblePoi = await _db.POIs
+                .AsNoTracking()
+                .AnyAsync(
+                    p => p.Id == poiId
+                      && p.TrangThai
+                      && p.NgayHetHanDuyTri.HasValue
+                      && p.NgayHetHanDuyTri.Value >= now,
+                    cancellationToken);
+
+            if (!isVisiblePoi)
+                return NotFound("POI khong con hoat dong");
+
             var thuyetMinhId = await _db.ThuyetMinhs
                 .AsNoTracking()
                 .Where(tm => tm.POIId == poiId && tm.TrangThai)
