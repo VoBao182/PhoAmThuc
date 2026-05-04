@@ -1,14 +1,15 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Activity)
-' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Status: PENDING-REVIEW
+' Baseline: branch master, HEAD b946abe (+ bo sung SelectPoiForLocation)
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Da doi heartbeat 10 giay va refresh POI 20 giay theo constants HEARTBEAT_EVERY_TICKS=2, POI_REFRESH_EVERY_TICKS=4 voi GPS poll 5 giay.
+' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI va giu POI hien tai neu cung muc uu tien va chenh lech khoang cach <= PoiSwitchDistanceBufferMeters (5m).
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
 :EnsureGpsTrackingAsync();
@@ -36,7 +37,21 @@ while (token chua bi cancel?) is (Co)
       :RefreshPoisInBackgroundAsync();
     endif
 
-    if (tim thay nearest POI nam trong ban kinh?) then (Co)
+    :SelectPoiForLocation(location);
+    note right
+      Loc POI co distance <= BanKinh
+      OrderBy MucUuTien (nho hon thang)
+      ThenBy DistanceMeters
+      ThenBy TenPOI
+    end note
+    if (co ung vien POI trong ban kinh?) then (Co)
+      if (dang phat _currentPoi
+         && cung MucUuTien voi top1
+         && |distance chenh lech| <= 5m?) then (Co)
+        :giu _currentPoi (hysteresis);
+      else (Khong)
+        :chon top1 lam nearest;
+      endif
       if (isNewPoi && qua cooldown?) then (Co)
         :RecordVisitedPoi(nearest);
         :SyncPoiHistoryAsync();

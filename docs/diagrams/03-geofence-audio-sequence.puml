@@ -1,14 +1,15 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
-' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Status: PENDING-REVIEW
+' Baseline: branch master, HEAD b946abe (+ bo sung SelectPoiForLocation)
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Sequence da sync lai heartbeat 10 giay, refresh POI 20 giay, va DeviceIdentity.GetDeviceId().
+' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI va giu POI hien tai neu cung muc uu tien + chenh lech khoang cach <= 5m.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 
 actor Guest
@@ -33,6 +34,15 @@ loop moi 5 giay
   MainPage -> GPS: GetLocationAsync()
   GPS --> MainPage: lat/lng
   MainPage -> MainPage: CheckGeofence(location)
+  MainPage -> MainPage: SelectPoiForLocation(location)
+  note right of MainPage
+    Loc POI co distance <= BanKinh
+    OrderBy MucUuTien (nho hon thang)
+    ThenBy DistanceMeters
+    ThenBy TenPOI
+    Hysteresis: giu _currentPoi neu cung
+    MucUuTien va chenh lech <= 5m
+  end note
 
   opt moi 10 giay
     MainPage -> DeviceIdentity: GetDeviceId()
