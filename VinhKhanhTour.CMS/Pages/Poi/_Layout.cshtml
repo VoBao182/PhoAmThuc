@@ -495,11 +495,11 @@ function previewImg(inputEl, previewId) {
     else { img.style.display = 'none'; }
 }
 
-let monAnIndex = parseInt(document.getElementById('monan-count')?.value ?? '0');
+let layoutMonAnIndex = parseInt(document.getElementById('monan-count')?.value ?? '0');
 function addMonAn() {
     const container = document.getElementById('monan-list');
-    const i = monAnIndex++;
-    document.getElementById('monan-count').value = monAnIndex;
+    const i = layoutMonAnIndex++;
+    document.getElementById('monan-count').value = layoutMonAnIndex;
     const div = document.createElement('div');
     div.className = 'monan-item';
     div.id = `monan-${i}`;

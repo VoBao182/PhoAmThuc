@@ -99,6 +99,16 @@ static string ConfigureConnectionString(
 {
     var builder = new NpgsqlConnectionStringBuilder(connectionString);
 
+    // Force Supabase pooler connections onto the session-mode port. This keeps
+    // CMS/API behavior consistent even if Render is accidentally configured with
+    // the transaction-mode pooler URL.
+    var host = builder.Host ?? string.Empty;
+    if (host.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase) &&
+        builder.Port != 5432)
+    {
+        builder.Port = 5432;
+    }
+
     if (environment.IsDevelopment() &&
         configuration.GetValue<bool>("Database:DisableSslForLocalDev"))
     {

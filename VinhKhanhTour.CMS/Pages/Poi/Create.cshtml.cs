@@ -9,7 +9,14 @@ public class CreateModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
-    public CreateModel(AppDbContext db, IConfiguration config) { _db = db; _config = config; }
+    private readonly ILogger<CreateModel> _logger;
+
+    public CreateModel(AppDbContext db, IConfiguration config, ILogger<CreateModel> logger)
+    {
+        _db = db;
+        _config = config;
+        _logger = logger;
+    }
 
     public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
@@ -66,10 +73,19 @@ public class CreateModel : PageModel
                 TinhTrang = true
             }).ToList();
 
-        _db.POIs.Add(POI);
-        await _db.SaveChangesAsync();
+        try
+        {
+            _db.POIs.Add(POI);
+            await _db.SaveChangesAsync();
 
         TempData["Success"] = $"Đã tạo quán \"{POI.TenPOI}\" thành công!";
-        return RedirectToPage("/Poi/Index");
+            return RedirectToPage("/Poi/Index");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create POI {PoiName}", POI.TenPOI);
+            TempData["Error"] = "Khong the luu du lieu vi CMS khong ket noi duoc toi database. Vui long kiem tra health/db hoac cap nhat SUPABASE_CONNECTION_STRING.";
+            return Page();
+        }
     }
 }

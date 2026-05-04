@@ -10,10 +10,13 @@ public class EditModel : PageModel
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
-    public EditModel(AppDbContext db, IConfiguration config)
+    private readonly ILogger<EditModel> _logger;
+
+    public EditModel(AppDbContext db, IConfiguration config, ILogger<EditModel> logger)
     {
         _db = db;
         _config = config;
+        _logger = logger;
     }
 
     public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
@@ -65,20 +68,7 @@ public class EditModel : PageModel
                 .Select(kv => $"{kv.Key}: {kv.Value!.Errors[0].ErrorMessage}"));
 
             // giu nguyen input user da nhap thay vi load lai tu DB
-            POI.MonAns = MonAns
-                .Where(m => !string.IsNullOrWhiteSpace(m.TenMonAn))
-                .Select(m => new MonAn
-                {
-                    Id        = m.Id ?? Guid.Empty,
-                    POIId     = POI.Id,
-                    TenMonAn  = m.TenMonAn ?? "",
-                    MoTa      = m.MoTa,
-                    HinhAnh   = m.HinhAnh,
-                    PhanLoai  = m.PhanLoai,
-                    DonGia    = m.DonGia ?? 0m,
-                    TinhTrang = true
-                })
-                .ToList();
+            POI.MonAns = BuildMenuItemsFromInput();
             return Page();
         }
 
@@ -175,6 +165,13 @@ public class EditModel : PageModel
             TempData["Error"] = "Dữ liệu đã bị thay đổi bởi tiến trình khác. Vui lòng tải lại trang và thử lại.";
             return RedirectToPage(new { id = poi.Id });
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update POI {PoiId}", POI.Id);
+            TempData["Error"] = "Khong the luu du lieu vi CMS khong ket noi duoc toi database. Vui long kiem tra health/db hoac cap nhat SUPABASE_CONNECTION_STRING.";
+            POI.MonAns = BuildMenuItemsFromInput();
+            return Page();
+        }
     }
 
     private void UpsertBanDich(VinhKhanhTour.API.Models.ThuyetMinh tm, string lang, string? noiDung)
@@ -196,6 +193,22 @@ public class EditModel : PageModel
             bd.NoiDung = noiDung ?? "";
         }
     }
+
+    private List<MonAn> BuildMenuItemsFromInput()
+        => MonAns
+            .Where(m => !string.IsNullOrWhiteSpace(m.TenMonAn))
+            .Select(m => new MonAn
+            {
+                Id        = m.Id ?? Guid.Empty,
+                POIId     = POI.Id,
+                TenMonAn  = m.TenMonAn ?? "",
+                MoTa      = m.MoTa,
+                HinhAnh   = m.HinhAnh,
+                PhanLoai  = m.PhanLoai,
+                DonGia    = m.DonGia ?? 0m,
+                TinhTrang = true
+            })
+            .ToList();
 }
 
 // DTO nhận từ form (tránh conflict với Model MonAn)
