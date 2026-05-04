@@ -128,7 +128,7 @@ public class EditModel : PageModel
             if (!input.Id.HasValue || input.Id.Value == Guid.Empty)
             {
                 // Thêm mới
-                poi.MonAns.Add(new MonAn
+                var newDish = new MonAn
                 {
                     Id        = Guid.NewGuid(),
                     POIId     = poi.Id,
@@ -138,7 +138,8 @@ public class EditModel : PageModel
                     PhanLoai  = input.PhanLoai,
                     DonGia    = input.DonGia ?? 0m,
                     TinhTrang = true
-                });
+                };
+                _db.MonAns.Add(newDish);
             }
             else
             {
@@ -162,6 +163,16 @@ public class EditModel : PageModel
         }
         catch (DbUpdateConcurrencyException)
         {
+            var entries = string.Join(", ", _db.ChangeTracker.Entries()
+                .Where(e => e.State != EntityState.Unchanged)
+                .Select(e =>
+                {
+                    var keys = string.Join(";", e.Properties
+                        .Where(p => p.Metadata.IsPrimaryKey())
+                        .Select(p => $"{p.Metadata.Name}={p.CurrentValue}"));
+                    return $"{e.Entity.GetType().Name}:{e.State}:{keys}";
+                }));
+            _logger.LogWarning("Concurrency error while updating POI {PoiId}. Pending entries: {Entries}", POI.Id, entries);
             TempData["Error"] = "Dữ liệu đã bị thay đổi bởi tiến trình khác. Vui lòng tải lại trang và thử lại.";
             return RedirectToPage(new { id = poi.Id });
         }
