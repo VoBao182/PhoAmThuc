@@ -107,8 +107,11 @@ public partial class MainPage : ContentPage
         {
             Console.WriteLine($"[Startup] OnAppearing failed: {ex}");
             await DisplayAlertAsync(
-                "Loi khoi dong",
-                "Ứng dụng gặp lỗi trong lúc mở. Bạn hãy thử lại bằng APK mới nhất.",
+                GetText("Lỗi khởi động", "Startup error", "启动错误"),
+                GetText(
+                    "Ứng dụng gặp lỗi trong lúc mở. Bạn hãy thử lại bằng APK mới nhất.",
+                    "The app hit an error while opening. Please try again with the latest APK.",
+                    "应用打开时出错。请使用最新 APK 重试。"),
                 "OK");
         }
     }
@@ -291,15 +294,7 @@ public partial class MainPage : ContentPage
     }
 
     private string GetText(string vi, string en, string zh)
-    {
-        string lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        return lang switch
-        {
-            "en" => en,
-            "zh" => zh,
-            _ => vi
-        };
-    }
+        => AppText.T(vi, en, zh);
 
     private void ApplyLocalizedUiText()
     {
@@ -313,6 +308,15 @@ public partial class MainPage : ContentPage
         SheetBtnDetail.Text = GetText("Xem chi tiết", "View details", "查看详情");
         SheetBtnMap.Text = GetText("Chỉ đường", "Directions", "导航");
         BtnSheetClose.Text = GetText("Đóng", "Close", "关闭");
+        LblMapLoading.Text = GetText(
+            "Bản đồ sẽ tải khi mở tab này",
+            "The map will load when this tab opens",
+            "打开此标签时会加载地图");
+        LblProfileName.Text = GetText("Khách VK", "VK Guest", "VK 游客");
+        LblXpCaption.Text = GetText("Kinh nghiệm khám phá", "Exploration XP", "探索经验");
+        LblViewedStatCaption.Text = GetText("Quán đã xem", "Viewed places", "已查看店铺");
+        LblVisitedStatCaption.Text = GetText("Quán đã ghé", "Visited places", "已到访店铺");
+        LblSettingsTitle.Text = GetText("CÀI ĐẶT", "SETTINGS", "设置");
         LblKhamPha.Text = GetText("Khám phá", "Explore", "探索");
         LblBanDo.Text = GetText("Bản đồ", "Map", "地图");
         LblCaiDat.Text = GetText("Cài đặt", "Settings", "设置");
@@ -321,6 +325,15 @@ public partial class MainPage : ContentPage
         LblSubCaption.Text = GetText("Gói đăng ký", "Subscription", "订阅套餐");
         LblLocalDataCaption.Text = GetText("Mã thiết bị", "Device ID", "设备编号");
         LblLanguageCaption.Text = GetText("Ngôn ngữ thuyết minh", "Audio language", "语音语言");
+        LblRecoveryCodeCaption.Text = GetText("Mã khôi phục dữ liệu", "Data recovery code", "数据恢复码");
+        LblRecoveryHelp.Text = GetText(
+            "Nếu cài lại trên cùng thiết bị, app sẽ tự nhận lại mã này. Nếu cần hỗ trợ dữ liệu cũ, hãy lưu mã/QR trước khi xóa app.",
+            "If you reinstall on the same device, the app can recover this code automatically. Save the code/QR before deleting the app if you need old data support.",
+            "如果在同一设备重装，应用会自动找回此代码。如需恢复旧数据，请在删除应用前保存代码/QR。");
+        BtnScanDeviceQr.Text = GetText("Quét QR", "Scan QR", "扫描 QR");
+        BtnRestoreDeviceCode.Text = GetText("Nhập mã", "Enter code", "输入代码");
+        BtnPasteDeviceCode.Text = GetText("Dán mã", "Paste code", "粘贴代码");
+        BtnCopyDeviceCode.Text = GetText("Copy mã", "Copy code", "复制代码");
         BtnGiaHan.Text = GetText("Gia hạn gói", "Renew plan", "续费套餐");
     }
     private async Task EnsureGpsTrackingAsync()
@@ -635,7 +648,7 @@ public partial class MainPage : ContentPage
             var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrEmpty(deviceId)) return;
 
-            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            string lang = AppText.LanguageCode;
             var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
             var response = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/view", body);
@@ -654,7 +667,7 @@ public partial class MainPage : ContentPage
             var deviceId = DeviceIdentity.GetDeviceId();
             if (string.IsNullOrEmpty(deviceId)) return;
 
-            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            string lang = AppText.LanguageCode;
             var body = new { MaThietBi = deviceId, PoiId = poi.Id, NgonNgu = lang };
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
             var response = await _http.PostAsJsonAsync($"{apiBaseUrl}/api/heartbeat/visit", body);
@@ -695,7 +708,7 @@ public partial class MainPage : ContentPage
             if (viewedPoiIds.Count == 0 && visitedPoiIds.Count == 0)
                 return;
 
-            string lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            string lang = AppText.LanguageCode;
             var body = new
             {
                 MaThietBi = deviceId,
@@ -859,7 +872,7 @@ public partial class MainPage : ContentPage
 
         try
         {
-            string langCode = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+            string langCode = AppText.LanguageCode;
 
             var apiBaseUrl = await AppConfig.EnsureApiBaseUrlAsync(_http);
             var response = await _http.GetAsync($"{apiBaseUrl}/api/thuyet-minh/{poi.Id}?lang={langCode}");
@@ -1608,7 +1621,7 @@ public partial class MainPage : ContentPage
     {
         ApplyLocalizedUiText();
 
-        string lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        string lang = AppText.LanguageCode;
 
         // Avatar initials — 2 ký tự đầu của device ID
         var deviceId = DeviceIdentity.GetDeviceId();
@@ -1689,13 +1702,16 @@ public partial class MainPage : ContentPage
     {
         await Clipboard.SetTextAsync(DeviceIdentity.BuildRecoveryPayload());
         if (LblSettingsRecoveryStatus is not null)
-            LblSettingsRecoveryStatus.Text = "Đã copy mã khôi phục.";
+            LblSettingsRecoveryStatus.Text = GetText(
+                "Đã copy mã khôi phục.",
+                "Recovery code copied.",
+                "已复制恢复码。");
 
         if (BtnCopyDeviceCode is not null)
         {
-            BtnCopyDeviceCode.Text = "Đã copy";
+            BtnCopyDeviceCode.Text = GetText("Đã copy", "Copied", "已复制");
             await Task.Delay(1500);
-            BtnCopyDeviceCode.Text = "Copy mã";
+            BtnCopyDeviceCode.Text = GetText("Copy mã", "Copy code", "复制代码");
         }
     }
 
@@ -1705,7 +1721,10 @@ public partial class MainPage : ContentPage
         if (string.IsNullOrWhiteSpace(code))
         {
             if (LblSettingsRecoveryStatus is not null)
-                LblSettingsRecoveryStatus.Text = "Clipboard chưa có mã khôi phục.";
+                LblSettingsRecoveryStatus.Text = GetText(
+                    "Clipboard chưa có mã khôi phục.",
+                    "Clipboard does not contain a recovery code.",
+                    "剪贴板中没有恢复码。");
             return;
         }
 
@@ -1721,7 +1740,10 @@ public partial class MainPage : ContentPage
         if (permission != PermissionStatus.Granted)
         {
             if (LblSettingsRecoveryStatus is not null)
-                LblSettingsRecoveryStatus.Text = "Cần cấp quyền camera để quét QR.";
+                LblSettingsRecoveryStatus.Text = GetText(
+                    "Cần cấp quyền camera để quét QR.",
+                    "Camera permission is required to scan QR codes.",
+                    "需要相机权限才能扫描 QR。");
             return;
         }
 
@@ -1758,7 +1780,10 @@ public partial class MainPage : ContentPage
         }
 
         if (LblSettingsRecoveryStatus is not null)
-            LblSettingsRecoveryStatus.Text = "Đã nhận mã cũ. Đang đồng bộ...";
+            LblSettingsRecoveryStatus.Text = GetText(
+                "Đã nhận mã cũ. Đang đồng bộ...",
+                "Old code accepted. Syncing...",
+                "已接收旧代码。正在同步...");
 
         await RestoreSubscriptionStateAsync();
         await RestorePoiHistoryAsync();
@@ -1766,7 +1791,10 @@ public partial class MainPage : ContentPage
         UpdateCaiDatUI();
 
         if (LblSettingsRecoveryStatus is not null)
-            LblSettingsRecoveryStatus.Text = "Đã khôi phục mã thiết bị và đồng bộ dữ liệu.";
+            LblSettingsRecoveryStatus.Text = GetText(
+                "Đã khôi phục mã thiết bị và đồng bộ dữ liệu.",
+                "Device code restored and data synced.",
+                "设备码已恢复，数据已同步。");
 
         await DisplayAlertAsync(
             GetText("Đã khôi phục", "Restored", "已恢复"),

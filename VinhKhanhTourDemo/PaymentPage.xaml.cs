@@ -40,8 +40,33 @@ public partial class PaymentPage : ContentPage
         InitializeComponent();
         _loaiGoi = loaiGoi;
         _deviceId = DeviceIdentity.GetDeviceId();
+        ApplyLocalizedUiText();
         SetupUi();
         HideApiGuide();
+    }
+
+    private void ApplyLocalizedUiText()
+    {
+        LblPaymentTitle.Text = AppText.T("Thanh toán chuyển khoản", "Bank transfer payment", "银行转账支付");
+        LblQrInstruction.Text = AppText.T("Quét mã QR để chuyển khoản", "Scan the QR code to transfer", "扫描 QR 码转账");
+        LblBankCaption.Text = AppText.T("Ngân hàng", "Bank", "银行");
+        LblAccountCaption.Text = AppText.T("Số tài khoản", "Account number", "账号");
+        LblAmountCaption.Text = AppText.T("Số tiền", "Amount", "金额");
+        LblTransferContentCaption.Text = AppText.T("Nội dung CK", "Transfer note", "转账备注");
+        LblTransferNote.Text = AppText.T(
+            "Nhập đúng nội dung chuyển khoản để hệ thống xác nhận tự động",
+            "Use the exact transfer note so the system can verify automatically",
+            "请填写准确的转账备注，以便系统自动确认");
+        LblApiGuideTitle.Text = AppText.T(
+            "Cần kết nối API để gửi yêu cầu thanh toán",
+            "API connection is required to send the payment request",
+            "需要连接 API 才能提交支付请求");
+        BtnConfigureApi.Text = AppText.T("Nhập API URL", "Enter API URL", "输入 API URL");
+        BtnDaChuyenKhoan.Text = AppText.T(
+            "Tôi đã chuyển khoản",
+            "I have transferred",
+            "我已转账");
+        BtnCancel.Text = AppText.T("Hủy", "Cancel", "取消");
     }
 
     private void SetupUi()
@@ -52,7 +77,7 @@ public partial class PaymentPage : ContentPage
         var shortId = _deviceId[..Math.Min(6, _deviceId.Length)].ToUpperInvariant();
         _noiDungChuyen = $"VKT {_loaiGoi.ToUpperInvariant()} {shortId}";
 
-        LblTenGoi.Text = $"{info.Ten} - {info.SoNgay} ngày sử dụng";
+        LblTenGoi.Text = $"{AppText.PlanName(_loaiGoi)} - {AppText.PlanUsageDays(info.SoNgay)}";
         LblSoTK.Text = AccountNo;
         LblSoTien.Text = $"{info.Gia:N0}d";
         LblNoiDung.Text = _noiDungChuyen;
@@ -95,7 +120,10 @@ public partial class PaymentPage : ContentPage
                 var errJson = await res.Content.ReadFromJsonAsync<JsonElement>();
                 LblError.Text = errJson.TryGetProperty("message", out var message)
                     ? message.GetString()
-                    : "Lỗi tạo yêu cầu. Thử lại sau.";
+                    : AppText.T(
+                        "Lỗi tạo yêu cầu. Thử lại sau.",
+                        "Could not create the request. Please try again later.",
+                        "无法创建请求。请稍后再试。");
                 LblError.IsVisible = true;
                 return;
             }

@@ -33,16 +33,18 @@
     .range-picker { display: flex; gap: 6px; flex-wrap: wrap; }
 
     .range-btn {
-        padding: 9px 15px;
+        padding: 8px 14px;
         border-radius: 999px;
         background: #f1f5f9;
         color: #475569;
         font-weight: 700;
         text-decoration: none;
-        font-size: 0.9rem;
+        font-size: 0.88rem;
+        border: 1px solid transparent;
+        transition: background .15s ease, color .15s ease, border-color .15s ease;
     }
     .range-btn:hover { background: #e2e8f0; color: #1e293b; }
-    .range-btn.is-active { background: #1e293b; color: #fff; }
+    .range-btn.is-active { background: #1e293b; color: #fff; border-color: #1e293b; }
 
     .analytics-summary {
         display: grid;
@@ -121,73 +123,86 @@
     }
 
     .range-toolbar {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 16px;
-        align-items: end;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 14px 18px;
         background: #fff;
         border: 1px solid rgba(31, 41, 51, 0.08);
         border-radius: 20px;
-        padding: 18px 20px;
+        padding: 14px 18px;
     }
 
     .range-current {
         color: #0f172a;
         font-weight: 700;
         font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-right: auto;
     }
-    .range-current .muted { color: #6b7280; font-weight: 500; margin-right: 6px; }
+    .range-current .muted { color: #6b7280; font-weight: 500; }
+    .range-current .pill {
+        background: #eef2ff;
+        color: #1e293b;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+    }
 
-    .range-custom-row {
-        display: grid;
-        grid-template-columns: auto auto auto auto auto;
-        gap: 10px;
-        align-items: end;
+    .range-custom {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex-wrap: wrap;
     }
 
-    .range-field { display: grid; gap: 4px; }
-    .range-field label { color: #475569; font-weight: 700; font-size: 0.78rem; }
-    .range-field input, .range-field select {
-        padding: 8px 10px;
-        border-radius: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        font-size: 0.9rem;
-        background: #fff;
+    .range-custom label {
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.82rem;
     }
 
+    .range-custom input[type="date"] {
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        font-size: 0.88rem;
+        background: #fff;
+        color: #0f172a;
+    }
+    .range-custom input[type="date"]:focus {
+        outline: none;
+        border-color: #1e293b;
+        box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.12);
+    }
+
+    .range-custom .sep { color: #94a3b8; font-weight: 600; }
+
     .range-apply {
-        padding: 10px 18px;
+        padding: 9px 16px;
         border-radius: 10px;
         background: #1e293b;
         color: #fff;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 0.88rem;
         border: 0;
         cursor: pointer;
     }
     .range-apply:hover { background: #0f172a; }
 
-    .range-custom-hint { display: none; }
-    .range-custom-row[data-mode="day"]    .f-date   { display: grid; }
-    .range-custom-row[data-mode="week"]   .f-week   { display: grid; }
-    .range-custom-row[data-mode="month"]  .f-month  { display: grid; }
-    .range-custom-row[data-mode="year"]   .f-year   { display: grid; }
-    .range-custom-row[data-mode="custom"] .f-custom { display: contents; }
-
-    .range-field.f-date, .range-field.f-week, .range-field.f-month, .range-field.f-year { display: none; }
-    .f-custom { display: none; }
+    .range-toolbar.is-custom { border-color: #1e293b; box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.08); }
 
     @@media (max-width: 1100px) {
         .chart-row { grid-template-columns: 1fr; }
         .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .range-toolbar { grid-template-columns: 1fr; }
-        .range-custom-row { grid-template-columns: 1fr 1fr; }
     }
 
     @@media (max-width: 720px) {
         .analytics-summary { grid-template-columns: 1fr; }
-        .range-custom-row { grid-template-columns: 1fr; }
+        .range-current { margin-right: 0; width: 100%; }
+        .range-custom { width: 100%; justify-content: flex-start; }
     }
 </style>
 
@@ -251,82 +266,33 @@
             <p>Bản đồ nhiệt, biểu đồ lượt xem/lượt ghé theo quán và doanh thu — dùng để đưa ra quyết định kinh doanh dựa trên dữ liệu thực tế.</p>
         </div>
         <div class="range-picker">
-            <a class="range-btn @(Model.Mode == "today"    ? "is-active" : "")" href="?mode=today">Hôm nay</a>
-            <a class="range-btn @(Model.Mode == "last7"    ? "is-active" : "")" href="?mode=last7">7 ngày</a>
-            <a class="range-btn @(Model.Mode == "last30"   ? "is-active" : "")" href="?mode=last30">30 ngày</a>
-            <a class="range-btn @(Model.Mode == "last12m"  ? "is-active" : "")" href="?mode=last12m">12 tháng</a>
+            <a class="range-btn @(Model.Mode == "today"     ? "is-active" : "")" href="?mode=today">Hôm nay</a>
+            <a class="range-btn @(Model.Mode == "yesterday" ? "is-active" : "")" href="?mode=yesterday">Hôm qua</a>
+            <a class="range-btn @(Model.Mode == "last7"     ? "is-active" : "")" href="?mode=last7">7 ngày</a>
+            <a class="range-btn @(Model.Mode == "last30"    ? "is-active" : "")" href="?mode=last30">30 ngày</a>
+            <a class="range-btn @(Model.Mode == "thismonth" ? "is-active" : "")" href="?mode=thismonth">Tháng này</a>
+            <a class="range-btn @(Model.Mode == "lastmonth" ? "is-active" : "")" href="?mode=lastmonth">Tháng trước</a>
+            <a class="range-btn @(Model.Mode == "last12m"   ? "is-active" : "")" href="?mode=last12m">12 tháng</a>
         </div>
     </div>
 
-    <form method="get" class="range-toolbar" id="rangeForm">
+    <form method="get" class="range-toolbar @(Model.Mode == "custom" ? "is-custom" : "")" id="rangeForm">
+        <input type="hidden" name="mode" value="custom" />
         <div class="range-current">
-            <span class="muted">Khung đang xem:</span> @Model.RangeLabel
-            <div style="font-weight:500;color:#6b7280;font-size:0.82rem;margin-top:4px">
-                Các nút nhanh phía trên chỉ thay đổi khung xem, không làm mất lựa chọn bên dưới.
-            </div>
+            <span class="muted">Đang xem:</span>
+            <span class="pill">@Model.RangeLabel</span>
         </div>
-        <div class="range-custom-row" id="rangeCustomRow" data-mode="@(IsAbsolute(Model.Mode) ? Model.Mode : "day")">
-            <div class="range-field">
-                <label for="modeSelect">Chọn theo</label>
-                <select name="mode" id="modeSelect">
-                    <option value="day"    selected="@(Model.Mode == "day")">Ngày cụ thể</option>
-                    <option value="week"   selected="@(Model.Mode == "week")">Tuần cụ thể</option>
-                    <option value="month"  selected="@(Model.Mode == "month")">Tháng cụ thể</option>
-                    <option value="year"   selected="@(Model.Mode == "year")">Năm cụ thể</option>
-                    <option value="custom" selected="@(Model.Mode == "custom")">Khoảng tùy chọn</option>
-                </select>
-            </div>
-
-            <div class="range-field f-date">
-                <label for="dateInput">Ngày</label>
-                <input type="date" name="date" id="dateInput"
-                       value="@(string.IsNullOrEmpty(Model.ParamDate) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : Model.ParamDate)" />
-            </div>
-
-            <div class="range-field f-week">
-                <label for="weekInput">Tuần</label>
-                <input type="week" name="week" id="weekInput"
-                       value="@(string.IsNullOrEmpty(Model.ParamWeek) ? System.Globalization.ISOWeek.GetYear(DateTime.UtcNow).ToString("D4") + "-W" + System.Globalization.ISOWeek.GetWeekOfYear(DateTime.UtcNow).ToString("D2") : Model.ParamWeek)" />
-            </div>
-
-            <div class="range-field f-month">
-                <label for="monthInput">Tháng</label>
-                <input type="month" name="month" id="monthInput"
-                       value="@(string.IsNullOrEmpty(Model.ParamMonth) ? DateTime.UtcNow.ToString("yyyy-MM") : Model.ParamMonth)" />
-            </div>
-
-            <div class="range-field f-year">
-                <label for="yearInput">Năm</label>
-                <select name="year" id="yearInput">
-                    @{
-                        var currentYear = DateTime.UtcNow.Year;
-                        var selectedYear = Model.ParamYear == 0 ? currentYear : Model.ParamYear;
-                    }
-                    @for (var yy = currentYear + 1; yy >= currentYear - 6; yy--)
-                    {
-                        <option value="@yy" selected="@(yy == selectedYear)">@yy</option>
-                    }
-                </select>
-            </div>
-
-            <div class="range-field f-custom">
-                <label for="fromInput">Từ ngày</label>
-                <input type="date" name="from" id="fromInput"
-                       value="@(string.IsNullOrEmpty(Model.ParamFrom) ? DateTime.UtcNow.AddDays(-6).ToString("yyyy-MM-dd") : Model.ParamFrom)" />
-            </div>
-            <div class="range-field f-custom">
-                <label for="toInput">Đến ngày</label>
-                <input type="date" name="to" id="toInput"
-                       value="@(string.IsNullOrEmpty(Model.ParamTo) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : Model.ParamTo)" />
-            </div>
-
-            <button type="submit" class="range-apply">Áp dụng</button>
+        <div class="range-custom">
+            <label for="fromInput">Từ</label>
+            <input type="date" name="from" id="fromInput"
+                   value="@(string.IsNullOrEmpty(Model.ParamFrom) ? Model.SinceUtc.ToString("yyyy-MM-dd") : Model.ParamFrom)" />
+            <span class="sep">→</span>
+            <label for="toInput">Đến</label>
+            <input type="date" name="to" id="toInput"
+                   value="@(string.IsNullOrEmpty(Model.ParamTo) ? Model.UntilUtc.AddDays(-1).ToString("yyyy-MM-dd") : Model.ParamTo)" />
+            <button type="submit" class="range-apply">Xem</button>
         </div>
     </form>
-
-    @functions {
-        bool IsAbsolute(string mode) => mode is "day" or "week" or "month" or "year" or "custom";
-    }
 
     <div class="analytics-summary">
         <article class="analytics-tile tile-active">
@@ -494,9 +460,6 @@
     const revenue  = @Html.Raw(Model.RevenueJson);
     const geo      = @Html.Raw(Model.GeoJson);
     const granularity = '@Model.Granularity';
-    const currentMode = '@Model.Mode';
-    const PICKER_STORAGE_KEY = 'vktAnalyticsPicker_v1';
-    const ROLLING_MODES = ['today', 'last7', 'last30', 'last12m'];
 
     function bucketLabel(iso, g) {
         const d = new Date(iso);
@@ -505,81 +468,15 @@
         return d.getDate() + '/' + (d.getMonth() + 1);
     }
 
-    // Picker: show/hide the matching field set per selected mode, and strip
-    // unused params on submit so URLs stay clean.
-    const modeSelect = document.getElementById('modeSelect');
-    const customRow = document.getElementById('rangeCustomRow');
-    const rangeForm = document.getElementById('rangeForm');
-    const dateInput = document.getElementById('dateInput');
-    const weekInput = document.getElementById('weekInput');
-    const monthInput = document.getElementById('monthInput');
-    const yearInput = document.getElementById('yearInput');
     const fromInput = document.getElementById('fromInput');
     const toInput = document.getElementById('toInput');
-
-    function syncModeUi() {
-        if (!customRow || !modeSelect) return;
-        customRow.dataset.mode = modeSelect.value;
-    }
-
-    function snapshotPicker() {
-        return {
-            mode: modeSelect ? modeSelect.value : 'day',
-            date: dateInput ? dateInput.value : '',
-            week: weekInput ? weekInput.value : '',
-            month: monthInput ? monthInput.value : '',
-            year: yearInput ? yearInput.value : '',
-            from: fromInput ? fromInput.value : '',
-            to: toInput ? toInput.value : ''
-        };
-    }
-
-    function applyPickerSnapshot(saved) {
-        if (!saved) return;
-        if (saved.mode && modeSelect) modeSelect.value = saved.mode;
-        if (saved.date && dateInput) dateInput.value = saved.date;
-        if (saved.week && weekInput) weekInput.value = saved.week;
-        if (saved.month && monthInput) monthInput.value = saved.month;
-        if (saved.year && yearInput) yearInput.value = saved.year;
-        if (saved.from && fromInput) fromInput.value = saved.from;
-        if (saved.to && toInput) toInput.value = saved.to;
-        syncModeUi();
-    }
-
-    // When the active view is a rolling preset (today / 7 days / 30 days / 12 months),
-    // the quick buttons did NOT reset what the admin had selected in the picker. Restore
-    // that from storage so the picker keeps its independent state.
-    if (ROLLING_MODES.includes(currentMode)) {
-        try {
-            const saved = JSON.parse(localStorage.getItem(PICKER_STORAGE_KEY) || 'null');
-            if (saved) applyPickerSnapshot(saved);
-        } catch { /* ignore corrupt storage */ }
-    } else {
-        // Admin just applied the picker: persist those values so they survive future quick-view clicks.
-        try {
-            localStorage.setItem(PICKER_STORAGE_KEY, JSON.stringify(snapshotPicker()));
-        } catch { /* storage unavailable */ }
-    }
-
-    if (modeSelect) { modeSelect.addEventListener('change', syncModeUi); syncModeUi(); }
-
-    if (rangeForm) {
-        rangeForm.addEventListener('submit', function () {
-            // Save the snapshot BEFORE we disable fields so the stored state has real values.
-            try {
-                localStorage.setItem(PICKER_STORAGE_KEY, JSON.stringify(snapshotPicker()));
-            } catch { /* storage unavailable */ }
-
-            const keep = {
-                day:    ['mode', 'date'],
-                week:   ['mode', 'week'],
-                month:  ['mode', 'month'],
-                year:   ['mode', 'year'],
-                custom: ['mode', 'from', 'to']
-            }[modeSelect.value] || ['mode'];
-            rangeForm.querySelectorAll('input, select').forEach(el => {
-                if (el.name && !keep.includes(el.name)) el.disabled = true;
-            });
+    if (fromInput && toInput) {
+        // Keep "to" >= "from" so users don't accidentally submit an inverted range.
+        fromInput.addEventListener('change', () => {
+            if (toInput.value && toInput.value < fromInput.value) toInput.value = fromInput.value;
+        });
+        toInput.addEventListener('change', () => {
+            if (fromInput.value && fromInput.value > toInput.value) fromInput.value = toInput.value;
         });
     }
 

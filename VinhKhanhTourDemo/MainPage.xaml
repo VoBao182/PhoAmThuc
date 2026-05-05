@@ -181,7 +181,8 @@
                     <ActivityIndicator IsRunning="True"
                                        Color="#FF5722"
                                        HorizontalOptions="Center"/>
-                    <Label Text="Ban do se tai khi mo tab nay"
+                    <Label x:Name="LblMapLoading"
+                           Text="Ban do se tai khi mo tab nay"
                            FontSize="14"
                            TextColor="#777777"
                            HorizontalOptions="Center"/>
@@ -315,7 +316,8 @@
                                        VerticalOptions="Center"/>
                             </Border>
                             <VerticalStackLayout Spacing="5" VerticalOptions="Center">
-                                <Label Text="Khách VK"
+                                <Label x:Name="LblProfileName"
+                                       Text="Khách VK"
                                        FontSize="20" FontAttributes="Bold"
                                        TextColor="White"/>
                                 <Label x:Name="LblUserRole"
@@ -334,7 +336,9 @@
                         <!-- XP Bar -->
                         <VerticalStackLayout Spacing="6">
                             <Grid ColumnDefinitions="*, Auto">
-                                <Label Grid.Column="0" Text="Kinh nghiệm khám phá"
+                                <Label x:Name="LblXpCaption"
+                                       Grid.Column="0"
+                                       Text="Kinh nghiệm khám phá"
                                        FontSize="12" TextColor="White" Opacity="0.8"/>
                                 <Label x:Name="LblXpProgress" Grid.Column="1" Text="XP: 0 / 500"
                                        FontSize="12" TextColor="White" FontAttributes="Bold"/>
@@ -419,7 +423,8 @@
                             <Label x:Name="LblStatQuanXemV2" Text="0"
                                    FontSize="30" FontAttributes="Bold"
                                    TextColor="#FF5722" HorizontalOptions="Center"/>
-                            <Label Text="Quán đã xem" FontSize="12"
+                            <Label x:Name="LblViewedStatCaption"
+                                   Text="Quán đã xem" FontSize="12"
                                    TextColor="#777" HorizontalOptions="Center"/>
                         </VerticalStackLayout>
                     </Border>
@@ -430,7 +435,8 @@
                             <Label x:Name="LblStatQuanGheV2" Text="0"
                                    FontSize="30" FontAttributes="Bold"
                                    TextColor="#2196F3" HorizontalOptions="Center"/>
-                            <Label Text="Quán đã ghé" FontSize="12"
+                            <Label x:Name="LblVisitedStatCaption"
+                                   Text="Quán đã ghé" FontSize="12"
                                    TextColor="#777" HorizontalOptions="Center"/>
                         </VerticalStackLayout>
                     </Border>
@@ -443,7 +449,8 @@
                     <Border.Shadow><Shadow Brush="Black" Offset="0,2" Opacity="0.05" Radius="6"/></Border.Shadow>
                     <VerticalStackLayout>
 
-                        <Label Text="CÀI ĐẶT"
+                        <Label x:Name="LblSettingsTitle"
+                               Text="CÀI ĐẶT"
                                FontSize="11" FontAttributes="Bold"
                                TextColor="#9CA3AF" CharacterSpacing="1"
                                Padding="16,14,16,6"/>
@@ -504,7 +511,8 @@
                                     <RoundRectangle CornerRadius="14"/>
                                 </Border.StrokeShape>
                                 <VerticalStackLayout Spacing="10">
-                                    <Label Text="Mã khôi phục dữ liệu"
+                                    <Label x:Name="LblRecoveryCodeCaption"
+                                           Text="Mã khôi phục dữ liệu"
                                            FontSize="12"
                                            TextColor="#C2410C"
                                            FontAttributes="Bold"/>
@@ -563,7 +571,8 @@
                                            FontSize="11"
                                            TextColor="#C2410C"
                                            HorizontalTextAlignment="Center"/>
-                                    <Label Text="Nếu cài lại trên cùng thiết bị, app sẽ tự nhận lại mã này. Nếu cần hỗ trợ dữ liệu cũ, hãy lưu mã/QR trước khi xóa app."
+                                    <Label x:Name="LblRecoveryHelp"
+                                           Text="Nếu cài lại trên cùng thiết bị, app sẽ tự nhận lại mã này. Nếu cần hỗ trợ dữ liệu cũ, hãy lưu mã/QR trước khi xóa app."
                                            FontSize="11"
                                            TextColor="#9A3412"/>
                                 </VerticalStackLayout>

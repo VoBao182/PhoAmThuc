@@ -15,6 +15,10 @@ public class IndexModel : PageModel
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+    private const double ServiceMinLat = 10.65;
+    private const double ServiceMaxLat = 10.9;
+    private const double ServiceMinLng = 106.55;
+    private const double ServiceMaxLng = 106.9;
 
     // Sources the app sends when the user physically walks into a POI (GPS/geofence).
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
@@ -246,20 +250,32 @@ public class IndexModel : PageModel
                 SELECT mathietbi, lancuoi_heartbeat, poiid_hientai, ten_poi_hientai, lat, lng
                 FROM vitrikhach
                 WHERE mathietbi IS NOT NULL
+                  AND lat BETWEEN @minLat AND @maxLat
+                  AND lng BETWEEN @minLng AND @maxLng
+                  AND NOT (lat = 0 AND lng = 0)
                 """;
+            command.Parameters.Add("minLat", NpgsqlDbType.Double).Value = ServiceMinLat;
+            command.Parameters.Add("maxLat", NpgsqlDbType.Double).Value = ServiceMaxLat;
+            command.Parameters.Add("minLng", NpgsqlDbType.Double).Value = ServiceMinLng;
+            command.Parameters.Add("maxLng", NpgsqlDbType.Double).Value = ServiceMaxLng;
 
             var locations = new List<DeviceLocation>();
             await using var reader = await command.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
+                var lat = reader.IsDBNull(4) ? (double?)null : reader.GetDouble(4);
+                var lng = reader.IsDBNull(5) ? (double?)null : reader.GetDouble(5);
+                if (!IsValidServiceCoordinate(lat, lng))
+                    continue;
+
                 locations.Add(new DeviceLocation
                 {
                     MaThietBi = reader.GetString(0),
                     LanCuoiHeartbeat = reader.GetDateTime(1),
                     PoiIdHienTai = reader.IsDBNull(2) ? null : reader.GetGuid(2),
                     TenPoiHienTai = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    Lat = reader.IsDBNull(4) ? null : reader.GetDouble(4),
-                    Lng = reader.IsDBNull(5) ? null : reader.GetDouble(5)
+                    Lat = lat,
+                    Lng = lng
                 });
             }
 
@@ -317,6 +333,15 @@ public class IndexModel : PageModel
 
         return false;
     }
+
+    private static bool IsValidServiceCoordinate(double? lat, double? lng)
+        => lat.HasValue
+        && lng.HasValue
+        && lat.Value >= ServiceMinLat
+        && lat.Value <= ServiceMaxLat
+        && lng.Value >= ServiceMinLng
+        && lng.Value <= ServiceMaxLng
+        && !(lat.Value == 0 && lng.Value == 0);
 
     private static void ClearNpgsqlPoolsQuietly()
     {

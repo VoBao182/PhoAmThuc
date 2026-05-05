@@ -33,6 +33,10 @@ public class HeartbeatController : ControllerBase
     private const int ViewedPoiExperience = 50;
     private const int VisitedPoiExperience = 100;
     private const int ExperiencePerLevel = 500;
+    private const double ServiceMinLat = 10.65;
+    private const double ServiceMaxLat = 10.9;
+    private const double ServiceMinLng = 106.55;
+    private const double ServiceMaxLng = 106.9;
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
     private static readonly string[] ViewedSourceValues = ["VIEW", "GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
 
@@ -66,6 +70,15 @@ public class HeartbeatController : ControllerBase
         var maThietBi = LichSuPhatInputNormalizer.NormalizeMaThietBi(req.MaThietBi);
 
         var now = DateTime.UtcNow;
+        if (!IsValidServiceCoordinate(req.Lat, req.Lng))
+        {
+            _logger.LogInformation(
+                "Bo qua heartbeat ngoai vung phuc vu cho thiet bi {DeviceId}: {Lat}, {Lng}.",
+                maThietBi,
+                req.Lat,
+                req.Lng);
+            return Ok(new { message = "SKIPPED", skipped = true, reason = "out_of_service_area", ServerTime = now });
+        }
 
         try
         {
@@ -104,6 +117,13 @@ public class HeartbeatController : ControllerBase
 
         return Ok(new { message = "OK", ServerTime = now });
     }
+
+    private static bool IsValidServiceCoordinate(double lat, double lng)
+        => lat >= ServiceMinLat
+        && lat <= ServiceMaxLat
+        && lng >= ServiceMinLng
+        && lng <= ServiceMaxLng
+        && !(lat == 0 && lng == 0);
 
     // -----------------------------------------------------------------------
     // POST /api/heartbeat/visit

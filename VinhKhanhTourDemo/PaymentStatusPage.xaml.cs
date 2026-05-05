@@ -29,7 +29,38 @@ public partial class PaymentStatusPage : ContentPage
         InitializeComponent();
         _yeuCauId = yeuCauId;
         _loaiGoi = loaiGoi;
+        ApplyLocalizedUiText();
         LblNoiDungRef.Text = noiDung;
+    }
+
+    private void ApplyLocalizedUiText()
+    {
+        LblPendingTitle.Text = AppText.T(
+            "Chờ admin xác nhận...",
+            "Waiting for admin approval...",
+            "等待管理员确认...");
+        LblPendingMessage.Text = AppText.T(
+            "Đã ghi nhận yêu cầu của bạn. Vui lòng đợi admin kiểm tra giao dịch.",
+            "Your request has been recorded. Please wait while the admin checks the transaction.",
+            "已记录你的请求。请等待管理员核对交易。");
+        LblSentTransferCaption.Text = AppText.T(
+            "Nội dung chuyển khoản đã gửi:",
+            "Sent transfer note:",
+            "已提交的转账备注：");
+        LblApprovedTitle.Text = AppText.T(
+            "Thanh toán được duyệt!",
+            "Payment approved!",
+            "支付已通过！");
+        BtnStartExploring.Text = AppText.T(
+            "Bắt đầu khám phá",
+            "Start exploring",
+            "开始探索");
+        LblRejectedTitle.Text = AppText.T(
+            "Yêu cầu bị từ chối",
+            "Request rejected",
+            "请求被拒绝");
+        BtnTryAgain.Text = AppText.T("Thử lại", "Try again", "重试");
+        BtnClose.Text = AppText.T("Đóng", "Close", "关闭");
     }
 
     protected override void OnAppearing()
@@ -56,7 +87,10 @@ public partial class PaymentStatusPage : ContentPage
             for (_countdownSec = 10; _countdownSec > 0 && !ct.IsCancellationRequested; _countdownSec--)
             {
                 MainThread.BeginInvokeOnMainThread(() =>
-                    LblDemGiay.Text = $"Kiểm tra lại sau {_countdownSec}s...");
+                    LblDemGiay.Text = AppText.T(
+                        $"Kiểm tra lại sau {_countdownSec}s...",
+                        $"Checking again in {_countdownSec}s...",
+                        $"{_countdownSec} 秒后再次检查..."));
                 await Task.Delay(1000, ct).ContinueWith(_ => { });
             }
         }
@@ -112,7 +146,10 @@ public partial class PaymentStatusPage : ContentPage
                 out var hetHan))
         {
             var soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
-            LblHetHan.Text = $"Gói của bạn có hiệu lực đến {hetHan.ToLocalTime():dd/MM/yyyy}\n(còn {soNgay} ngày)";
+            LblHetHan.Text = AppText.T(
+                $"Gói của bạn có hiệu lực đến {hetHan.ToLocalTime():dd/MM/yyyy}\n(còn {soNgay} ngày)",
+                $"Your plan is valid until {hetHan.ToLocalTime():dd/MM/yyyy}\n({soNgay} days left)",
+                $"你的套餐有效期至 {hetHan.ToLocalTime():dd/MM/yyyy}\n（剩余 {soNgay} 天）");
         }
     }
 
@@ -121,7 +158,10 @@ public partial class PaymentStatusPage : ContentPage
         ViewChoDuyet.IsVisible = false;
         ViewTuChoi.IsVisible = true;
         LblLyDo.Text = string.IsNullOrEmpty(lyDo)
-            ? "Admin không tìm thấy giao dịch khớp. Kiểm tra lại nội dung chuyển khoản."
+            ? AppText.T(
+                "Admin không tìm thấy giao dịch khớp. Kiểm tra lại nội dung chuyển khoản.",
+                "The admin could not find a matching transaction. Please check the transfer note.",
+                "管理员未找到匹配交易。请检查转账备注。")
             : lyDo;
     }
 

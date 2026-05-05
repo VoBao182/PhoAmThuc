@@ -268,7 +268,7 @@ public class IndexModel : PageModel
 
             return RedirectToPage(new
             {
-                tab = "da_duyet",
+                tab = "cho_duyet",
                 msg = $"Đã duyệt gói {yc.LoaiGoi} cho thiết bị. Hết hạn: {hetHan:dd/MM/yyyy}"
             });
         }

@@ -147,7 +147,7 @@ public partial class DetailPage : ContentPage
         InitializeAudioBridge();
 
         // Xác định ngôn ngữ một lần khi tạo page
-        _lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        _lang = AppText.LanguageCode;
         AppStrings.SetLang(_lang);
 
         // Áp dụng chuỗi UI ngay (trước khi API trả về)
@@ -172,6 +172,8 @@ public partial class DetailPage : ContentPage
         LblSectionThucDon.Text   = AppStrings.SectionMenu;
         BtnNghe.Text             = AppStrings.BtnListen;
         BtnMap.Text              = AppStrings.BtnDirection;
+        BtnPlayPauseAudio.Text   = AppText.T("Play audio", "Play audio", "播放音频");
+        BtnStopAudio.Text        = AppText.T("Dừng", "Stop", "停止");
     }
 
     private void InitializeAudioBridge()
@@ -227,7 +229,7 @@ player.addEventListener('ended', emitState);
         _audioSourceUrl = _poi?.FileAudio;
         _playWhenReady = false;
         AudioControls.IsVisible = !string.IsNullOrWhiteSpace(_audioSourceUrl);
-        BtnPlayPauseAudio.Text = "Play audio";
+        BtnPlayPauseAudio.Text = AppText.T("Play audio", "Play audio", "播放音频");
         BtnStopAudio.IsEnabled = !string.IsNullOrWhiteSpace(_audioSourceUrl);
         ResetAudioProgress();
 
@@ -245,7 +247,7 @@ player.addEventListener('ended', emitState);
         _isUpdatingSlider = false;
         LblAudioCurrent.Text = "0:00";
         LblAudioDuration.Text = "0:00";
-        BtnPlayPauseAudio.Text = "Play audio";
+        BtnPlayPauseAudio.Text = AppText.T("Play audio", "Play audio", "播放音频");
     }
 
     private void ExecuteAudioScript(string script)
@@ -541,8 +543,12 @@ player.addEventListener('ended', emitState);
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            BtnPlayPauseAudio.Text = _isAudioPlaying ? "Pause" : "Play audio";
-            BtnNghe.Text = _isAudioPlaying ? "⏸ Đang phát audio" : AppStrings.BtnListen;
+            BtnPlayPauseAudio.Text = _isAudioPlaying
+                ? AppText.T("Tạm dừng", "Pause", "暂停")
+                : AppText.T("Play audio", "Play audio", "播放音频");
+            BtnNghe.Text = _isAudioPlaying
+                ? AppText.T("⏸ Đang phát audio", "⏸ Playing audio", "⏸ 正在播放音频")
+                : AppStrings.BtnListen;
             LblAudioCurrent.Text = FormatTime(current);
             LblAudioDuration.Text = FormatTime(duration);
 

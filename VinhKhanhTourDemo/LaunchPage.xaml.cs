@@ -7,6 +7,16 @@ public partial class LaunchPage : ContentPage
     public LaunchPage()
     {
         InitializeComponent();
+        ApplyLocalizedUiText();
+    }
+
+    private void ApplyLocalizedUiText()
+    {
+        LblStatus.Text = AppText.T(
+            "Đang khởi động ứng dụng...",
+            "Starting the app...",
+            "正在启动应用...");
+        BtnRetry.Text = AppText.T("Thử lại", "Retry", "重试");
     }
 
     protected override void OnAppearing()
@@ -25,7 +35,10 @@ public partial class LaunchPage : ContentPage
         BootIndicator.IsVisible = true;
         BootIndicator.IsRunning = true;
         BtnRetry.IsVisible = false;
-        LblStatus.Text = "Đang khởi động ứng dụng...";
+        LblStatus.Text = AppText.T(
+            "Đang khởi động ứng dụng...",
+            "Starting the app...",
+            "正在启动应用...");
 
         try
         {
@@ -44,7 +57,10 @@ public partial class LaunchPage : ContentPage
             BootIndicator.IsRunning = false;
             BootIndicator.IsVisible = false;
             BtnRetry.IsVisible = true;
-            LblStatus.Text = $"Không thể mở ứng dụng.\n{ex.Message}";
+            LblStatus.Text = AppText.T(
+                $"Không thể mở ứng dụng.\n{ex.Message}",
+                $"Unable to open the app.\n{ex.Message}",
+                $"无法打开应用。\n{ex.Message}");
         }
     }
 

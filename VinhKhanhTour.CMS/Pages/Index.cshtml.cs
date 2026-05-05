@@ -12,6 +12,11 @@ namespace VinhKhanhTour.CMS.Pages;
 
 public class IndexModel : PageModel
 {
+    private const double ServiceMinLat = 10.65;
+    private const double ServiceMaxLat = 10.9;
+    private const double ServiceMinLng = 106.55;
+    private const double ServiceMaxLng = 106.9;
+
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly ILogger<IndexModel> _logger;
@@ -33,9 +38,10 @@ public class IndexModel : PageModel
 
     // --- Analytics: range descriptor ---
     // Mode values:
-    //   "today" | "last7" | "last30" | "last12m"   — rolling presets
-    //   "day" | "week" | "month" | "year"           — absolute pickers (need ParamDate / ParamMonth / ParamYear)
-    //   "custom"                                    — arbitrary from/to
+    //   "today" | "yesterday" | "last7" | "last30"
+    //   "thismonth" | "lastmonth" | "last12m"        — rolling/named presets
+    //   "day" | "week" | "month" | "year"            — absolute pickers (legacy URL support)
+    //   "custom"                                     — arbitrary from/to
     public string Mode { get; private set; } = "last7";
     public DateTime SinceUtc { get; private set; }
     public DateTime UntilUtc { get; private set; }
@@ -232,26 +238,45 @@ public class IndexModel : PageModel
             FROM lichsuphat l
             JOIN poi p ON p.id = l.poiid
             WHERE l.thoigian >= @since AND l.thoigian < @until AND l.poiid IS NOT NULL
+              AND p.vido BETWEEN @minLat AND @maxLat
+              AND p.kinhdo BETWEEN @minLng AND @maxLng
+              AND NOT (p.vido = 0 AND p.kinhdo = 0)
             GROUP BY p.vido, p.kinhdo, p.tenpoi
             ORDER BY weight DESC
             LIMIT 500
             """;
         cmd.Parameters.Add(new NpgsqlParameter("since", NpgsqlDbType.TimestampTz) { Value = since });
         cmd.Parameters.Add(new NpgsqlParameter("until", NpgsqlDbType.TimestampTz) { Value = until });
+        cmd.Parameters.Add(new NpgsqlParameter("minLat", NpgsqlDbType.Double) { Value = ServiceMinLat });
+        cmd.Parameters.Add(new NpgsqlParameter("maxLat", NpgsqlDbType.Double) { Value = ServiceMaxLat });
+        cmd.Parameters.Add(new NpgsqlParameter("minLng", NpgsqlDbType.Double) { Value = ServiceMinLng });
+        cmd.Parameters.Add(new NpgsqlParameter("maxLng", NpgsqlDbType.Double) { Value = ServiceMaxLng });
 
         GeoPoints.Clear();
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
+            var lat = reader.GetDouble(0);
+            var lng = reader.GetDouble(1);
+            if (!IsValidServiceCoordinate(lat, lng))
+                continue;
+
             GeoPoints.Add(new GeoHeatPoint
             {
-                Lat = reader.GetDouble(0),
-                Lng = reader.GetDouble(1),
+                Lat = lat,
+                Lng = lng,
                 Name = reader.GetString(2),
                 Weight = (int)reader.GetInt64(3)
             });
         }
     }
+
+    private static bool IsValidServiceCoordinate(double lat, double lng)
+        => lat >= ServiceMinLat
+        && lat <= ServiceMaxLat
+        && lng >= ServiceMinLng
+        && lng <= ServiceMaxLng
+        && !(lat == 0 && lng == 0);
 
     private async Task LoadTopPoiAsync(System.Data.Common.DbConnection conn, DateTime since, DateTime until)
     {
@@ -434,6 +459,34 @@ public class IndexModel : PageModel
                 Mode = "today";
                 RangeLabel = "Hôm nay";
                 return;
+
+            case "yesterday":
+                ApplyDay(now.Date.AddDays(-1));
+                Mode = "yesterday";
+                RangeLabel = "Hôm qua";
+                return;
+
+            case "thismonth":
+                {
+                    var start = new DateTime(now.Year, now.Month, 1);
+                    SinceUtc = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+                    UntilUtc = DateTime.SpecifyKind(start.AddMonths(1), DateTimeKind.Utc);
+                    Granularity = "day";
+                    Mode = "thismonth";
+                    RangeLabel = $"Tháng này ({start:MM/yyyy})";
+                    return;
+                }
+
+            case "lastmonth":
+                {
+                    var start = new DateTime(now.Year, now.Month, 1).AddMonths(-1);
+                    SinceUtc = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+                    UntilUtc = DateTime.SpecifyKind(start.AddMonths(1), DateTimeKind.Utc);
+                    Granularity = "day";
+                    Mode = "lastmonth";
+                    RangeLabel = $"Tháng trước ({start:MM/yyyy})";
+                    return;
+                }
 
             case "last7":
                 SinceUtc = DateTime.SpecifyKind(now.AddDays(-6).Date, DateTimeKind.Utc);

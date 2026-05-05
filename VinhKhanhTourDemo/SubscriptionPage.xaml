@@ -9,7 +9,8 @@
     <ScrollView>
         <VerticalStackLayout Padding="24,52,24,36" Spacing="0">
 
-            <Label Text="GÓI"
+            <Label x:Name="LblPlanHeader"
+                   Text="GÓI"
                    FontSize="34"
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
@@ -20,7 +21,8 @@
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
                    TextColor="#1F2933"/>
-            <Label Text="Chọn gói phù hợp để bắt đầu khám phá"
+            <Label x:Name="LblPlanSubtitle"
+                   Text="Chọn gói phù hợp để bắt đầu khám phá"
                    FontSize="14"
                    HorizontalOptions="Center"
                    TextColor="#6B7280"
@@ -35,7 +37,8 @@
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12"/>
                 </Border.StrokeShape>
-                <Label Text="Gói sử dụng đã hết hạn. Vui lòng gia hạn để tiếp tục."
+                <Label x:Name="LblExpiredBanner"
+                       Text="Gói sử dụng đã hết hạn. Vui lòng gia hạn để tiếp tục."
                        FontSize="13"
                        TextColor="#92400E"
                        Padding="14,10"/>
@@ -51,7 +54,8 @@
                     <RoundRectangle CornerRadius="14"/>
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="16,14" Spacing="10">
-                    <Label Text="Kết nối thanh toán"
+                    <Label x:Name="LblApiGuideTitle"
+                           Text="Kết nối thanh toán"
                            FontSize="15"
                            FontAttributes="Bold"
                            TextColor="#92400E"/>
@@ -83,7 +87,8 @@
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="4">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="Dùng thử"
+                            <Label x:Name="LblTrialName"
+                                   Text="Dùng thử"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="#1F2933"/>
@@ -91,13 +96,15 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="MIỄN PHÍ"
+                                <Label x:Name="LblTrialBadge"
+                                       Text="MIỄN PHÍ"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
                             </Border>
                         </HorizontalStackLayout>
-                        <Label Text="3 ngày trải nghiệm đầy đủ"
+                        <Label x:Name="LblTrialDescription"
+                               Text="3 ngày trải nghiệm đầy đủ"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
@@ -117,7 +124,8 @@
                 </Grid>
             </Border>
 
-            <Label Text="GÓI TRA PHI"
+            <Label x:Name="LblPaidPlansTitle"
+                   Text="GÓI TRA PHI"
                    FontSize="11"
                    FontAttributes="Bold"
                    TextColor="#9CA3AF"
@@ -136,11 +144,13 @@
                 </Border.Shadow>
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
-                        <Label Text="Gói Ngày"
+                        <Label x:Name="LblDayPlanName"
+                               Text="Gói Ngày"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#1F2933"/>
-                        <Label Text="1 ngày khám phá thoải mái"
+                        <Label x:Name="LblDayPlanDescription"
+                               Text="1 ngày khám phá thoải mái"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
@@ -154,7 +164,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNgay"
-                                Text="Chọn"
+                                 Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#E36A11"
@@ -180,11 +190,13 @@
                 </Border.Shadow>
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
-                        <Label Text="Gói Tuần"
+                        <Label x:Name="LblWeekPlanName"
+                               Text="Gói Tuần"
                                FontSize="16"
                                FontAttributes="Bold"
                                TextColor="#1F2933"/>
-                        <Label Text="7 ngày trải nghiệm liên tục"
+                        <Label x:Name="LblWeekPlanDescription"
+                               Text="7 ngày trải nghiệm liên tục"
                                FontSize="13"
                                TextColor="#6B7280"/>
                     </VerticalStackLayout>
@@ -198,7 +210,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaTuan"
-                                Text="Chọn"
+                                 Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#E36A11"
@@ -225,7 +237,8 @@
                 <VerticalStackLayout Padding="18,14" Spacing="10">
                     <Grid ColumnDefinitions="*, Auto">
                         <HorizontalStackLayout Grid.Column="0" Spacing="8">
-                            <Label Text="Gói Tháng"
+                            <Label x:Name="LblMonthPlanName"
+                                   Text="Gói Tháng"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="#1F2933"/>
@@ -233,7 +246,8 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="PHỔ BIẾN"
+                                <Label x:Name="LblPopularBadge"
+                                       Text="PHỔ BIẾN"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
@@ -247,7 +261,8 @@
                                VerticalOptions="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="*, Auto">
-                        <Label Grid.Column="0"
+                        <Label x:Name="LblMonthPlanDescription"
+                               Grid.Column="0"
                                Text="30 ngày không giới hạn"
                                FontSize="13"
                                TextColor="#78350F"
@@ -281,7 +296,8 @@
                 <Grid ColumnDefinitions="*, Auto" Padding="18,16">
                     <VerticalStackLayout Grid.Column="0" Spacing="3">
                         <HorizontalStackLayout Spacing="8">
-                            <Label Text="Gói Năm"
+                            <Label x:Name="LblYearPlanName"
+                                   Text="Gói Năm"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="White"/>
@@ -289,13 +305,15 @@
                                 <Border.StrokeShape>
                                     <RoundRectangle CornerRadius="6"/>
                                 </Border.StrokeShape>
-                                <Label Text="TIẾT KIỆM"
+                                <Label x:Name="LblSavingBadge"
+                                       Text="TIẾT KIỆM"
                                        FontSize="10"
                                        FontAttributes="Bold"
                                        TextColor="White"/>
                             </Border>
                         </HorizontalStackLayout>
-                        <Label Text="365 ngày - Tốt nhất cho khám phá"
+                        <Label x:Name="LblYearPlanDescription"
+                               Text="365 ngày - Tốt nhất cho khám phá"
                                FontSize="13"
                                TextColor="#9CA3AF"/>
                     </VerticalStackLayout>
@@ -309,7 +327,7 @@
                                TextColor="#F59E0B"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNam"
-                                Text="Chọn"
+                                Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
                                 BackgroundColor="#F59E0B"
@@ -336,11 +354,13 @@
                 <VerticalStackLayout Padding="18,16" Spacing="12">
                     <Grid ColumnDefinitions="*, Auto">
                         <VerticalStackLayout Grid.Column="0" Spacing="3">
-                            <Label Text="Khôi phục dữ liệu"
+                            <Label x:Name="LblRecoveryTitle"
+                                   Text="Khôi phục dữ liệu"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="#1F2933"/>
-                            <Label Text="Dùng khi cài lại app hoặc đổi thiết bị"
+                            <Label x:Name="LblRecoverySubtitle"
+                                   Text="Dùng khi cài lại app hoặc đổi thiết bị"
                                    FontSize="12"
                                    TextColor="#6B7280"/>
                         </VerticalStackLayout>
@@ -430,15 +450,18 @@
                    HorizontalTextAlignment="Center"
                    Margin="0,0,0,8"/>
 
-            <Label Text="Tự động kích hoạt khi kết nối được API thanh toán"
+            <Label x:Name="LblFooterHint1"
+                   Text="Tự động kích hoạt khi kết nối được API thanh toán"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>
-            <Label Text="Có thể test USB bằng adb reverse hoặc nhập API URL thủ công"
+            <Label x:Name="LblFooterHint2"
+                   Text="Có thể test USB bằng adb reverse hoặc nhập API URL thủ công"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>
-            <Label Text="Hỗ trợ 3 ngôn ngữ: Việt, Anh, Trung"
+            <Label x:Name="LblFooterHint3"
+                   Text="Hỗ trợ 3 ngôn ngữ: Việt, Anh, Trung"
                    FontSize="13"
                    TextColor="#6B7280"
                    Margin="0,0,0,5"/>

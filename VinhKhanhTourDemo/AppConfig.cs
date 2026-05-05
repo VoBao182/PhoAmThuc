@@ -166,11 +166,20 @@ public static class AppConfig
     public static string BuildApiConnectionHelpText()
     {
         if (HasConfiguredHostedApiBaseUrl)
-            return $"Ứng dụng đang được cấu hình dùng public API: {ConfiguredHostedApiBaseUrl}. Hãy kiểm tra backend/public domain đang online.";
+            return AppText.T(
+                $"Ứng dụng đang được cấu hình dùng public API: {ConfiguredHostedApiBaseUrl}. Hãy kiểm tra backend/public domain đang online.",
+                $"The app is configured to use the public API: {ConfiguredHostedApiBaseUrl}. Check that the backend/public domain is online.",
+                $"应用已配置使用公共 API：{ConfiguredHostedApiBaseUrl}。请检查后端/公共域名是否在线。");
 
         return DeviceInfo.Platform == DevicePlatform.Android
-            ? $"Bản dev local: ưu tiên dùng public API. Nếu đang test qua USB, hãy bật adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} để app tự dùng localhost mà không cần nhập IP."
-            : $"Nếu backend không chạy cùng máy, hãy cấu hình một public API URL, ví dụ https://api.vinhkhanhtour.vn.";
+            ? AppText.T(
+                $"Bản dev local: ưu tiên dùng public API. Nếu đang test qua USB, hãy bật adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} để app tự dùng localhost mà không cần nhập IP.",
+                $"Local dev build: public API is preferred. For USB testing, enable adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort} so the app can use localhost without entering an IP.",
+                $"本地开发版优先使用公共 API。USB 测试时请启用 adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}，应用即可使用 localhost。")
+            : AppText.T(
+                "Nếu backend không chạy cùng máy, hãy cấu hình một public API URL, ví dụ https://api.vinhkhanhtour.vn.",
+                "If the backend is not running on this machine, configure a public API URL, for example https://api.vinhkhanhtour.vn.",
+                "如果后端不在同一台机器运行，请配置公共 API URL，例如 https://api.vinhkhanhtour.vn。");
     }
 
     public static string BuildConnectionErrorMessage(Exception exception)
@@ -179,15 +188,24 @@ public static class AppConfig
 
         if (HasConfiguredHostedApiBaseUrl)
         {
-            return $"Không kết nối được toi {apiBaseUrl}. Đây phải là public API cho khách hàng, hãy kiểm tra server/domain đang hoạt động. Chi tiết: {exception.Message}";
+            return AppText.T(
+                $"Không kết nối được tới {apiBaseUrl}. Đây phải là public API cho khách hàng, hãy kiểm tra server/domain đang hoạt động. Chi tiết: {exception.Message}",
+                $"Cannot connect to {apiBaseUrl}. This must be the public customer API; check that the server/domain is online. Details: {exception.Message}",
+                $"无法连接到 {apiBaseUrl}。这应是面向客户的公共 API，请检查服务器/域名是否在线。详情：{exception.Message}");
         }
 
         if (DeviceInfo.Platform == DevicePlatform.Android)
         {
-            return $"Không kết nối được toi {apiBaseUrl}. Nếu bạn đang demo APK chưa gắn backend public, hãy vào Cài đặt để nhập API URL thủ công; còn khi test USB local thì dùng adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.";
+            return AppText.T(
+                $"Không kết nối được tới {apiBaseUrl}. Nếu bạn đang demo APK chưa gắn backend public, hãy vào Cài đặt để nhập API URL thủ công; còn khi test USB local thì dùng adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.",
+                $"Cannot connect to {apiBaseUrl}. If this APK demo is not connected to a public backend, open Settings and enter the API URL manually; for local USB testing, use adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}.",
+                $"无法连接到 {apiBaseUrl}。如果此 APK 演示未连接公共后端，请在设置中手动输入 API URL；本地 USB 测试请使用 adb reverse tcp:{AppEndpointOptions.ApiPort} tcp:{AppEndpointOptions.ApiPort}。");
         }
 
-        return $"Không kết nối được toi {apiBaseUrl}. Hãy kiểm tra backend đang chạy và URL API đúng. Chi tiết: {exception.Message}";
+        return AppText.T(
+            $"Không kết nối được tới {apiBaseUrl}. Hãy kiểm tra backend đang chạy và URL API đúng. Chi tiết: {exception.Message}",
+            $"Cannot connect to {apiBaseUrl}. Check that the backend is running and the API URL is correct. Details: {exception.Message}",
+            $"无法连接到 {apiBaseUrl}。请检查后端是否运行以及 API URL 是否正确。详情：{exception.Message}");
     }
 
     private static IEnumerable<string> GetCandidateApiBaseUrls()
