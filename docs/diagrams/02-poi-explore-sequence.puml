@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
@@ -34,7 +34,7 @@ MainPage -> DeviceIdentity: BuildQrCodeUrl()
 DeviceIdentity --> MainPage: qrUrl
 MainPage -> AppConfig: EnsureApiBaseUrlAsync()
 MainPage -> PoiController: GET /api/poi
-PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri > now
+PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri >= now
 DB --> PoiController: danh sach POI
 PoiController --> MainPage: List<PoiDto>
 MainPage -> MainPage: RefreshMapIfNeeded()\nRenderPoiCards()

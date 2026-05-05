@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
@@ -10,7 +10,7 @@
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload()
 ' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
-' Note: Sequence khop voi Create/Edit hien tai, gom upload anh va xu ly MonAns rong/null trong CMS.
+' Note: Sequence khop voi Create/Edit hien tai, gom upload anh, free trial 30 ngay cho POI moi, xu ly MonAns rong/null, va cac nhanh loi DB/concurrency.
 title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
 
 actor Admin
@@ -46,11 +46,18 @@ alt tao POI moi
   Admin -> PageModel: submit /Poi/Create
   PageModel -> PageModel: CreateModel.OnPostAsync()
   alt ModelState hop le
-    PageModel -> PageModel: Tao POI + ThuyetMinh + BanDich\nLoc MonAns co TenMonAn\nDonGia null -> 0
+    PageModel -> PageModel: Tao POI + ThuyetMinh + BanDich\nNeu chua co NgayHetHanDuyTri -> UtcNow + 30 ngay\nLoc MonAns co TenMonAn\nDonGia null -> 0
     PageModel -> AppDbContext: Add(POI)
-    AppDbContext -> DB: INSERT poi/thuyetminh/bandich/monan
-    DB --> AppDbContext: saved
-    AppDbContext --> PageModel: SaveChangesAsync()
+    alt SaveChangesAsync thanh cong
+      AppDbContext -> DB: INSERT poi/thuyetminh/bandich/monan
+      DB --> AppDbContext: saved
+      AppDbContext --> PageModel: SaveChangesAsync()
+      PageModel --> Admin: Redirect /Poi
+    else loi DB
+      AppDbContext --> PageModel: Exception
+      PageModel -> PageModel: LogError()\nTempData["Error"]
+      PageModel --> Admin: return Page()
+    end
   else ModelState khong hop le
     PageModel --> Admin: return Page()
   end
@@ -65,8 +72,19 @@ else sua POI hien co
     AppDbContext -> DB: SELECT data hien co
     DB --> AppDbContext: entity graph
     PageModel -> PageModel: cap nhat POI\nUpsertBanDich()\nTim formIds co Id hop le\nDeactivate MonAns mat khoi form\nAdd/update MonAns co TenMonAn\nDonGia null -> 0
-    AppDbContext -> DB: UPDATE + INSERT related rows
-    DB --> AppDbContext: saved
+    alt SaveChangesAsync thanh cong
+      AppDbContext -> DB: UPDATE + INSERT related rows
+      DB --> AppDbContext: saved
+      PageModel --> Admin: Redirect reload /Poi/Edit/{id}
+    else DbUpdateConcurrencyException
+      AppDbContext --> PageModel: concurrency exception
+      PageModel -> PageModel: LogWarning()\nTempData["Error"]
+      PageModel --> Admin: Redirect reload /Poi/Edit/{id}
+    else loi DB khac
+      AppDbContext --> PageModel: exception
+      PageModel -> PageModel: LogError()\nTempData["Error"]\nBuildMenuItemsFromInput()
+      PageModel --> Admin: return Page()
+    end
   end
 end
 

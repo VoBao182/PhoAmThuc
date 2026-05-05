@@ -43,9 +43,16 @@ public partial class MainPage : ContentPage
         Timeout = AppConfig.PreferredApiRequestTimeout
     };
 
+    // Dwell time before a POI is considered "confirmed". Prevents drive-by /
+    // GPS-jitter false positives — both the audio playback and the heartbeat that
+    // tells CMS "đang ở quán" wait until the user has stayed in radius this long.
+    private const double DwellSecondsToConfirm = 5.0;
+
     private List<PoiDto> _pois = [];
     private Location? _userLocation;
     private PoiDto? _currentPoi;
+    private PoiDto? _candidatePoi;
+    private DateTime _candidateSinceUtc;
     private PoiDto? _playingPoi;
     private PoiDto? _sheetPoi;
     private CancellationTokenSource? _gpsCts;
@@ -735,56 +742,74 @@ public partial class MainPage : ContentPage
     {
         var selectedCandidate = SelectPoiForLocation(userLoc);
         var nearest = selectedCandidate?.Poi;
+        var nowUtc = DateTime.UtcNow;
 
-        if (nearest != null)
+        // Out of every POI radius — drop the dwell timer and clear the confirmed POI.
+        if (nearest == null)
         {
-            string poiKey = nearest.Id.ToString();
-            bool isNewPoi = _currentPoi?.Id != nearest.Id;
-            _currentPoi = nearest;
-
-            MainThread.BeginInvokeOnMainThread(() =>
+            _candidatePoi = null;
+            if (_currentPoi != null)
             {
-                HighlightNearestPoi(nearest.Id);
-                RenderPoiCards();
-
-                if (_sheetPoi?.Id == nearest.Id)
-                    SheetNearBadge.IsVisible = true;
-            });
-
-            bool isCooledDown = !_lastSpokenTime.TryGetValue(poiKey, out DateTime lastTime)
-                || (DateTime.UtcNow - lastTime).TotalMinutes >= COOLDOWN_MINUTES;
-
-            if (isCooledDown && isNewPoi)
-            {
-                _lastSpokenTime[poiKey] = DateTime.UtcNow;
-                RecordVisitedPoi(nearest);
-                _ = SyncPoiHistoryAsync();
-
-                Console.WriteLine($"[Geofence] Speak: {nearest.TenPOI}");
-                // Ghi nhận lượt ghé thăm POI lên server (để admin theo dõi hành trình)
-                _ = RecordPoiVisitAsync(nearest);
+                _currentPoi = null;
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    QueuePoiPlayback(nearest);
-                    HighlightNearestPoi(nearest.Id);
+                    ClearHighlight();
                     RenderPoiCards();
-                    UpdateCaiDatUI();
                 });
             }
-            else if (!isCooledDown)
-            {
-                var remaining = COOLDOWN_MINUTES - (DateTime.UtcNow - _lastSpokenTime[poiKey]).TotalMinutes;
-                Console.WriteLine($"[Cooldown] {nearest.TenPOI}: {remaining:F0} minutes left");
-            }
+            return;
         }
-        else if (_currentPoi != null)
+
+        // Inside a POI radius — start (or continue) the dwell timer.
+        if (_candidatePoi?.Id != nearest.Id)
         {
-            _currentPoi = null;
+            _candidatePoi = nearest;
+            _candidateSinceUtc = nowUtc;
+            return; // not confirmed yet
+        }
+
+        var dwellSeconds = (nowUtc - _candidateSinceUtc).TotalSeconds;
+        if (dwellSeconds < DwellSecondsToConfirm)
+            return; // still dwelling — don't trigger audio or report to CMS yet
+
+        // Dwell satisfied — commit. From here onward, heartbeat will report this POI
+        // and the CMS will show the customer as "đang ở quán".
+        string poiKey = nearest.Id.ToString();
+        bool isNewPoi = _currentPoi?.Id != nearest.Id;
+        _currentPoi = nearest;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            HighlightNearestPoi(nearest.Id);
+            RenderPoiCards();
+
+            if (_sheetPoi?.Id == nearest.Id)
+                SheetNearBadge.IsVisible = true;
+        });
+
+        bool isCooledDown = !_lastSpokenTime.TryGetValue(poiKey, out DateTime lastTime)
+            || (nowUtc - lastTime).TotalMinutes >= COOLDOWN_MINUTES;
+
+        if (isCooledDown && isNewPoi)
+        {
+            _lastSpokenTime[poiKey] = nowUtc;
+            RecordVisitedPoi(nearest);
+            _ = SyncPoiHistoryAsync();
+
+            Console.WriteLine($"[Geofence] Speak: {nearest.TenPOI} (dwelled {dwellSeconds:F1}s)");
+            _ = RecordPoiVisitAsync(nearest);
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                ClearHighlight();
+                QueuePoiPlayback(nearest);
+                HighlightNearestPoi(nearest.Id);
                 RenderPoiCards();
+                UpdateCaiDatUI();
             });
+        }
+        else if (!isCooledDown)
+        {
+            var remaining = COOLDOWN_MINUTES - (nowUtc - _lastSpokenTime[poiKey]).TotalMinutes;
+            Console.WriteLine($"[Cooldown] {nearest.TenPOI}: {remaining:F0} minutes left");
         }
     }
 
@@ -1814,6 +1839,7 @@ public partial class MainPage : ContentPage
         _gpsCts = null;
 
         _currentPoi = null;
+        _candidatePoi = null;
         _playingPoi = null;
         _userLocation = null;
         _isMapReady = false;

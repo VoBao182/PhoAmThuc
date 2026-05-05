@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: polling PendingSnapshot
@@ -39,7 +39,7 @@ alt admin duyet
   IndexModel -> AppDbContext: add DangKyApp\nupdate YeuCauThanhToan(da_duyet)
   AppDbContext -> DB: INSERT dangkyapp + UPDATE yeucauthanhtoan
   DB --> AppDbContext: saved
-  IndexModel --> Admin: redirect tab da_duyet
+  IndexModel --> Admin: redirect tab cho_duyet
 else admin tu choi
   Admin -> IndexModel: POST Reject(yeuCauId, lyDo)
   IndexModel -> AppDbContext: load YeuCauThanhToan

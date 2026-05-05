@@ -1,12 +1,12 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Data/AppDbContext.cs
-' Note: Sequence cap nhat theo raw Npgsql query hien tai, summary online/subscription/XP, va khong con JS fetch HeartbeatController.
+' Note: Sequence cap nhat theo raw Npgsql query hien tai, summary online/subscription/XP, chi lay toa do trong vung phuc vu, va khong con JS fetch HeartbeatController.
 title F09 - Theo doi khach hang va trang thai su dung
 
 actor Admin
@@ -25,7 +25,7 @@ DB --> Npgsql: subscriptions
 Npgsql --> IndexModel: DeviceSubscription[]
 
 IndexModel -> Npgsql: ExecuteRawReadAsync("vi tri khach hang")
-Npgsql -> DB: SELECT mathietbi, lancuoi_heartbeat,\npoiid_hientai, ten_poi_hientai FROM vitrikhach
+Npgsql -> DB: SELECT mathietbi, lancuoi_heartbeat,\npoiid_hientai, ten_poi_hientai FROM vitrikhach\nWHERE lat/lng nam trong vung phuc vu va khac 0/0
 DB --> Npgsql: locations
 Npgsql --> IndexModel: DeviceLocation[]
 

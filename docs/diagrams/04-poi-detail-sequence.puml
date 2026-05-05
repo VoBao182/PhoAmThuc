@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), ConfigureAudioPlayer(), OnNgheClicked(), OnAudioWebViewNavigated(), OnAudioWebViewNavigating(), OnMapClicked()
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource()

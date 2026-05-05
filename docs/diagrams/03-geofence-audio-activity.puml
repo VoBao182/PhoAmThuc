@@ -1,15 +1,15 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Activity)
-' Status: PENDING-REVIEW
-' Baseline: branch master, HEAD b946abe (+ bo sung SelectPoiForLocation)
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
-' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory()
+' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory(), VerifyCurrentPoiAsync()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
-' Note: Da doi heartbeat 10 giay va refresh POI 20 giay theo constants HEARTBEAT_EVERY_TICKS=2, POI_REFRESH_EVERY_TICKS=4 voi GPS poll 5 giay.
-' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI va giu POI hien tai neu cung muc uu tien va chenh lech khoang cach <= PoiSwitchDistanceBufferMeters (5m).
+' Note: Code hien tai xac nhan vao POI sau khi dwell 5 giay trong ban kinh. Heartbeat gui moi 10 giay va refresh POI moi 20 giay voi GPS poll 5 giay.
+' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI, giu POI hien tai neu cung muc uu tien va chenh lech <= 5m, va HeartbeatController se verify lai current POI tren server voi tolerance 5m.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
 :EnsureGpsTrackingAsync();
@@ -27,53 +27,66 @@ while (token chua bi cancel?) is (Co)
     :CheckGeofence(location);
     :UpdateUserLocationOnMap(location);
 
-    if (den nhip heartbeat 10s?) then (Co)
-      :SendHeartbeatAsync(lat, lng);
-      :DeviceIdentity.GetDeviceId();
-      :POST /api/heartbeat;
-    endif
-
-    if (den nhip refresh POI 20s?) then (Co)
-      :RefreshPoisInBackgroundAsync();
-    endif
-
     :SelectPoiForLocation(location);
     note right
       Loc POI co distance <= BanKinh
       OrderBy MucUuTien (nho hon thang)
       ThenBy DistanceMeters
       ThenBy TenPOI
+      Neu _currentPoi cung muc uu tien va
+      chi xa hon top1 <= 5m thi giu _currentPoi
     end note
     if (co ung vien POI trong ban kinh?) then (Co)
-      if (dang phat _currentPoi
-         && cung MucUuTien voi top1
-         && |distance chenh lech| <= 5m?) then (Co)
-        :giu _currentPoi (hysteresis);
+      if (_candidatePoi khac nearest?) then (Co)
+        :Gan _candidatePoi = nearest;
+        :Gan _candidateSinceUtc = now;
+        :Cho dwell tiep, chua xac nhan POI;
       else (Khong)
-        :chon top1 lam nearest;
-      endif
-      if (isNewPoi && qua cooldown?) then (Co)
-        :RecordVisitedPoi(nearest);
-        :SyncPoiHistoryAsync();
-        :POST /api/heartbeat/sync-history;
-        :RecordPoiVisitAsync(nearest);
-        :POST /api/heartbeat/visit;
-        :UpdateCaiDatUI();
-        :SpeakPoiAsync(nearest);
-        :GET /api/thuyet-minh/{poiId}?lang=...;
-        if (Co NoiDung/API hop le?) then (Co)
-          :TextToSpeech.Default.SpeakAsync(content);
+        if (dwell < 5 giay?) then (Co)
+          :Tiep tuc dwell, chua audio/chua report CMS;
         else (Khong)
-          :Speak text fallback;
+          :Xac nhan _currentPoi = nearest;
+          :HighlightNearestPoi();\nRenderPoiCards();
+          if (isNewPoi && qua cooldown?) then (Co)
+            :RecordVisitedPoi(nearest);
+            :SyncPoiHistoryAsync();
+            :POST /api/heartbeat/sync-history;
+            :RecordPoiVisitAsync(nearest);
+            :POST /api/heartbeat/visit;
+            :QueuePoiPlayback(nearest);
+            :UpdateCaiDatUI();
+            :GET /api/thuyet-minh/{poiId}?lang=...;
+            if (Co NoiDung/API hop le?) then (Co)
+              :TextToSpeech.Default.SpeakAsync(content);
+            else (Khong)
+              :Speak text fallback;
+            endif
+            :LogPlaybackAsync(poiId, lang);
+            :POST /api/log;
+          else (Khong)
+            :Chi highlight / render lai card;
+          endif
         endif
-        :LogPlaybackAsync(poiId, lang);
-        :POST /api/log;
-      else (Khong)
-        :Chi highlight / render lai card;
       endif
     else (Khong)
+      :_candidatePoi = null;
       :ClearHighlight();
       :_currentPoi = null;
+      :RenderPoiCards();
+    endif
+
+    if (den nhip heartbeat 10s?) then (Co)
+      :SendHeartbeatAsync(lat, lng, currentPoi?);
+      :DeviceIdentity.GetDeviceId();
+      :POST /api/heartbeat;
+      note right
+        Server bo qua toa do ngoai vung phuc vu
+        va verify lai currentPoi voi BanKinh + 5m
+      end note
+    endif
+
+    if (den nhip refresh POI 20s?) then (Co)
+      :RefreshPoisInBackgroundAsync();
     endif
   else (Khong)
     :GpsStatusDot = xam;

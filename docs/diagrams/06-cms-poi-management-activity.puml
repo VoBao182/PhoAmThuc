@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), ApplyStatusFilter(), ApplyExpiryFilter(), ApplySort(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()
@@ -11,7 +11,7 @@
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
 ' - VinhKhanhTour.CMS/Pages/Poi/Edit.cshtml: doUpload(), uploadImg(), uploadMonAnImg()
 ' - VinhKhanhTour.API/Controllers/UploadController.cs: Upload()
-' Note: Luong CMS POI hien tai da khop code: filter/sort/search, upload anh, va xu ly MonAns trong Create/Edit.
+' Note: Luong CMS POI hien tai da khop code: filter/sort/search, upload anh, free trial 30 ngay cho POI moi, xu ly MonAns trong Create/Edit, va tra loi loi DB/concurrency.
 title F06 - Quan ly POI, anh, geofence, thuyet minh va menu
 start
 :Admin mo /Poi hoac /Poi/Create hoac /Poi/Edit/{id};
@@ -38,10 +38,18 @@ endif
 if (Dang tao POI moi?) then (Co)
   :CreateModel.OnPostAsync();
   :Tao POI.Id moi;
+  if (POI.NgayHetHanDuyTri rong?) then (Co)
+    :Gan NgayHetHanDuyTri = UtcNow + 30 ngay;
+  endif
   :Tao ThuyetMinh + cac BanDich vi/en/zh;
   :Loc MonAns co TenMonAn;
   :MonAn moi -> DonGia null thi gan 0;
   :_db.POIs.Add(POI);
+  if (SaveChangesAsync loi DB?) then (Co)
+    :LogError + TempData["Error"];\nreturn Page();
+  else (Khong)
+    :Redirect ve /Poi;
+  endif
 else (Sua POI)
   :EditModel.OnPostAsync();
   :ModelState.Remove("MonAns[*]");
@@ -57,12 +65,16 @@ else (Sua POI)
     :Danh dau MonAn khong con tren form -> TinhTrang=false;
     :Them moi / cap nhat MonAn;
     :Bo qua row MonAns rong, DonGia null -> 0;
+    if (SaveChangesAsync bi concurrency?) then (Co)
+      :LogWarning + TempData["Error"];\nRedirect reload trang edit;
+    else (Khong)
+      if (SaveChangesAsync loi DB khac?) then (Co)
+        :LogError + TempData["Error"];\nRebuild POI.MonAns;\nreturn Page();
+      else (Khong)
+        :Redirect reload trang edit;
+      endif
+    endif
   endif
-endif
-
-if (Khong return Page()?) then (Co)
-  :SaveChangesAsync();
-  :Redirect ve /Poi hoac reload trang edit;
 endif
 
 if (Admin bam Hien/An trong danh sach?) then (Co)

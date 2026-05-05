@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, HEAD b946abe
+' Baseline: branch master, current worktree @ HEAD 3158ff7
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: snapshotUrl, polling JS
@@ -38,7 +38,7 @@ if (Admin bam Duyet?) then (Co)
     :Them DangKyApp moi;
     :Cap nhat YeuCauThanhToan -> da_duyet;
     :SaveChangesAsync();
-    :Redirect ve tab da_duyet;
+    :Redirect ve tab cho_duyet;
   endif
 else (Khong)
   if (Admin bam Tu choi?) then (Co)
