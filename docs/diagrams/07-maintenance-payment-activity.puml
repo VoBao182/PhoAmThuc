@@ -9,7 +9,7 @@
 ' - VinhKhanhTour.API/Models/POI.cs
 ' - VinhKhanhTour.API/Models/DangKyDichVu.cs
 ' - VinhKhanhTour.API/Models/HoaDon.cs
-' Note: Luong ghi nhan/gia han phi duy tri va truy van lich su hoa don da khop voi Razor PageModel hien tai.
+' Note: So do chi tiet hoa thong ke POI het han/sap han, gia han theo moc hien tai hoac ngay bay gio, va tao HoaDon theo tung ky thanh toan.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 start
 :ThanhToan/Index.OnGetAsync();
@@ -28,7 +28,11 @@ if (Admin chon mot POI de ghi nhan?) then (Co)
     :Bao loi validation;
   else (Hop le)
     :GhiNhan.OnPostAsync();
-    :Tinh mocGiaHan;
+    if (POI van con han?) then (Co)
+      :mocGiaHan = NgayHetHanDuyTri hien tai;
+    else (Khong)
+      :mocGiaHan = now;
+    endif
     :Cap nhat poi.NgayHetHanDuyTri;
     :poi.TrangThai = true;
     if (Chua co DangKyDichVu?) then (Co)
@@ -36,7 +40,7 @@ if (Admin chon mot POI de ghi nhan?) then (Co)
     else (Da co)
       :Cap nhat PhiDuyTriThang va NgayHetHan;
     endif
-    :Lap theo soThangGiaHan -> tao HoaDon theo tung ky;
+    :Lap theo soThangGiaHan -> tao HoaDon theo tung ky yyyy-MM;
     :SaveChangesAsync();
     :Redirect ve /ThanhToan voi thong bao thanh cong;
   endif

@@ -6,7 +6,7 @@
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/LichSu.cshtml.cs: OnGetAsync()
-' Note: Sequence mo ta dung luong Razor PageModel hien tai, khong suy dien them PaymentController du phong.
+' Note: Sequence mo ta chi tiet luong Razor PageModel hien tai, gom moc gia han, upsert DangKyDichVu, va tao HoaDon theo tung thang; khong suy dien them PaymentController du phong.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 
 actor Admin
@@ -32,7 +32,7 @@ GhiNhanModel --> Admin: form ghi nhan
 Admin -> GhiNhanModel: submit soThangGiaHan, phi, ghiChu
 GhiNhanModel -> AppDbContext: load poi + goi hien tai
 AppDbContext -> DB: SELECT / INSERT / UPDATE
-GhiNhanModel -> GhiNhanModel: tinh mocGiaHan\ncap nhat POI + upsert DangKyDichVu\ntao HoaDon theo tung ky
+GhiNhanModel -> GhiNhanModel: neu POI con han -> mocGiaHan = han hien tai\nneu het han -> mocGiaHan = now\ncap nhat POI + upsert DangKyDichVu\ntao HoaDon theo tung ky yyyy-MM
 AppDbContext -> DB: SaveChanges()
 DB --> AppDbContext: saved
 GhiNhanModel --> Admin: redirect /ThanhToan?msg=...

@@ -8,7 +8,7 @@
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: OnAppearing(), StartPollingAsync(), PollStatusAsync(), ShowSuccess(), ShowRejected(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
-' Note: Luong thanh toan goi tra phi, polling 10 giay, va dong modal stack da khop voi PaymentPage/PaymentStatusPage hien tai.
+' Note: So do chi tiet hoa tao noi dung chuyen khoan/VietQR, prompt API URL, polling 10 giay, va cach dong modal stack sau khi duyet/tu choi.
 title F05 - Thanh toan goi tra phi va cho duyet
 start
 :SubscriptionPage.OnMuaGoiClicked(loaiGoi != "thu");
@@ -17,6 +17,7 @@ start
 :PaymentPage.SetupUi();
 :Tao _noiDungChuyen = "VKT <GOI> <SHORTID>";
 :Sinh URL VietQR va hien QR;
+:HideApiGuide();
 
 if (Nguoi dung bam copy noi dung?) then (Co)
   :Clipboard.SetTextAsync(_noiDungChuyen);
@@ -39,13 +40,14 @@ if (Nguoi dung bam "Da chuyen khoan"?) then (Co)
       :Preferences.Set(sub_ngay_het_han);
       :Nguoi dung bam Bat dau;
       :ClosePaymentFlowAsync(closeSubscriptionPage:true);
-      :Pop modal stack va quay ve MainPage;
+      :Pop het modal;\nneu stack goc cuoi la SubscriptionPage\nthi PushAsync(MainPage) + RemovePage(SubscriptionPage);
     else (tu_choi)
       :ShowRejected(lyDo);
       :Nguoi dung bam Thu lai hoac Dong;
       :PopModalAsync() hoac ClosePaymentFlowAsync(false);
     endif
   else (Khong)
+    :Neu can -> prompt nhap API URL thu cong;
     :Hien loi ket noi / loi tao yeu cau;
   endif
 else (Khong)

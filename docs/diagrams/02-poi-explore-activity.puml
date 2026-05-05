@@ -9,7 +9,7 @@
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus()
-' Note: Da bo sung luong khoi phuc ma thiet bi trong tab Cai dat cua MainPage va giu luong explore/refresh 20 giay theo code hien tai.
+' Note: So do chi tiet hoa fallback seed data, khoi phuc lich su/XP, render tab explore-ban do-cai dat, va luong khoi phuc ma thiet bi trong MainPage.
 ' Note: Luong ghi nhan "visit" khi geofence trigger (RecordPoiVisitAsync -> POST /api/heartbeat/visit) duoc mo hinh o F03 (Geofence/Audio) de tach concern.
 title F02 - Tai va kham pha danh sach POI
 start
@@ -37,6 +37,7 @@ if (_isInitialized == false?) then (Co)
     :CreateFallbackPois();
     :_isUsingFallbackData = true;
     :_lastDataLoadError = ex.Message;
+    :Neu co yeu cau explicit reload -> co the DisplayAlert loi;
   endif
 else (Da tai)
   :Bo qua tai danh sach lan dau;
@@ -48,6 +49,11 @@ endif
 :RestorePoiHistoryAsync();
 :EnsureGpsTrackingAsync();
 :SyncPoiHistoryAsync();
+
+if (Nguoi dung chuyen tab Ban do?) then (Co)
+  :Map tab load marker tu _pois;
+  :Cho phep bam marker/card de mo sheet chi tiet;
+endif
 
 while (Nguoi dung tiep tuc kham pha?) is (Co)
   if (Nhap tu khoa tim kiem?) then (Co)
@@ -64,6 +70,11 @@ while (Nguoi dung tiep tuc kham pha?) is (Co)
     :SyncPoiHistoryAsync();
     :UpdateCaiDatUI();
     :Navigation.PushAsync(new DetailPage(poi));
+  endif
+
+  if (Bam marker tren ban do / sheet POI?) then (Co)
+    :ShowMapPoiSheet(poi);
+    :Cho phep "Xem chi tiet" tu sheet;
   endif
 
   if (Mo tab Cai dat va sao chep ma thiet bi?) then (Co)
@@ -110,6 +121,7 @@ while (Nguoi dung tiep tuc kham pha?) is (Co)
     :GET /api/poi;
     :RefreshMapIfNeeded();
     :RenderPoiCards();
+    :Neu dang o map sheet thi cap nhat badge/near status;
   endif
 endwhile (Khong)
 

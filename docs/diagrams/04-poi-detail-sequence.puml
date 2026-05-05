@@ -7,7 +7,7 @@
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource()
 ' - VinhKhanhTourDemo/AppConfig.cs: ResolveImageUrl()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
-' Note: Sequence cap nhat them FoodImageCatalog vi code da tach xu ly fallback anh ra helper.
+' Note: Sequence chi tiet hoa luong API/fallback, audio bridge WebView, TTS fallback, va dieu khien play-pause-stop-seek.
 title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
 
 actor Guest
@@ -46,8 +46,11 @@ alt co FileAudio
   Guest -> DetailPage: OnNgheClicked()
   DetailPage -> AudioWebView: setSource(url)\nplayAudio()
   AudioWebView --> DetailPage: audiostate://current|duration|paused
+  DetailPage -> DetailPage: cap nhat slider + thoi gian + _isAudioPlaying
   Guest -> DetailPage: Play/Pause/Stop/Seek
   DetailPage -> AudioWebView: pauseAudio()/stopAudio()/seekAudio()
+  AudioWebView --> DetailPage: audiostate://...
+  DetailPage -> DetailPage: dong bo state UI
 else chi co text
   Guest -> DetailPage: OnNgheClicked()
   DetailPage -> TTS: SpeakAsync(NoiDungThuyetMinh)

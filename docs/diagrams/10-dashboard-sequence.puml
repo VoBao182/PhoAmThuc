@@ -5,7 +5,7 @@
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
-' Note: Sequence cap nhat dashboard hien tai: POI section + monitoring analytics dung raw Npgsql tren shared EF connection.
+' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, shared EF connection, va serialize JSON cho chart/heatmap/revenue.
 title F10 - Dashboard tong quan va monitoring CMS
 
 actor Admin
@@ -16,6 +16,12 @@ database DB
 
 Admin -> IndexModel: mo /?mode&date&week&month&year&from&to
 IndexModel -> IndexModel: ResolveRange()
+note right of IndexModel
+  Mode:
+  today, yesterday, last7, last30,
+  thismonth, lastmonth, last12m,
+  day, week, month, year, custom
+end note
 
 IndexModel -> AppDbContext: LoadPoiSectionAsync()\nPOIs.Include(MonAns)
 AppDbContext -> DB: SELECT poi + monan ORDER BY MucUuTien
@@ -30,7 +36,7 @@ Npgsql -> DB: SELECT date_trunc, active_users,\nviews, visits FROM lichsuphat
 DB --> Npgsql: ActivityBuckets
 
 IndexModel -> Npgsql: LoadGeoAsync(conn, since, until)
-Npgsql -> DB: SELECT poi lat/lng/name,\nCOUNT(*) FROM lichsuphat JOIN poi
+Npgsql -> DB: SELECT poi lat/lng/name,\nCOUNT(*) FROM lichsuphat JOIN poi\nWHERE toa do trong vung phuc vu
 DB --> Npgsql: GeoPoints
 
 IndexModel -> Npgsql: LoadTopPoiAsync(conn, since, until)

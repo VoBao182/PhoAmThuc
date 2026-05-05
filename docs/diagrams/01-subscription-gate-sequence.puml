@@ -13,7 +13,7 @@
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus(), Purchase()
-' Note: Sequence da cap nhat them luong recovery code/QR cua SubscriptionPage va giu luong subscription gate hien tai.
+' Note: Sequence chi tiet hoa startup route, retry, recovery code/QR, free trial activation, va cach ExitSubscriptionGateAsync dong modal stack hoac thay trang goc.
 title F01 - Kich hoat va khoi phuc quyen su dung app
 
 actor Guest
@@ -35,6 +35,7 @@ database DB
 Guest -> App: mo ung dung
 App -> LaunchPage: CreateWindow()\nNavigationPage(new LaunchPage)
 LaunchPage -> LaunchPage: OnAppearing()\nRouteAsync()
+LaunchPage -> LaunchPage: BootIndicator = visible\nBtnRetry = hidden
 LaunchPage -> SubscriptionState: IsSubscriptionActive()
 SubscriptionState -> Preferences: Get(sub_ngay_het_han)
 Preferences --> SubscriptionState: expiryRaw
@@ -53,7 +54,13 @@ else chua co / het han local
   DeviceIdentity --> SubscriptionPage: payload
   SubscriptionPage -> DeviceIdentity: BuildQrCodeUrl()
   DeviceIdentity --> SubscriptionPage: qrUrl
-  SubscriptionPage -> SubscriptionPage: UpdateRecoveryCard()\nUpdateTrialButtonState()
+  SubscriptionPage -> SubscriptionPage: ApplyLocalizedUiText()\nUpdateRecoveryCard()\nUpdateTrialButtonState()\nHideApiGuide()
+end
+
+opt RouteAsync loi startup
+  LaunchPage -> Guest: hien status loi
+  Guest -> LaunchPage: OnRetryClicked()
+  LaunchPage -> LaunchPage: RouteAsync() lai
 end
 
 opt MainPage xuat hien nhung subscription local khong hop le
@@ -94,7 +101,12 @@ else nguoi dung paste / nhap recovery code
     SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
     SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
     alt goi da duoc khoi phuc va con han
-      SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+      SubscriptionPage -> SubscriptionPage: ExitSubscriptionGateAsync()
+      alt dang o modal stack
+        SubscriptionPage -> SubscriptionPage: PopModalAsync()
+      else dang la root page
+        SubscriptionPage -> MainPage: PushAsync(new MainPage)\nRemovePage(SubscriptionPage)
+      end
     else chi doi ma thiet bi, chua co goi active
       SubscriptionPage -> Guest: hien LblRecoveryStatus
     end
@@ -125,7 +137,12 @@ else nguoi dung scan QR recovery
       SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
       SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
       alt goi da duoc khoi phuc va con han
-        SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+        SubscriptionPage -> SubscriptionPage: ExitSubscriptionGateAsync()
+        alt dang o modal stack
+          SubscriptionPage -> SubscriptionPage: PopModalAsync()
+        else dang la root page
+          SubscriptionPage -> MainPage: PushAsync(new MainPage)\nRemovePage(SubscriptionPage)
+        end
       else chi doi ma thiet bi, chua co goi active
         SubscriptionPage -> Guest: hien LblRecoveryStatus
       end
@@ -154,8 +171,13 @@ alt nguoi dung chon goi dung thu
     DB --> SubscriptionController: saved
     SubscriptionController --> SubscriptionPage: ngayHetHan
     SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
-    SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
-    SubscriptionPage -> MainPage: ExitSubscriptionGateAsync()
+    SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()\nHideApiGuide()
+    SubscriptionPage -> SubscriptionPage: ExitSubscriptionGateAsync()
+    alt dang o modal stack
+      SubscriptionPage -> SubscriptionPage: PopModalAsync()
+    else dang la root page
+      SubscriptionPage -> MainPage: PushAsync(new MainPage)\nRemovePage(SubscriptionPage)
+    end
   else khong tim thay API dung
     ApiConnectionPrompt --> SubscriptionPage: null
     SubscriptionPage -> Guest: hien LblError

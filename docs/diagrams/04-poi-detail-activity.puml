@@ -7,7 +7,7 @@
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource(), TryCreateImageSource()
 ' - VinhKhanhTourDemo/AppConfig.cs: ResolveImageUrl()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetById()
-' Note: Da bo sung dung logic fallback anh hien tai qua FoodImageCatalog; luong activity khop voi DetailPage hien tai.
+' Note: So do chi tiet hoa audio bridge WebView, fallback API/anh/noi dung, va thao tac play-pause-stop-seek tren DetailPage.
 title F04 - Xem chi tiet POI, thuc don, audio guide va chi duong
 start
 :Tao DetailPage(poiBasic);
@@ -26,7 +26,7 @@ if (API thanh cong?) then (Co)
 else (Khong)
   :UseFallback(tenPoi);
   :FoodImageCatalog.GetPoiImageSource(_poiBasic.AnhDaiDien, tenPoi);
-  :An SectionMenu;
+  :An AudioControls + SectionMenu;
 endif
 
 if (Nguoi dung bam nghe?) then (Co)
@@ -49,6 +49,16 @@ endif
 if (Nguoi dung pause/stop/seek?) then (Co)
   :OnPlayPauseClicked() / OnStopAudioClicked() /\nOnAudioSliderDragCompleted();
   :ExecuteAudioScript(...);
+endif
+
+if (AudioWebView gui audiostate://...) then (Co)
+  :OnAudioWebViewNavigating();
+  :Cap nhat _isAudioPlaying,\nslider current/duration,\nLblCurrentTime/LblDuration;
+endif
+
+if (AudioWebView load xong va _playWhenReady?) then (Co)
+  :OnAudioWebViewNavigated();
+  :playAudio() tu dong;
 endif
 
 if (Nguoi dung bam Chi duong?) then (Co)

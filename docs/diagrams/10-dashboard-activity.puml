@@ -6,12 +6,18 @@
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi()
-' Note: Dashboard monitoring/analytics, range resolver, retry ClearNpgsqlPoolsQuietly, va raw Npgsql queries da khop code hien tai.
+' Note: So do chi tiet hoa 11 che do range, 2 pha tai du lieu POI/analytics, retry ClearNpgsqlPoolsQuietly, va 5 nhom truy van raw Npgsql.
 title F10 - Dashboard tong quan va monitoring CMS
 start
 :Index.OnGetAsync(mode,date,week,month,year,from,to);
 :ResolveRange();
 :Gan SinceUtc, UntilUtc, Granularity, RangeLabel;
+note right
+  Ho tro:
+  today, yesterday, last7, last30,
+  thismonth, lastmonth, last12m,
+  day, week, month, year, custom
+end note
 
 :LoadPoiSectionAsync();
 if (Load POI thanh cong?) then (Co)
@@ -30,7 +36,7 @@ if (Analytics thanh cong?) then (Co)
   :LoadActivityAsync();
   :Raw SQL lichsuphat theo bucket -> ActivityBuckets;
   :LoadGeoAsync();
-  :Raw SQL lichsuphat join poi -> GeoPoints;
+  :Raw SQL lichsuphat join poi,\nchi lay toa do trong vung phuc vu -> GeoPoints;
   :LoadTopPoiAsync();
   :Raw SQL top POI theo views/visits;
   :LoadRevenueAsync();
@@ -38,13 +44,13 @@ if (Analytics thanh cong?) then (Co)
   :LoadSummaryAsync();
   :Tinh TotalActiveDevices, TotalViews, TotalVisits, TotalRevenue;
   :FillMissingBuckets();
+  :Serialize ActivityJson, GeoJson, RevenueJson;
 else (Khong)
   :Neu IsDisposedWaitHandle va attempt dau -> ClearNpgsqlPoolsQuietly();
   :ResetAnalytics();
   :Gan AnalyticsError;
 endif
 
-:Serialize ActivityJson, GeoJson, RevenueJson;
 :Render dashboard + monitoring section trong Index.cshtml;
 stop
 @enduml
