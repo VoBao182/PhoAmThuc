@@ -65,7 +65,7 @@
 
                             <div class="poi-meta">
                                 <span class="meta-label">中文</span>
-                                <strong>@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "Chưa có" : "Đã có")</strong>
+                                <strong>@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "暂无" : "已有")</strong>
                             </div>
 
                             <div class="poi-meta">
@@ -81,7 +81,7 @@
                                     </div>
                                     <div>
                                         <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">中文</div>
-                                        <div style="font-size:14px; line-height:1.55;">@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "Chưa có nội dung." : item.NoiDungZh.Length > 120 ? item.NoiDungZh[..120] + "..." : item.NoiDungZh)</div>
+                                        <div style="font-size:14px; line-height:1.55;">@(string.IsNullOrWhiteSpace(item.NoiDungZh) ? "暂无内容。" : item.NoiDungZh.Length > 120 ? item.NoiDungZh[..120] + "..." : item.NoiDungZh)</div>
                                     </div>
                                 </div>
                             </div>
