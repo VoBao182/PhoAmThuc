@@ -37,6 +37,10 @@ public class HeartbeatController : ControllerBase
     private const double ServiceMaxLat = 10.9;
     private const double ServiceMinLng = 106.55;
     private const double ServiceMaxLng = 106.9;
+
+    // GPS drift / accuracy slack added to BanKinh when verifying "đang ở quán".
+    // Without it, a user standing right at the edge would flicker in/out due to small jitter.
+    private const double GeofenceToleranceMeters = 5.0;
     private static readonly string[] VisitedSourceValues = ["GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
     private static readonly string[] ViewedSourceValues = ["VIEW", "GPS", "APP-GEOFENCE", "APP_GEOFENCE", "GEOFENCE"];
 
@@ -82,6 +86,12 @@ public class HeartbeatController : ControllerBase
 
         try
         {
+            // Trust-but-verify: re-check that the user's lat/lng is actually inside
+            // the POI radius the app claims. Drops the claim otherwise so CMS doesn't
+            // mislabel a passer-by as "đang ở quán".
+            var (verifiedPoiId, verifiedPoiName) = await VerifyCurrentPoiAsync(
+                req.PoiIdHienTai, req.Lat, req.Lng, cancellationToken);
+
             var existing = await _db.VitriKhachs
                 .FirstOrDefaultAsync(v => v.MaThietBi == maThietBi, cancellationToken);
 
@@ -94,8 +104,8 @@ public class HeartbeatController : ControllerBase
                     Lat              = req.Lat,
                     Lng              = req.Lng,
                     LanCuoiHeartbeat = now,
-                    PoiIdHienTai     = req.PoiIdHienTai,
-                    TenPoiHienTai    = req.TenPoiHienTai
+                    PoiIdHienTai     = verifiedPoiId,
+                    TenPoiHienTai    = verifiedPoiName
                 });
             }
             else
@@ -103,8 +113,8 @@ public class HeartbeatController : ControllerBase
                 existing.Lat              = req.Lat;
                 existing.Lng              = req.Lng;
                 existing.LanCuoiHeartbeat = now;
-                existing.PoiIdHienTai     = req.PoiIdHienTai;
-                existing.TenPoiHienTai    = req.TenPoiHienTai;
+                existing.PoiIdHienTai     = verifiedPoiId;
+                existing.TenPoiHienTai    = verifiedPoiName;
             }
 
             await _db.SaveChangesAsync(cancellationToken);
@@ -124,6 +134,48 @@ public class HeartbeatController : ControllerBase
         && lng >= ServiceMinLng
         && lng <= ServiceMaxLng
         && !(lat == 0 && lng == 0);
+
+    /// <summary>
+    /// Returns the POI id + name only if (lat, lng) is actually inside the claimed POI's
+    /// radius (BanKinh + small GPS tolerance). Otherwise returns (null, null) so the
+    /// device is shown as "đang online" / "đang di chuyển" instead of "đang ở quán".
+    /// </summary>
+    private async Task<(Guid? PoiId, string? PoiName)> VerifyCurrentPoiAsync(
+        Guid? claimedPoiId, double lat, double lng, CancellationToken cancellationToken)
+    {
+        if (!claimedPoiId.HasValue || claimedPoiId.Value == Guid.Empty)
+            return (null, null);
+
+        var poi = await _db.POIs
+            .AsNoTracking()
+            .Where(p => p.Id == claimedPoiId.Value && p.TrangThai)
+            .Select(p => new { p.Id, p.TenPOI, p.ViDo, p.KinhDo, p.BanKinh })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (poi == null)
+            return (null, null);
+
+        var distanceMeters = HaversineMeters(lat, lng, poi.ViDo, poi.KinhDo);
+        var allowedMeters = Math.Max(0, poi.BanKinh) + GeofenceToleranceMeters;
+
+        return distanceMeters <= allowedMeters
+            ? (poi.Id, poi.TenPOI)
+            : (null, null);
+    }
+
+    private static double HaversineMeters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double earthRadiusMeters = 6_371_000.0;
+        double ToRadians(double deg) => deg * Math.PI / 180.0;
+
+        var dLat = ToRadians(lat2 - lat1);
+        var dLng = ToRadians(lng2 - lng1);
+        var sLat = Math.Sin(dLat / 2);
+        var sLng = Math.Sin(dLng / 2);
+        var a = sLat * sLat + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) * sLng * sLng;
+        var c = 2 * Math.Asin(Math.Min(1.0, Math.Sqrt(a)));
+        return earthRadiusMeters * c;
+    }
 
     // -----------------------------------------------------------------------
     // POST /api/heartbeat/visit
