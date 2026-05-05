@@ -20,6 +20,12 @@ public class CreateModel : PageModel
 
     public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
 
+    // Free trial: a newly registered POI is visible on the app for 30 days before
+    // its first renewal payment. Without this default the strict filter in
+    // /api/poi (chỉ trả POI có NgayHetHanDuyTri >= now) would hide every new POI
+    // until an admin records a payment.
+    private const int FreeTrialDays = 30;
+
     [BindProperty] public POI POI { get; set; } = new()
     {
         TrangThai = true,
@@ -39,6 +45,8 @@ public class CreateModel : PageModel
             return Page();
 
         POI.Id = Guid.NewGuid();
+        if (!POI.NgayHetHanDuyTri.HasValue)
+            POI.NgayHetHanDuyTri = DateTime.UtcNow.AddDays(FreeTrialDays);
 
         // Thuyết minh
         var tm = new VinhKhanhTour.API.Models.ThuyetMinh
