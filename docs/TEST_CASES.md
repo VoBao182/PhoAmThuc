@@ -34,6 +34,44 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | Toa do trong vung phuc vu | Lat 10.65-10.9, Lng 106.55-106.9 |
 | Toa do ngoai vung phuc vu | Lat/Lng = 0 hoac ngoai khoang tren |
 
+## Muc Tieu Kiem Thu Theo Diagram
+
+Bo test case nay duoc cai thien theo cac so do trong `docs/diagrams`. Muc tieu khong chi la xac nhan chuc nang chay duoc, ma la tim loi do lech luong, sai trang thai, sai dieu huong, sai dong bo, sai giao dien, sai du lieu va sai cach he thong phan ung khi co loi.
+
+| Diagram | Luong can bat loi | Test case chinh |
+|---|---|---|
+| `00-overall-usecase.puml` | Khong bo sot actor/use case: khach, admin, GPS, Maps, VietQR | `E2E-*`, `REG-*`, `DIAG-000-*` |
+| `01-subscription-gate-activity/sequence.puml` | Startup, retry, gate subscription, dung thu, recovery code/QR, thoat modal stack | `APP-SUB-*`, `DIAG-001-*` |
+| `02-poi-explore-activity/sequence.puml` | Tai POI, fallback seed data, tim kiem, map tab, view log, sync history/XP, recovery trong MainPage | `POI-*`, `APP-*`, `DIAG-002-*` |
+| `03-geofence-audio-activity/sequence.puml` | GPS poll 5s, dwell 5s, heartbeat 10s, refresh POI 20s, POI priority/distance, cooldown 10 phut | `GPS-*`, `DIAG-003-*` |
+| `04-poi-detail-activity/sequence.puml` | Detail fallback, audio WebView bridge, play/pause/stop/seek, TTS fallback, Maps | `TM-*`, `DIAG-004-*` |
+| `05-paid-plan-activity/sequence.puml` | QR VietQR, copy noi dung, tao request sau nut da chuyen, polling 10s, approve/reject modal stack | `APP-SUB-*`, `CMS-PAY-*`, `DIAG-005-*` |
+| `06-cms-poi-management-activity/sequence.puml` | Search/filter/sort POI, upload anh, free trial POI 30 ngay, mon an rong, concurrency | `CMS-POI-*`, `UP-*`, `DIAG-006-*` |
+| `07-maintenance-payment-activity/sequence.puml` | Gia han tu han cu/now, tao hoa don tung ky, cap nhat goi dich vu | `FEE-*`, `DIAG-007-*` |
+| `08-app-payment-approval-activity/sequence.puml` | PendingSnapshot, stats, filter, approve/reject trang thai hop le, retry Npgsql pool | `CMS-PAY-*`, `DIAG-008-*` |
+| `09-live-map-activity/sequence.puml` | BanDo server-side, raw SQL timeout, toa do trong vung phuc vu, filter/sort, XP/level, badge | `MAP-*`, `DIAG-009-*` |
+| `10-dashboard-activity/sequence.puml` | 11 mode range, 2 pha load POI/analytics, raw SQL chart/heatmap/revenue, retry/reset khi loi | `DASH-*`, `DIAG-010-*` |
+
+## Diem Rui Ro Can Uu Tien Tim Loi
+
+| ID | Muc do | Khu vuc | Dau hieu/rui ro | Cach bat loi bang test |
+|---|---|---|---|---|
+| RISK-001 | P1 | App GPS | Comment trong `MainPage.xaml.cs` con ghi heartbeat 15s/refresh 30s, trong khi constant va diagram la 10s/20s | Test `DIAG-003-004` va `DIAG-003-005` do thoi gian request thuc te; cap nhat tai lieu/code comment neu can |
+| RISK-002 | P0 | Subscription | Lech modal stack sau khi approve/reject co the lam app quay lai Payment/SubscriptionPage sai | Test `DIAG-005-006`, `DIAG-005-007`, `APP-SUB-013` |
+| RISK-003 | P0 | Payment approval | Admin bam approve/reject nhieu lan, 2 tab CMS mo dong thoi co the tao goi lap | Test `SUB-019`, `CMS-PAY-009`, `DIAG-008-005` |
+| RISK-004 | P0 | Geofence | GPS jitter hoac 2 POI gan nhau co the phat sai quan/sai log visit | Test `GPS-007`, `GPS-010`, `DIAG-003-001..003` |
+| RISK-005 | P1 | Offline/sync | App da luu viewed/visited local nhung sync-history bi fail lam CMS XP bi lech | Test `GPS-027`, `DIAG-002-005`, `DIAG-003-009` |
+| RISK-006 | P1 | Dashboard/BanDo | Raw SQL timeout/disposed pool khong duoc hien thi ro tren UI | Test `MAP-010`, `DASH-012`, `DIAG-009-008`, `DIAG-010-010` |
+| RISK-007 | P1 | CMS POI | POI moi khong co `NgayHetHanDuyTri` se bi an khoi app neu free trial 30 ngay khong duoc set | Test `CMS-POI-008`, `DIAG-006-004` |
+| RISK-008 | P1 | Detail/audio | Audio WebView chua ready nhung user bam nghe ngay co the khong play | Test `DIAG-004-003`, `DIAG-004-004` |
+| RISK-009 | P1 | Upload | Upload fail trong CMS co the lam mat form POI dang nhap | Test `UP-010`, `DIAG-006-002` |
+| RISK-010 | P1 | Locale/UI | Text VI/EN/ZH dai, so tien/gia mon lon, badge map/dashboard co the tran layout | Test `APP-SUB-018`, `TM-016`, `DIAG-009-011`, `DIAG-010-012` |
+| RISK-011 | P0 | Subscription API | Endpoint `/api/subscription/purchase` co the bi goi truc tiep voi goi tra phi, bo qua QR/admin duyet | Test `SUB-025`, `SEC-001`, doi chieu PRD F05 |
+| RISK-012 | P0 | Rollover data | Khi noi tiep goi, `NgayHetHan` dung nhung `NgayBatDau` ban ghi moi van la `now`, lech PRD | Test `SUB-026`, `CMS-PAY-010`, `DIAG-008-003` |
+| RISK-013 | P1 | Payment polling | PaymentStatusPage im lang khi API request status tra 404/500, co the cho vo han | Test `APP-SUB-019`, `DIAG-005-008` |
+| RISK-014 | P1 | Recovery | Recovery code duoc ghi override truoc khi server xac nhan co goi active/lich su | Test `APP-016`, `DIAG-001-008`, `DIAG-002-008` |
+| RISK-015 | P1 | Tai lieu | PRD/comment con lech voi code: heartbeat 15s vs 10s, POI null expiry, visit dedup, CMS refresh | Test `DOC-*`, cap nhat tai lieu truoc khi bao cao |
+
 ## A. Health, Cau Hinh Va Khoi Dong
 
 | ID | Muc do | Loai | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
@@ -92,6 +130,9 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | SUB-022 | P1 | Positive | Co nhieu yeu cau | GET `/api/subscription/requests` | Sap xep moi nhat truoc |
 | SUB-023 | P1 | Positive | Co yeu cau 3 trang thai | GET `/api/subscription/requests?trangthai=cho_duyet` | Chi tra ve dung trang thai |
 | SUB-024 | P1 | Boundary | `MaThietBi` co khoang trang/chu thuong | Tao request/status | Device id duoc normalize nhat quan |
+| SUB-025 | P0 | Security/Negative | Device moi, khong co request QR | POST `/api/subscription/purchase` voi `LoaiGoi = thang` bang Postman/curl | API phai tu choi goi tra phi hoac chi cho `thu`; khong tao `DangKyApp` bo qua admin |
+| SUB-026 | P0 | Data/Boundary | Device co goi active het han sau 5 ngay | Approve request goi `ngay` | Ban ghi moi co `NgayBatDau = han cu`, `NgayHetHan = han cu + 1 ngay`; khong dung `NgayBatDau = now` |
+| SUB-027 | P2 | UX/Message | Khong can | POST purchase voi `LoaiGoi` sai | Message goi hop le phai liet ke du `thu, ngay, tuan, thang, nam` |
 
 ## D. Mobile App - Subscription Gate Va Thanh Toan
 
@@ -115,6 +156,8 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | APP-SUB-016 | P1 | Negative | Recovery code sai/khong co goi | Quet/nhap ma | App bao khong tim thay subscription active |
 | APP-SUB-017 | P1 | Positive | Co flag da dung thu tren server | Restore status | App luu `da_dung_thu = true` de chan dung thu lai |
 | APP-SUB-018 | P1 | UI | App ngon ngu EN/ZH | Mo SubscriptionPage/PaymentPage | Text doi theo ngon ngu, khong tran layout |
+| APP-SUB-019 | P1 | Negative/UX | Request thanh toan bi xoa hoac API tra 404/500 | O PaymentStatusPage qua 2-3 chu ky polling | UI hien loi/cho retry hoac quay lai thanh toan; khong cho vo han im lang |
+| APP-SUB-020 | P1 | Recovery/Negative | Recovery code dung format nhung device khong co goi active | Nhap tren SubscriptionPage | Khong ghi de device id cu vinh vien; thong bao ro khong tim thay goi active |
 
 ## E. POI API Va Danh Sach App
 
@@ -312,7 +355,7 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | MAP-006 | P1 | Positive | Device dang o POI verified | Hover/click marker | Tooltip/popup hien device short, POI hien tai, so da ghe/xem, han con lai |
 | MAP-007 | P1 | Positive | Device co history | Click device | Goi history va hien danh sach POI 4h gan nhat |
 | MAP-008 | P1 | Negative | History API 404 | Click device khong co history | UI hien rong/thong bao phu hop, khong crash |
-| MAP-009 | P1 | Performance | Ban do dang mo | Cho 30 giay | Auto-refresh du lieu, marker cap nhat khong reload trang toan bo neu UI ho tro |
+| MAP-009 | P1 | Performance | Ban do dang mo | Cho 10-20 giay | Auto-refresh theo `ViewData["AutoRefreshSeconds"] = 10`, marker/bang cap nhat khong nhan doi va khong mat filter |
 | DASH-001 | P0 | Positive | Co du lieu demo | Mo `/` dashboard | Hien tong POI, so quan qua han, doanh thu/luot xem theo filter |
 | DASH-002 | P1 | Positive | Dung filter ngay/tuan/thang/custom | Doi range tren dashboard | So lieu va bieu do cap nhat dung khoang thoi gian |
 | DASH-003 | P1 | Boundary | Custom date rong/sai thu tu | Submit | UI xu ly an toan, khong crash |
@@ -338,6 +381,7 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | APP-013 | P1 | Boundary | Nhieu modal Payment/Subscription | Dong flow sau approve/cancel | Stack navigation sach, khong con trang payment treo |
 | APP-014 | P1 | UI | Android release khong co API baked in | Mo app | Hien canh bao cau hinh ro rang theo release checklist |
 | APP-015 | P2 | UI | Windows va Android | Smoke test cung luong | UI va dieu huong nhat quan tren 2 nen tang |
+| APP-016 | P1 | Recovery/Negative | Dang dung device A, nhap recovery code dung format cua device B khong ton tai/server down | Nhap/scan recovery trong Cai Dat | App khong bao "da khoi phuc" neu sync fail; device id khong bi doi sang ma chua xac thuc |
 
 ## O. Tich Hop End-To-End
 
@@ -373,7 +417,7 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 |---|---|---|---|---|---|
 | NFR-001 | P1 | Performance | DB co >= 100 POI | GET `/api/poi` 20 lan | p95 < 500ms trong dieu kien local/staging on dinh |
 | NFR-002 | P1 | Performance | Co >= 50 active devices | GET `/api/heartbeat/active` | Tra ket qua trong muc chap nhan, khong timeout |
-| NFR-003 | P1 | Performance | CMS map mo 10 phut | Theo doi refresh 30s | Khong leak UI ro rang, marker khong nhan doi bat thuong |
+| NFR-003 | P1 | Performance | CMS map mo 10 phut | Theo doi auto-refresh 10s tren `/BanDo` | Khong leak UI ro rang, marker/bang khong nhan doi bat thuong |
 | NFR-004 | P1 | Reliability | API bi restart khi app dang polling | Restart API | App phuc hoi sau khi API len lai |
 | NFR-005 | P1 | Reliability | DB pool cham/loi transient | Goi CMS DuyetThanhToan | Retry/clear pool theo code, UI khong crash |
 | NFR-006 | P1 | Security | Upload file doc hai doi duoi `.exe` | POST upload | Bi chan theo extension |
@@ -381,6 +425,157 @@ Tai lieu nay bao phu test case chuc nang, bien, loi va hoi quy cho 3 thanh phan:
 | NFR-008 | P1 | Security | Login/register plain text demo | Review release | Ghi nhan rui ro: production can BCrypt/JWT, demo chap nhan neu trong pham vi |
 | NFR-009 | P1 | Privacy | App khong nhap PII | Kiem tra DB/log | Chi luu device id, location, history; khong yeu cau ten/email khach app |
 | NFR-010 | P1 | Accessibility | Mobile small screen | Kiem tra cac nut/form quan trong | Text doc duoc, nut bam duoc, khong bi che |
+
+## Q2. Bao Mat Va Sai Lech Tai Lieu
+
+| ID | Muc do | Loai | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|
+| SEC-001 | P0 | Security | API public, khong dang nhap | Goi truc tiep `POST /api/subscription/purchase` voi `LoaiGoi = nam` | Khong duoc active goi tra phi; phai yeu cau luong QR/admin duyet |
+| SEC-002 | P1 | Security | Co recovery code do nguoi khac cung cap | Nhap code tren app | Chi chap nhan khi server xac nhan device co goi/lich su hop le; khong cho chiem device id bang format doan duoc |
+| DOC-001 | P1 | Documentation | PRD va code hien tai | Doi chieu F03/NFR voi constant app | Tai lieu thong nhat heartbeat 10s va refresh POI 20s, hoac code doi ve 15s/30s neu do la yeu cau that |
+| DOC-002 | P1 | Documentation | PRD va code hien tai | Doi chieu F02 POI filter | PRD thong nhat viec POI `NgayHetHanDuyTri = null` bi an hay duoc hien |
+| DOC-003 | P1 | Documentation | PRD va code hien tai | Doi chieu visit/view dedup | PRD ghi ro visit GPS 10 phut, view detail 5 phut neu giu theo code |
+| DOC-004 | P1 | Documentation | PRD va code hien tai | Doi chieu CMS map/dashboard refresh | PRD thong nhat auto-refresh 10s theo code hoac code doi ve 30s |
+| DOC-005 | P2 | Documentation | Review model/comment auth | Kiem tra `TaiKhoan.MatKhau` va `AuthController` | Comment khong noi BCrypt hash neu demo dang luu plain text |
+
+## R. Test Case Bo Sung Theo Diagram De Tim Loi An
+
+### R0. Overall Use Case
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-000-001 | P0 | Coverage | `00-overall-usecase` | Khong can | Doi chieu tung use case F01-F10 voi menu/app/API/CMS | Khong co use case nao trong diagram bi thieu man hinh, API hoac test case |
+| DIAG-000-002 | P0 | E2E | `00-overall-usecase` | API/CMS/App chay | Chay luong khach: active goi -> xem POI -> vao geofence -> nghe -> xem detail -> maps -> thanh toan gia han | Du lieu di qua dung App/API/DB/CMS, khong co trang thai bi mat |
+| DIAG-000-003 | P0 | E2E | `00-overall-usecase` | Admin co quyen CMS | Chay luong admin: tao POI -> upload -> xem app -> ghi phi -> duyet thanh toan -> xem ban do/dashboard | Tat ca module lien ket dung, khong phai sua DB thu cong |
+
+### R1. F01 - Startup, Subscription Gate, Recovery
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-001-001 | P0 | UI/Negative | `01-subscription-gate-activity` | Gay exception trong startup route hoac cau hinh API loi | Mo app | BootIndicator tat, nut Retry hien, bam Retry goi lai route khong crash |
+| DIAG-001-002 | P0 | Navigation | `01-subscription-gate-activity` | `sub_ngay_het_han` active | Mo app tu LaunchPage | LaunchPage bi remove, MainPage la trang hien tai, back khong quay ve LaunchPage |
+| DIAG-001-003 | P0 | Navigation | `01-subscription-gate-activity` | Subscription het han | Mo app | SubscriptionPage nhan `hetHan = true`, gate khong cho vao F02/F03 |
+| DIAG-001-004 | P0 | Recovery | `01-subscription-gate-sequence` | Co recovery payload hop le cua device active | Copy/paste recovery code tren SubscriptionPage | Device override duoc luu, status server duoc restore, gate thoat ve MainPage |
+| DIAG-001-005 | P1 | Recovery | `01-subscription-gate-sequence` | Camera permission bi deny | Bam scan QR recovery | Hien thong bao can quyen camera, khong mo scanner rong/khong crash |
+| DIAG-001-006 | P1 | Recovery/Negative | `01-subscription-gate-sequence` | Recovery payload sai prefix/sai checksum/sai GUID | Nhap/paste/scan | Hien trang thai ma khong hop le, khong doi `MaThietBi` |
+| DIAG-001-007 | P1 | UI | `01-subscription-gate-activity` | Doi ngon ngu VI/EN/ZH | Mo SubscriptionPage | Recovery card, trial button, API guide, loi ket noi hien dung ngon ngu va khong tran |
+| DIAG-001-008 | P1 | Recovery/Negative | `01-subscription-gate-sequence` | Recovery code dung format nhung server khong co goi active | Nhap tren SubscriptionPage | Khong doi device override neu restore fail; hien thong bao khong co goi active |
+
+### R2. F02 - POI Explore, Map Tab, Sync History
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-002-001 | P0 | Negative | `02-poi-explore-activity` | API `/api/poi` down | Mo MainPage lan dau | App dung fallback POI, set `_isUsingFallbackData`, UI hien duoc danh sach demo |
+| DIAG-002-002 | P1 | Recovery | `02-poi-explore-activity` | API loi lan dau, sau do phuc hoi | Cho refresh nen 20s hoac reload | App chuyen tu fallback sang du lieu API, map/card cap nhat khong nhan doi |
+| DIAG-002-003 | P1 | UI | `02-poi-explore-activity` | Co nhieu POI va map tab | Chuyen Explore -> Ban do -> bam marker -> sheet -> xem chi tiet | Sheet dung POI, badge near/current dung, navigation sang DetailPage dung |
+| DIAG-002-004 | P0 | Data | `02-poi-explore-sequence` | Device co lich su VIEW/GPS tren server | Mo MainPage | GET profile restore viewed/visited ids, XP/level trong Cai Dat dung |
+| DIAG-002-005 | P1 | Data | `02-poi-explore-sequence` | Local Preferences co POI ids chua sync | Mo MainPage/refresh | POST sync-history chen log con thieu, khong chen duplicate |
+| DIAG-002-006 | P1 | Recovery | `02-poi-explore-activity` | Dang o MainPage cua device A | Khoi phuc device B tu Cai Dat | Device id, subscription, viewed/visited, QR recovery card cap nhat theo device B |
+| DIAG-002-007 | P1 | UI/Boundary | `02-poi-explore-activity` | Tim kiem khong co ket qua | Nhap search khong khop | Card/list/map empty state dung, marker cu khong con hien |
+| DIAG-002-008 | P1 | Recovery/Negative | `02-poi-explore-activity` | Dang o MainPage, API profile/status timeout | Nhap recovery code moi | App khong bao da sync thanh cong khi server timeout; giu du lieu device cu hoac rollback duoc |
+
+### R3. F03 - GPS, Dwell, Geofence, Audio
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-003-001 | P0 | Boundary | `03-geofence-audio-activity` | User vao ban kinh POI < 5 giay roi roi di | Gia lap location | Khong set `_currentPoi`, khong visit, khong audio, CMS khong hien dang o quan |
+| DIAG-003-002 | P0 | Positive | `03-geofence-audio-activity` | User dung trong ban kinh >= 5 giay | Gia lap location moi 5s | Xac nhan POI, highlight, visit log, sync history, queue audio |
+| DIAG-003-003 | P0 | Boundary | `03-geofence-audio-sequence` | 2 POI overlap, cung priority, distance chenh <= 5m | Di chuyen giua 2 POI | App giu POI hien tai, khong nhay audio lien tuc |
+| DIAG-003-004 | P1 | Timing | `03-geofence-audio-sequence` | GPS poll dang chay | Do thoi gian POST `/api/heartbeat` | Heartbeat gui moi 10s, khong phai 15s |
+| DIAG-003-005 | P1 | Timing | `03-geofence-audio-sequence` | GPS poll dang chay | Do thoi gian refresh `/api/poi` nen | Refresh POI moi 20s, khong phai 30s |
+| DIAG-003-006 | P1 | Negative | `03-geofence-audio-sequence` | Location ngoai vung phuc vu | Gui heartbeat | Server `skipped = true`, CMS khong hien toa do rac |
+| DIAG-003-007 | P1 | Negative | `03-geofence-audio-activity` | App claim POI A nhung toa do ngoai BanKinh + 5m | POST heartbeat | Server xoa `PoiIdHienTai`, CMS hien dang di chuyen |
+| DIAG-003-008 | P1 | Audio | `03-geofence-audio-activity` | Thuyet minh API 404 hoac body rong | Vao geofence | App phat fallback text theo ngon ngu, khong im lang/crash |
+| DIAG-003-009 | P1 | Reliability | `03-geofence-audio-sequence` | Mien mang khi visit/log fire-and-forget | Vao geofence | App van phat audio; sync-history lan sau bo sung duoc lich su |
+
+### R4. F04 - Detail, Audio WebView Bridge, Maps
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-004-001 | P0 | Negative | `04-poi-detail-activity` | Detail API loi/POI bi an sau khi mo tu list cu | Mo DetailPage | Dung fallback basic, an audio controls/menu neu khong co data, khong crash |
+| DIAG-004-002 | P1 | UI | `04-poi-detail-activity` | POI co cover/mon an anh URL tuong doi/ngoai/hong | Mo DetailPage | Resolve anh dung, fallback dung, layout khong vo |
+| DIAG-004-003 | P1 | Audio | `04-poi-detail-sequence` | Co `FileAudio`, WebView chua ready | Bam nghe ngay khi trang vua load | `_playWhenReady` duoc set, audio tu play sau `OnAudioWebViewNavigated` |
+| DIAG-004-004 | P1 | Audio/UI | `04-poi-detail-activity` | Audio dang play | Bam pause, play, stop, keo slider | State icon/time/slider dong bo voi `audiostate://` |
+| DIAG-004-005 | P1 | Negative | `04-poi-detail-activity` | Khong co FileAudio, NoiDung rong | Bam nghe | Hien alert `NoAudio`, khong goi TTS rong |
+| DIAG-004-006 | P1 | Integration | `04-poi-detail-sequence` | POI co toa do | Bam Chi duong | Mo Google Maps `q=lat,lng`; neu browser loi thi app bao loi/khong crash |
+
+### R5. F05 - Paid Plan, VietQR, Polling
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-005-001 | P0 | Positive | `05-paid-plan-activity` | Chon goi tra phi | Mo PaymentPage | Noi dung chuyen khoan local = format API `VKT <GOI> <SHORTID>`, QR hien dung so tien |
+| DIAG-005-002 | P1 | UI | `05-paid-plan-activity` | PaymentPage hien | Bam copy noi dung | Clipboard co noi dung CK, UI bao da copy |
+| DIAG-005-003 | P0 | Integration | `05-paid-plan-sequence` | API reachable | Bam "Da chuyen khoan" | Chi luc nay moi POST `/api/subscription/request`, tao request `cho_duyet` |
+| DIAG-005-004 | P1 | Negative | `05-paid-plan-activity` | API URL sai | Bam "Da chuyen khoan" | Prompt sua API URL, khong tao modal status rong |
+| DIAG-005-005 | P1 | Timing | `05-paid-plan-sequence` | Request `cho_duyet` | O PaymentStatusPage | Polling moi 10s, countdown cap nhat, khong spam API |
+| DIAG-005-006 | P0 | Navigation | `05-paid-plan-sequence` | Admin duyet | App nhan `da_duyet`, bam Bat dau | Pop het payment modal va SubscriptionPage, stack cuoi la MainPage |
+| DIAG-005-007 | P0 | Navigation | `05-paid-plan-sequence` | Admin tu choi | App nhan `tu_choi`, bam Thu lai/Dong | Thu lai quay ve PaymentPage/SubscriptionPage dung, khong luu expiry |
+| DIAG-005-008 | P1 | Negative/UX | `05-paid-plan-sequence` | Request status API tra 404/500 | Cho polling | PaymentStatusPage hien loi/retry/back, khong treo countdown vo han |
+
+### R6. F06 - CMS POI Management
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-006-001 | P1 | UI/Data | `06-cms-poi-management-activity` | Danh sach co anh tuong doi/ngoai/hong | Mo `/Poi` | `ImageUrlHelper` resolve/fallback dung |
+| DIAG-006-002 | P1 | Negative | `06-cms-poi-management-sequence` | Dang nhap form Create/Edit nhieu truong | Upload anh fail | Form khong mat du lieu da nhap, hien loi upload |
+| DIAG-006-003 | P0 | Data | `06-cms-poi-management-activity` | Tao POI voi mon rong xen ke mon hop le | Submit | Chi mon co ten duoc luu, don gia null thanh 0 |
+| DIAG-006-004 | P0 | Data | `06-cms-poi-management-activity` | Tao POI khong nhap han duy tri | Submit va GET `/api/poi` | Han mac dinh now + 30 ngay, POI hien tren app |
+| DIAG-006-005 | P1 | Data | `06-cms-poi-management-sequence` | Edit POI xoa 1 mon khoi form | Submit | Mon bi xoa set `TinhTrang=false`, detail API khong tra mon do |
+| DIAG-006-006 | P1 | Concurrency | `06-cms-poi-management-activity` | Hai admin mo cung EditPage | Admin A luu, Admin B luu sau | Neu concurrency xay ra, hien loi reload; khong ghi de im lang |
+| DIAG-006-007 | P1 | Filter/Sort | `06-cms-poi-management-activity` | Co POI active/hidden/expired/no-expiry | Thu tat ca filter/sort/search | Ket qua dung nhu diagram, query string giu state |
+
+### R7. F07 - Maintenance Payment
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-007-001 | P0 | Boundary | `07-maintenance-payment-activity` | POI con han 1 ngay | Gia han 1 thang | Han moi = han cu + 1 thang, khong mat 1 ngay con lai |
+| DIAG-007-002 | P0 | Boundary | `07-maintenance-payment-activity` | POI het han 10 ngay | Gia han 1 thang | Han moi = now + 1 thang, `TrangThai=true` |
+| DIAG-007-003 | P0 | Data | `07-maintenance-payment-sequence` | Gia han 3 thang | Submit CMS/API | Tao 3 hoa don ky lien tiep `yyyy-MM`, tong tien dung |
+| DIAG-007-004 | P1 | Data | `07-maintenance-payment-activity` | Chua co `DangKyDichVu` | Ghi nhan phi | Tao goi dich vu active voi `PhiConvert=20000` |
+| DIAG-007-005 | P1 | UI | `07-maintenance-payment-activity` | Co lich su hoa don | Mo GhiNhan va LichSu | GhiNhan hien 5 gan day, LichSu hien day du |
+
+### R8. F08 - CMS App Payment Approval
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-008-001 | P1 | UI/Data | `08-app-payment-approval-activity` | Co request moi | Mo `/DuyetThanhToan`, doi JS polling | Snapshot cap nhat count/latest, co the bao request moi |
+| DIAG-008-002 | P1 | Negative | `08-app-payment-approval-sequence` | DB transient disposed | Goi pending snapshot | Tra HTTP 503 JSON `Ok=false`, trang khong crash |
+| DIAG-008-003 | P0 | Data | `08-app-payment-approval-activity` | Device co goi active | Duyet request moi | `DangKyApp.NgayHetHan` noi tiep tu han cu |
+| DIAG-008-004 | P0 | Negative | `08-app-payment-approval-activity` | Loai goi trong request sai | Bam duyet | Redirect loi loai goi khong hop le, khong tao DangKyApp |
+| DIAG-008-005 | P0 | Race | `08-app-payment-approval-sequence` | Hai admin bam duyet cung request gan dong thoi | Submit 2 POST | Chi 1 request tao goi thanh cong; lan sau bao trang thai khong hop le |
+| DIAG-008-006 | P1 | Filter | `08-app-payment-approval-activity` | Co >200 request | Filter/search/pkg/tab | Trang chi hien 200 moi nhat, stats van tinh toan bo |
+| DIAG-008-007 | P0 | Data/Boundary | `08-app-payment-approval-sequence` | Device active het han sau 5 ngay | Duyet request moi tu CMS va API admin | `NgayBatDau` cua ban ghi moi = han cu, `NgayHetHan` = han cu + so ngay goi |
+
+### R9. F09 - BanDo Live / Customer Tracking
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-009-001 | P0 | Data | `09-live-map-activity` | Device chi co subscription, chua co heartbeat | Mo `/BanDo` | Device van trong bang customer, trang thai chua heartbeat/offline |
+| DIAG-009-002 | P0 | Data | `09-live-map-activity` | Device chi co heartbeat, chua mua goi | Mo `/BanDo` | Device van trong bang, filter `no-sub` bat duoc |
+| DIAG-009-003 | P0 | Boundary | `09-live-map-sequence` | Location lat/lng 0 hoac ngoai vung | Mo `/BanDo` | Location bi loai, khong hien tren map/bang nhu toa do hop le |
+| DIAG-009-004 | P1 | Filter | `09-live-map-activity` | Co online/offline/at-poi/active/expired/no-sub | Thu tat ca filter | Moi filter tra dung device |
+| DIAG-009-005 | P1 | Sort | `09-live-map-activity` | Co nhieu device | Sort last/expiry/experience/visited/viewed/spent asc/desc | Thu tu dung, online tie-break dung |
+| DIAG-009-006 | P1 | Data | `09-live-map-activity` | Device co 3 VIEW, 2 GPS distinct POI | Mo BanDo | XP = 3*50 + 2*100 = 350, level/progress dung |
+| DIAG-009-007 | P1 | UI | `09-live-map-activity` | Goi sap het trong <1 gio, trong 7 ngay, het han | Mo BanDo | Text/badge remaining dung tung trang thai |
+| DIAG-009-008 | P1 | Reliability | `09-live-map-sequence` | Raw SQL timeout | Mo BanDo | Hien warning tung nhom du lieu loi, cac nhom khac van render neu co |
+| DIAG-009-009 | P1 | UI/Responsive | `09-live-map-activity` | Man hinh nho, device id dai | Mo BanDo mobile | Bang/card khong tran, device short hien ro |
+
+### R10. F10 - Dashboard Monitoring
+
+| ID | Muc do | Loai | Diagram | Tien dieu kien | Buoc thuc hien | Ket qua mong doi |
+|---|---|---|---|---|---|---|
+| DIAG-010-001 | P1 | Boundary | `10-dashboard-activity` | Khong can | Test mode `today`, `yesterday`, `last7`, `last30`, `thismonth`, `lastmonth`, `last12m` | Since/Until/Granularity/label dung |
+| DIAG-010-002 | P1 | Boundary | `10-dashboard-activity` | Khong can | Test mode `day`, `week`, `month`, `year` voi input hop le | Range dung ngay/tuan ISO/thang/nam |
+| DIAG-010-003 | P1 | Boundary | `10-dashboard-activity` | `from > to` | Submit custom | Tu swap `from/to`, label dung, khong loi |
+| DIAG-010-004 | P1 | Boundary | `10-dashboard-activity` | Custom 1-2 ngay, 3-95 ngay, >95 ngay | Submit | Granularity lan luot `hour`, `day`, `month` |
+| DIAG-010-005 | P1 | Negative | `10-dashboard-activity` | Mode/input sai | Submit | Fallback last7 hoac now hop ly, khong crash |
+| DIAG-010-006 | P1 | Data | `10-dashboard-sequence` | Co POI active/expired/no-expiry/menu | Mo Dashboard | TongPOI, TongMonAn, SoQuanQuaHan dung |
+| DIAG-010-007 | P1 | Data | `10-dashboard-sequence` | Co lichsuphat VIEW/GPS trong range | Mo Dashboard | ActivityBuckets, TopPoi, GeoPoints dung range va nguon |
+| DIAG-010-008 | P1 | Data | `10-dashboard-sequence` | Co `dangkyapp` + `hoadon` trong range | Mo Dashboard | RevenueBuckets va TotalRevenue dung |
+| DIAG-010-009 | P1 | Data | `10-dashboard-sequence` | Bucket thieu du lieu | Mo chart | `FillMissingBuckets` chen bucket 0 de chart lien mach |
+| DIAG-010-010 | P1 | Reliability | `10-dashboard-activity` | DB disposed/timeout trong analytics | Mo Dashboard | Retry 1 lan, neu fail reset analytics va hien AnalyticsError |
+| DIAG-010-011 | P1 | Reliability | `10-dashboard-activity` | DB loi o POI section nhung analytics OK | Mo Dashboard | POI stats reset/error, analytics van co neu load duoc |
+| DIAG-010-012 | P1 | UI | `10-dashboard-activity` | Nhieu du lieu, label dai | Mo desktop/mobile | Chart, heatmap, top POI, revenue khong bi che/tran |
 
 ## Checklist Smoke Test Nhanh
 
