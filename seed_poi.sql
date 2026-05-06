@@ -10,8 +10,8 @@
 INSERT INTO poi (id, tenpoi, vido, kinhdo, bankinh, mucuutien, trangthai, diachi, sdt, anhdaidien)
 VALUES
     ('11111111-1111-1111-1111-111111111111',
-     'Quan Oc Oanh', 10.758955, 106.701831, 35, 1, TRUE,
-     '234 Vinh Khanh, Phuong 8, Quan 4, TP.HCM',
+     'Quan Oc Oanh', 10.7614216, 106.7028293, 35, 1, TRUE,
+     '534 Vinh Khanh, Phuong 8, Quan 4, TP.HCM',
      '028 3940 0001',
      'https://images.unsplash.com/photo-1510130387422-82bed34b37e9?auto=format&fit=crop&w=1200&q=80'),
 

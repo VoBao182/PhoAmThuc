@@ -433,11 +433,11 @@ public partial class MainPage : ContentPage
         {
             Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             TenPOI = "Quán Ốc Oanh",
-            KinhDo = 106.701831,
-            ViDo   = 10.758955,
+            KinhDo = 106.7028293,
+            ViDo   = 10.7614216,
             BanKinh = 35,
             MucUuTien = 1,
-            DiaChi = "234 Vĩnh Khánh, Q4, TP.HCM",
+            DiaChi = "534 Vinh Khanh, Q4, TP.HCM",
             SDT    = "0909 000 001",
             AnhDaiDien = null
         },
@@ -997,25 +997,43 @@ public partial class MainPage : ContentPage
         var markersJs = new System.Text.StringBuilder();
         foreach (var poiVisual in GetPoiVisualPositions())
         {
-            string lat = poiVisual.DisplayViDo.ToString(CultureInfo.InvariantCulture);
-            string lng = poiVisual.DisplayKinhDo.ToString(CultureInfo.InvariantCulture);
+            string displayLat = poiVisual.DisplayViDo.ToString(CultureInfo.InvariantCulture);
+            string displayLng = poiVisual.DisplayKinhDo.ToString(CultureInfo.InvariantCulture);
+            string trueLat = poiVisual.Poi.ViDo.ToString(CultureInfo.InvariantCulture);
+            string trueLng = poiVisual.Poi.KinhDo.ToString(CultureInfo.InvariantCulture);
             string poiId = poiVisual.Poi.Id.ToString();
             string cleanId = poiId.Replace("-", "");
             string pinText = $"P{poiVisual.Poi.MucUuTien}";
             string title = System.Net.WebUtility.HtmlEncode(poiVisual.Poi.TenPOI);
             string jsTitle = title.Replace("\\", "\\\\").Replace("'", "\\'");
+            bool isMarkerOffset =
+                Math.Abs(poiVisual.DisplayViDo - poiVisual.Poi.ViDo) > 0.0000001 ||
+                Math.Abs(poiVisual.DisplayKinhDo - poiVisual.Poi.KinhDo) > 0.0000001;
+
+            string offsetGuideJs = isMarkerOffset
+                ? $@"
+                L.polyline([[{trueLat},{trueLng}],[{displayLat},{displayLng}]], {{
+                    pane:'poiGuides', color:'#FF6600', opacity:0.45, weight:1, dashArray:'3,4',
+                    interactive:false
+                }}).addTo(map);
+                L.circleMarker([{trueLat},{trueLng}], {{
+                    pane:'poiGuides', radius:3, color:'#FF6600', fillColor:'#FF6600',
+                    fillOpacity:0.85, weight:1, interactive:false
+                }}).addTo(map);"
+                : "";
 
             markersJs.Append($@"
-                L.circle([{lat},{lng}], {{
+                L.circle([{trueLat},{trueLng}], {{
                     pane:'poiCircles',
                     radius: {poiVisual.Poi.BanKinh}, color:'#FF6600',
                     fillColor:'#FF6600', fillOpacity:0.10, weight:2
                 }}).addTo(map);
+                {offsetGuideJs}
                 var icon_{cleanId} = L.divIcon({{
                     html:'<div id=""poi_{cleanId}"" class=""poi-pin"" title=""{title}"" style=""cursor:pointer;transition:all .2s"">{pinText}</div>',
                     iconSize:[42,42], iconAnchor:[21,21], className:''
                 }});
-                L.marker([{lat},{lng}],{{pane:'poiPins',zIndexOffset:200,icon:icon_{cleanId}}}).addTo(map)
+                L.marker([{displayLat},{displayLng}],{{pane:'poiPins',zIndexOffset:200,icon:icon_{cleanId}}}).addTo(map)
                     .bindTooltip('{jsTitle}', {{direction:'top',offset:[0,-16]}})
                     .on('click',function(){{ window.location.href='poi://{poiId}'; }});
             ");
@@ -1044,6 +1062,9 @@ public partial class MainPage : ContentPage
     map.createPane('poiCircles');
     map.getPane('poiCircles').style.zIndex = 350;
     map.getPane('poiCircles').style.pointerEvents = 'none';
+    map.createPane('poiGuides');
+    map.getPane('poiGuides').style.zIndex = 355;
+    map.getPane('poiGuides').style.pointerEvents = 'none';
     map.createPane('userAccuracy');
     map.getPane('userAccuracy').style.zIndex = 360;
     map.getPane('userAccuracy').style.pointerEvents = 'none';
