@@ -63,6 +63,7 @@ public partial class MainPage : ContentPage
     private WebView? _mapWebView;
     private Location? _pendingMapLocation;
     private Guid? _pendingHighlightPoiId;
+    private string _renderedMapPoiSignature = "";
     private string _searchText = "";
     private readonly SemaphoreSlim _speakLock = new(1, 1);
     private readonly SemaphoreSlim _historySyncLock = new(1, 1);
@@ -990,6 +991,9 @@ public partial class MainPage : ContentPage
     {
         var mapWebView = EnsureMapWebView();
         _isMapReady = false;
+        _pendingMapLocation = _userLocation;
+        _pendingHighlightPoiId = _currentPoi?.Id ?? _pendingHighlightPoiId;
+        _renderedMapPoiSignature = GetMapPoiSignature();
 
         string latStr = "10.758955";
         string lngStr = "106.701831";
@@ -1112,7 +1116,9 @@ public partial class MainPage : ContentPage
         if (!_mapRequested && DeviceInfo.Platform == DevicePlatform.Android)
             return;
 
-        if (_mapWebView is null)
+        var currentPoiSignature = GetMapPoiSignature();
+        if (_mapWebView is null ||
+            !string.Equals(_renderedMapPoiSignature, currentPoiSignature, StringComparison.Ordinal))
         {
             LoadMap();
             return;
@@ -1121,6 +1127,13 @@ public partial class MainPage : ContentPage
         if (_isMapReady && _userLocation is not null)
             UpdateUserLocationOnMap(_userLocation);
     }
+
+    private string GetMapPoiSignature()
+        => string.Join('|', _pois
+            .OrderBy(p => p.Id)
+            .Select(p => string.Create(
+                CultureInfo.InvariantCulture,
+                $"{p.Id}:{p.ViDo:R}:{p.KinhDo:R}:{p.BanKinh}:{p.MucUuTien}:{p.TenPOI}")));
 
     private WebView EnsureMapWebView()
     {

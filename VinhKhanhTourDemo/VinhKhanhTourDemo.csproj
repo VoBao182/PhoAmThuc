@@ -41,7 +41,7 @@
 		<WindowsPackageType>None</WindowsPackageType>
 
 		<HostedApiBaseUrl Condition="'$(HostedApiBaseUrl)' == ''">$([System.Environment]::GetEnvironmentVariable('HOSTED_API_BASE_URL'))</HostedApiBaseUrl>
-		<!-- Default to hosted URL only for Release builds. Debug builds stay empty so the emulator can hit localhost:5118 via 10.0.2.2 fallback. -->
+		<!-- Release embeds the hosted URL at compile time. Debug uses AppEndpointOptions.HostedApiBaseUrlFallback unless overridden. -->
 		<HostedApiBaseUrl Condition="'$(HostedApiBaseUrl)' == '' and '$(Configuration)' == 'Release'">https://phoamthuc.onrender.com</HostedApiBaseUrl>
 		<GeneratedHostedApiFile>$(BaseIntermediateOutputPath)GeneratedHostedApiBaseUrl.g.cs</GeneratedHostedApiFile>
 
