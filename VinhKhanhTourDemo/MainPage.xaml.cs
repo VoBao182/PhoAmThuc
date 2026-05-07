@@ -1706,7 +1706,7 @@ public partial class MainPage : ContentPage
                 System.Globalization.DateTimeStyles.RoundtripKind, out var hetHan) &&
             hetHan > DateTime.UtcNow)
         {
-            int soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
+            int soNgay = SubscriptionState.CalculateRemainingDays(hetHan);
             LblSubStatus.Text = GetText($"Còn {soNgay} ngày", $"{soNgay} days left", $"剩余 {soNgay} 天");
             LblSubStatus.TextColor = Color.FromArgb("#16A34A");
         }

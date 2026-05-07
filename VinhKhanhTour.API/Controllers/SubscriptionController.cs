@@ -33,6 +33,9 @@ public class SubscriptionController : ControllerBase
 
     public SubscriptionController(AppDbContext db) => _db = db;
 
+    private static int CalculateRemainingDays(DateTime expiresAtUtc, DateTime nowUtc)
+        => Math.Max(0, (int)Math.Floor((expiresAtUtc - nowUtc).TotalDays));
+
     // GET /api/subscription/plans
     [HttpGet("plans")]
     public IActionResult GetPlans() =>
@@ -79,7 +82,7 @@ public class SubscriptionController : ControllerBase
         {
             CoDangKy     = true,
             NgayHetHan   = goi.NgayHetHan,
-            SoNgayConLai = (int)(goi.NgayHetHan - now).TotalDays + 1,
+            SoNgayConLai = CalculateRemainingDays(goi.NgayHetHan, now),
             LoaiGoi      = goi.LoaiGoi,
             DaDungThu    = daDungThu
         });

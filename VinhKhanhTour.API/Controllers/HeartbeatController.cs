@@ -630,7 +630,7 @@ public class HeartbeatController : ControllerBase
                 xp.ExperienceToNextLevel,
                 ExperiencePerLevel,
                 NgayHetHan    = hasHan ? hh : (DateTime?)null,
-                ConLaiNgay    = hasHan ? (int?)Math.Max(1, (int)(hh - now).TotalDays + 1) : null
+                ConLaiNgay    = hasHan ? (int?)Math.Max(0, (int)Math.Floor((hh - now).TotalDays)) : null
             };
         }).ToList();
 

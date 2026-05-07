@@ -145,7 +145,7 @@ public partial class PaymentStatusPage : ContentPage
                 System.Globalization.DateTimeStyles.RoundtripKind,
                 out var hetHan))
         {
-            var soNgay = Math.Max(1, (int)(hetHan - DateTime.UtcNow).TotalDays + 1);
+            var soNgay = SubscriptionState.CalculateRemainingDays(hetHan);
             LblHetHan.Text = AppText.T(
                 $"Gói của bạn có hiệu lực đến {hetHan.ToLocalTime():dd/MM/yyyy}\n(còn {soNgay} ngày)",
                 $"Your plan is valid until {hetHan.ToLocalTime():dd/MM/yyyy}\n({soNgay} days left)",
