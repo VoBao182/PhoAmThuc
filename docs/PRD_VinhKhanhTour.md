@@ -1,7 +1,6 @@
 # PRD – VinhKhanhTour: Hệ thống hướng dẫn du lịch phố ẩm thực Vĩnh Khánh
 
-> **Phiên bản:** 1.0 | **Ngày:** 17/04/2026  
-> **Tác giả:** Cao Hoàng Thịnh | **Email:** caohoangthinh2@gmail.com
+> **Phiên bản:** 1.0 | **Ngày:** 17/04/2026
 
 ---
 

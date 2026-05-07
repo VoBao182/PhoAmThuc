@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()

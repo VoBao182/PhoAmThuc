@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshPoisInBackgroundAsync(), RefreshMapIfNeeded(), LoadMap(), GetMapPoiSignature(), GetPoiVisualPositions(), ShowMapPoiSheet(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()

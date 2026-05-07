@@ -1,0 +1,321 @@
+@startuml
+' Diagram: F13 - Class diagram tong quan he thong VinhKhanhTour
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Source:
+' - VinhKhanhTourDemo/AppConfig.cs, DeviceIdentity.cs, SubscriptionState.cs
+' - VinhKhanhTourDemo/LaunchPage.xaml.cs, SubscriptionPage.xaml.cs, MainPage.xaml.cs
+' - VinhKhanhTourDemo/DetailPage.xaml.cs, PaymentPage.xaml.cs, PaymentStatusPage.xaml.cs, QrScannerPage.xaml.cs
+' - VinhKhanhTour.API/Controllers/PoiController.cs, HeartbeatController.cs, SubscriptionController.cs
+' - VinhKhanhTour.API/Data/AppDBContext.cs
+' - VinhKhanhTour.API/Models/POI.cs, ThuyetMinh.cs, BanDich.cs, MonAn.cs
+' - VinhKhanhTour.API/Models/LichSuPhat.cs, TaiKhoan.cs, DangKyDichVu.cs, HoaDon.cs
+' - VinhKhanhTour.API/Models/DangKyApp.cs, YeuCauThanhToan.cs, VitriKhach.cs
+' Note: So do nay mo ta cau truc lop va quan he van hanh chinh giua MAUI app, API, DbContext va model du lieu.
+'   Day la class diagram muc tong quan de nhin vao co the hieu cach app khoi dong, goi API, phat audio, thanh toan va CMS doc du lieu.
+title F13 - Class diagram tong quan VinhKhanhTour
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "MAUI App" {
+  class LaunchPage {
+    +RouteAsync()
+  }
+
+  class SubscriptionPage {
+    +OnAppearing()
+    +KiemTraSubscription()
+    +RestoreSubscriptionStateAsync(deviceId)
+  }
+
+  class MainPage {
+    +OnAppearing()
+    +EnsureSubscriptionGateAsync()
+    +LoadPoisFromApi()
+    +LoadMap()
+    +RefreshMapIfNeeded()
+    +CheckGeofence(lat, lng)
+    +SendHeartbeatAsync()
+    +RecordPoiViewAsync()
+    +RecordPoiVisitAsync()
+    +RestorePoiHistoryAsync()
+    +SyncPoiHistoryAsync()
+  }
+
+  class DetailPage {
+    +LoadDetail(poi)
+    +RenderMenu()
+    +UseFallback()
+  }
+
+  class PaymentPage {
+    +CreatePaymentRequestAsync()
+    +OpenPaymentStatusAsync()
+  }
+
+  class PaymentStatusPage {
+    +StartPollingStatus()
+    +ClosePaymentFlowAsync()
+  }
+
+  class QrScannerPage {
+    +StartScan()
+  }
+
+  class AppConfig <<static>> {
+    +ApiBaseUrl
+    +EnsureApiBaseUrlAsync()
+    +CanReachApiBaseUrlAsync()
+    +ResolveImageUrl()
+  }
+
+  class DeviceIdentity <<static>> {
+    +GetDeviceId()
+    +GetShortDeviceId()
+    +BuildRecoveryPayload()
+    +BuildQrCodeUrl()
+    +TrySetDeviceIdOverride(rawCode, out deviceId)
+  }
+
+  class SubscriptionState <<static>> {
+    +HasStoredSubscriptionRecord()
+    +IsSubscriptionActive()
+    +CalculateRemainingDays()
+  }
+
+  class PoiDto {
+    +Id
+    +TenPoi
+    +ViDo
+    +KinhDo
+    +BanKinh
+    +MucUuTien
+  }
+}
+
+package "API Controllers" {
+  class PoiController {
+    +GetAll()
+    +GetById(id)
+  }
+
+  class HeartbeatController {
+    +SendHeartbeat(req)
+    +RecordVisit(req)
+    +RecordView(req)
+    +SyncHistory(req)
+    +GetExperienceProfile(maThietBi)
+    +GetActive()
+    +GetHistory(maThietBi)
+  }
+
+  class SubscriptionController {
+    +GetPlans()
+    +GetStatus(maThietBi)
+    +Purchase(req)
+    +CreateRequest(req)
+    +GetRequestStatus(yeuCauId)
+    +Approve(yeuCauId, req)
+    +Reject(yeuCauId, req)
+    +GetRequests(trangThai)
+  }
+
+  class AppDbContext {
+    +POIs
+    +ThuyetMinhs
+    +BanDichs
+    +MonAns
+    +LichSuPhats
+    +TaiKhoans
+    +DangKyDichVus
+    +HoaDons
+    +DangKyApps
+    +YeuCauThanhToans
+    +VitriKhachs
+  }
+}
+
+package "Domain Models" {
+  class POI {
+    +Id
+    +TenPOI
+    +ViDo
+    +KinhDo
+    +BanKinh
+    +MucUuTien
+    +TrangThai
+    +NgayHetHanDuyTri
+  }
+
+  class ThuyetMinh {
+    +Id
+    +POIId
+    +ThuTu
+    +TrangThai
+  }
+
+  class BanDich {
+    +Id
+    +ThuyetMinhId
+    +NgonNgu
+    +NoiDung
+    +FileAudio
+  }
+
+  class MonAn {
+    +Id
+    +POIId
+    +TenMonAn
+    +DonGia
+    +PhanLoai
+    +TinhTrang
+  }
+
+  class LichSuPhat {
+    +Id
+    +POIId
+    +ThuyetMinhId
+    +ThoiGian
+    +NgonNguDung
+    +Nguon
+    +MaThietBi
+  }
+
+  class TaiKhoan {
+    +Id
+    +TenDangNhap
+    +VaiTro
+    +TrangThai
+    +PoiId
+  }
+
+  class DangKyDichVu {
+    +Id
+    +POIId
+    +PhiDuyTriThang
+    +PhiConvert
+    +NgayBatDau
+    +NgayHetHan
+    +TrangThai
+  }
+
+  class HoaDon {
+    +Id
+    +POIId
+    +TaiKhoanId
+    +LoaiPhi
+    +SoTien
+    +KyThanhToan
+  }
+
+  class DangKyApp {
+    +Id
+    +MaThietBi
+    +LoaiGoi
+    +NgayBatDau
+    +NgayHetHan
+    +SoTien
+  }
+
+  class YeuCauThanhToan {
+    +Id
+    +MaThietBi
+    +LoaiGoi
+    +SoTien
+    +NoiDungChuyen
+    +TrangThai
+    +NgayTao
+    +NgayDuyet
+  }
+
+  class VitriKhach {
+    +Id
+    +MaThietBi
+    +Lat
+    +Lng
+    +LanCuoiHeartbeat
+    +PoiIdHienTai
+    +TenPoiHienTai
+  }
+}
+
+LaunchPage --> SubscriptionState : doc trang thai dang ky
+LaunchPage --> SubscriptionPage : mo gate khi can
+LaunchPage --> MainPage : vao man hinh chinh
+
+SubscriptionPage --> DeviceIdentity : ma thiet bi / QR recovery
+SubscriptionPage --> AppConfig : tim API dang dung
+SubscriptionPage --> QrScannerPage : quet QR khoi phuc
+SubscriptionPage --> PaymentPage : mo luong thanh toan
+SubscriptionPage ..> SubscriptionController : GET/POST subscription
+
+PaymentPage --> DeviceIdentity : gan MaThietBi
+PaymentPage --> AppConfig : resolve API
+PaymentPage --> PaymentStatusPage : theo doi ket qua duyet
+PaymentPage ..> SubscriptionController : POST request
+
+PaymentStatusPage --> AppConfig : resolve API
+PaymentStatusPage --> MainPage : dong flow va quay ve app
+PaymentStatusPage ..> SubscriptionController : GET request status
+
+MainPage --> AppConfig : resolve API / image URL
+MainPage --> DeviceIdentity : dinh danh thiet bi
+MainPage --> DetailPage : mo chi tiet POI
+MainPage --> QrScannerPage : quet ma khoi phuc
+MainPage ..> PoiController : GET POI
+MainPage ..> HeartbeatController : heartbeat / view / visit / sync / profile
+MainPage --> PoiDto : render list + map
+
+DetailPage --> AppConfig : resolve anh / audio URL
+DetailPage ..> PoiController : GET chi tiet POI
+
+PoiController --> AppDbContext
+HeartbeatController --> AppDbContext
+SubscriptionController --> AppDbContext
+
+AppDbContext o-- POI
+AppDbContext o-- ThuyetMinh
+AppDbContext o-- BanDich
+AppDbContext o-- MonAn
+AppDbContext o-- LichSuPhat
+AppDbContext o-- TaiKhoan
+AppDbContext o-- DangKyDichVu
+AppDbContext o-- HoaDon
+AppDbContext o-- DangKyApp
+AppDbContext o-- YeuCauThanhToan
+AppDbContext o-- VitriKhach
+
+POI "1" o-- "*" ThuyetMinh
+ThuyetMinh "1" o-- "*" BanDich
+POI "1" o-- "*" MonAn
+POI "1" o-- "*" DangKyDichVu
+POI "1" o-- "*" HoaDon
+POI "1" o-- "*" LichSuPhat
+POI "1" o-- "*" VitriKhach : PoiIdHienTai
+TaiKhoan "0..1" --> "0..*" HoaDon
+TaiKhoan "0..1" --> "0..1" POI : quan ly phu trach
+DangKyApp .. YeuCauThanhToan : join logic theo MaThietBi
+DangKyApp .. VitriKhach : join logic theo MaThietBi
+DangKyApp .. LichSuPhat : join logic theo MaThietBi
+YeuCauThanhToan .. LichSuPhat : lien ket audit theo MaThietBi
+
+note right of MainPage
+  MainPage la tam dieu phoi chinh cua app:
+  - nap danh sach POI
+  - ve map / marker / geofence
+  - heartbeat 10s
+  - refresh POI 20s
+  - geofence + audio + log lich su
+  - dong bo profile / lich su qua MaThietBi
+end note
+
+note right of SubscriptionController
+  Quan ly goi su dung:
+  - "thu" 3 ngay, mien phi 1 lan / thiet bi
+  - "ngay", "tuan", "thang", "nam"
+  - tao yeu cau chuyen khoan
+  - app polling trang thai 10s
+end note
+
+@enduml

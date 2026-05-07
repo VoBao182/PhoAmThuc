@@ -1,11 +1,11 @@
 @startuml
 ' Diagram: F01 - Kich hoat va khoi phuc quyen su dung app (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs: RouteAsync()
-' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord()
+' - VinhKhanhTourDemo/SubscriptionState.cs: IsSubscriptionActive(), HasStoredSubscriptionRecord(), CalculateRemainingDays()
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), EnsureSubscriptionGateAsync(), RestoreSubscriptionStateAsync()
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnAppearing(), UpdateRecoveryCard(), OnCopyRecoveryCodeClicked(), OnPasteRecoveryCodeClicked(), OnEnterRecoveryCodeClicked(), OnScanRecoveryQrClicked(), RestoreFromRecoveryCodeAsync(), OnMuaGoiClicked(), ActivateFreeTrialAsync(), UpdateTrialButtonState(), ExitSubscriptionGateAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
@@ -14,6 +14,7 @@
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus(), Purchase()
 ' Note: Sequence chi tiet hoa startup route, retry, recovery code/QR, free trial activation, va cach ExitSubscriptionGateAsync dong modal stack hoac thay trang goc.
+' Note: Tu v1.5.2, SoNgayConLai duoc tinh bang Math.Floor((NgayHetHan - now).TotalDays) min 0 (helper SubscriptionState.CalculateRemainingDays). Truoc do dung cast int + max 1 -> co the ra so ngay sai khi sat het han.
 title F01 - Kich hoat va khoi phuc quyen su dung app
 
 actor Guest
@@ -71,7 +72,7 @@ opt MainPage xuat hien nhung subscription local khong hop le
   MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
   SubscriptionController -> DB: doc DangKyApp con han\nkiem tra da dung thu
   DB --> SubscriptionController: status
-  SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+  SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
   MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han)
   alt van chua co goi hop le
     MainPage -> SubscriptionPage: PushModalAsync(new SubscriptionPage(hetHan))
@@ -97,7 +98,7 @@ else nguoi dung paste / nhap recovery code
     SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
     SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
     DB --> SubscriptionController: status
-    SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan, DaDungThu
+    SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
     SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
     SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
     alt goi da duoc khoi phuc va con han
@@ -133,7 +134,7 @@ else nguoi dung scan QR recovery
       SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
       SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
       DB --> SubscriptionController: status
-      SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan, DaDungThu
+      SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
       SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
       SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
       alt goi da duoc khoi phuc va con han

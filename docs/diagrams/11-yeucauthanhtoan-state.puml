@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F11 - State machine cua YeuCauThanhToan (yeu cau thanh toan goi app)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs: TrangThai = "cho_duyet" | "da_duyet" | "tu_choi"
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()

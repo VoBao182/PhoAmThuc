@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03b - Hang doi audio thuyet minh per-device (Activity, sub-activity cua F03)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync(), ShowNowPlaying(), HideNowPlaying()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()

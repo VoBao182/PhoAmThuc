@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshMapIfNeeded(), LoadMap(), GetMapPoiSignature(), GetPoiVisualPositions(), ShowMapPoiSheet(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
@@ -12,6 +12,7 @@
 ' Note: Sequence chi tiet hoa fallback data, restore profile/XP, map sheet, viewed history, va luong khoi phuc ma thiet bi trong MainPage.
 ' Note: Map dung geofence circle theo toa do that cua POI, co the render marker offset de de nhin, va chi rebuild HTML map khi GetMapPoiSignature() thay doi.
 ' Note: Luong ghi nhan "visit" khi geofence trigger (POST /api/heartbeat/visit) duoc mo hinh rieng trong F03 (Geofence/Audio) de tach concern.
+' Note: Tu v1.5.2, ConLaiNgay trong /api/heartbeat/profile va SoNgayConLai trong /api/subscription/status deu tinh bang Math.Floor((NgayHetHan - now).TotalDays) min 0. Helper SubscriptionState.CalculateRemainingDays dung chung trong app.
 title F02 - Tai va kham pha danh sach POI
 
 actor Guest
@@ -112,7 +113,7 @@ else nguoi dung paste / nhap ma thiet bi
     MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
     SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
     DB --> SubscriptionController: status
-    SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+    SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
     MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
@@ -147,7 +148,7 @@ else nguoi dung scan QR trong Cai dat
       MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
       SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
       DB --> SubscriptionController: status
-      SubscriptionController --> MainPage: CoDangKy, NgayHetHan, DaDungThu
+      SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
       MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
       MainPage -> DeviceIdentity: GetDeviceId()
       MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}

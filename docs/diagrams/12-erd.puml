@@ -1,20 +1,22 @@
 @startuml
 ' Diagram: F12 - ERD tong the cua VinhKhanhTour
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 2497a96
+' Baseline: branch master, current worktree @ HEAD 8ed8643
 ' Source:
 ' - VinhKhanhTour.API/Models/POI.cs, ThuyetMinh.cs, BanDich.cs, MonAn.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs, YeuCauThanhToan.cs
 ' - VinhKhanhTour.API/Models/DangKyDichVu.cs, HoaDon.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs, VitriKhach.cs, TaiKhoan.cs
-' - VinhKhanhTour.API/Data/AppDbContext.cs
+' - VinhKhanhTour.API/Data/AppDBContext.cs
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs
 ' Note: Vung khach hang anh danh: dinh danh bang MaThietBi (string, sinh tu Preferences),
 '   khong join cung TaiKhoan. Cac bang DangKyApp / YeuCauThanhToan / VitriKhach / LichSuPhat
 '   noi voi nhau qua MaThietBi (logical foreign key, KHONG co FK constraint trong DB).
 ' Note: Vung POI: POI 1-N ThuyetMinh, ThuyetMinh 1-N BanDich, POI 1-N MonAn,
 '   POI 1-N DangKyDichVu (lich su goi duy tri), POI 1-N HoaDon.
-' Note: Vung audit: LichSuPhat luu tat ca su kien VIEW/GPS/app-geofence,
-'   POIId va MaThietBi co the null cho cac event hop le.
+' Note: Vung audit: LichSuPhat luu tat ca su kien VIEW/GPS/app-geofence.
+'   Cac gia tri LoaiGoi hien tai trong code:
+'   DangKyApp = thu|ngay|tuan|thang|nam; YeuCauThanhToan = ngay|tuan|thang|nam.
 title F12 - ERD tong the VinhKhanhTour
 
 ' ---------------- Vung POI noi dung ----------------
@@ -91,7 +93,7 @@ entity "DangKyApp\n(goi su dung app)" as DKA {
   * id : uuid <<PK>>
   --
   * mathietbi : varchar  <<logical key>>
-  loaigoi : varchar  -- "ngay"|"thang"|"nam"
+  loaigoi : varchar  -- "thu"|"ngay"|"tuan"|"thang"|"nam"
   ngaybatdau : timestamptz
   ngayhethan : timestamptz
   sotien : numeric
@@ -101,7 +103,7 @@ entity "YeuCauThanhToan\n(yeu cau cho duyet)" as YCTT {
   * id : uuid <<PK>>
   --
   * mathietbi : varchar  <<logical key>>
-  loaigoi : varchar
+  loaigoi : varchar  -- "ngay"|"tuan"|"thang"|"nam"
   sotien : numeric
   noidung_chuyen : varchar
   trangthai : varchar  -- "cho_duyet"|"da_duyet"|"tu_choi"
@@ -129,7 +131,7 @@ entity "LichSuPhat\n(audit VIEW/GPS/app-geofence)" as LSP {
   thuyetminhid : uuid (nullable)
   thoigian : timestamptz
   ngonngudung : varchar(20)
-  nguon : varchar(50)  -- "VIEW"|"GPS"|"app-geofence"
+  nguon : varchar(50)  -- "VIEW"|"GPS"|"app-geofence"|khac
   mathietbi : varchar  <<logical>>
 }
 
