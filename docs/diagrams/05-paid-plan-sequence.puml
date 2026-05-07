@@ -1,15 +1,17 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnDaChuyenKhoanClicked()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
+' - VinhKhanhTourDemo/AppEndpointOptions.cs: HostedApiBaseUrlFallback
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: StartPollingAsync(), PollStatusAsync(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
 ' Note: Sequence chi tiet hoa tao transfer note/QR, prompt API URL thu cong, polling 10 giay, va xu ly modal stack sau khi duyet/tu choi.
+' Note: Ban debug/ad-hoc hien tai uu tien hosted API fallback https://phoamthuc.onrender.com; chi prompt nhap API URL khi API hien tai khong reachable hoac can override.
 title F05 - Thanh toan goi tra phi va cho duyet
 
 actor Guest

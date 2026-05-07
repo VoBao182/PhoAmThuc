@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan va monitoring CMS (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml

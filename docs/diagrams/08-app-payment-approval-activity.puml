@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: snapshotUrl, polling JS

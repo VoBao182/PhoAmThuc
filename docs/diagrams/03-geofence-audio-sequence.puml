@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
@@ -10,6 +10,7 @@
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Sequence da sync dwell 5 giay truoc khi xac nhan vao POI, heartbeat 10 giay, refresh POI 20 giay, va DeviceIdentity.GetDeviceId().
 ' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI, giu POI hien tai neu cung muc uu tien + chenh lech <= 5m, va HeartbeatController verify lai current POI tren server.
+' Note: Geofence va heartbeat van dung toa do that cua POI; marker offset tren map (neu co) khong anh huong xac dinh "dang o quan".
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 
 actor Guest

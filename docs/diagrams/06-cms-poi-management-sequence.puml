@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F06 - Quan ly POI, anh, geofence, thuyet minh va menu (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Poi/Index.cshtml.cs: OnGetAsync(), OnPostToggleAsync()
 ' - VinhKhanhTour.CMS/Pages/Poi/Create.cshtml.cs: OnPostAsync()

@@ -1,15 +1,16 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshMapIfNeeded(), LoadMap(), GetMapPoiSignature(), GetPoiVisualPositions(), ShowMapPoiSheet(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId(), BuildRecoveryPayload(), BuildQrCodeUrl(), TrySetDeviceIdOverride()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus()
 ' Note: Sequence chi tiet hoa fallback data, restore profile/XP, map sheet, viewed history, va luong khoi phuc ma thiet bi trong MainPage.
+' Note: Map dung geofence circle theo toa do that cua POI, co the render marker offset de de nhin, va chi rebuild HTML map khi GetMapPoiSignature() thay doi.
 ' Note: Luong ghi nhan "visit" khi geofence trigger (POST /api/heartbeat/visit) duoc mo hinh rieng trong F03 (Geofence/Audio) de tach concern.
 title F02 - Tai va kham pha danh sach POI
 
@@ -23,6 +24,7 @@ participant "PoiController" as PoiController
 participant "HeartbeatController" as HeartbeatController
 participant "SubscriptionController" as SubscriptionController
 participant Preferences
+participant "Leaflet WebView" as MapWebView
 participant DetailPage
 database DB
 
@@ -43,7 +45,15 @@ else API loi / khong reachable
   PoiController --> MainPage: exception
   MainPage -> MainPage: CreateFallbackPois()\n_isUsingFallbackData = true\n_lastDataLoadError = ex.Message
 end
-MainPage -> MainPage: RefreshMapIfNeeded()\nRenderPoiCards()\nUpdateApiConnectionUi()
+MainPage -> MainPage: RefreshMapIfNeeded()
+alt MapWebView chua tao hoac POI signature thay doi
+  MainPage -> MainPage: LoadMap()\nGetPoiVisualPositions()
+  MainPage -> MapWebView: render geofence circles o true lat/lng\nrender markers o display lat/lng
+  MapWebView --> MainPage: map html loaded
+else map da ton tai va signature giong nhau
+  MainPage -> MapWebView: updateUserLocation()/highlightPoi() neu can
+end
+MainPage -> MainPage: RenderPoiCards()\nUpdateApiConnectionUi()
 
 opt restore lich su/XP tu server
   MainPage -> DeviceIdentity: GetDeviceId()
@@ -173,6 +183,12 @@ opt refresh nen 20 giay
     PoiController --> MainPage: exception
     MainPage -> MainPage: giu _pois hien tai, bo qua refresh lan nay
   end
-  MainPage -> MainPage: RefreshMapIfNeeded()\nRenderPoiCards()
+  MainPage -> MainPage: RefreshMapIfNeeded()
+  alt POI signature thay doi
+    MainPage -> MapWebView: rebuild map html va marker/circle
+  else POI signature khong doi
+    MainPage -> MapWebView: chi update user location
+  end
+  MainPage -> MainPage: RenderPoiCards()
 end
 @enduml

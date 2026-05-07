@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()

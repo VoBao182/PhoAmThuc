@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F00 - Use case tong the he thong
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs

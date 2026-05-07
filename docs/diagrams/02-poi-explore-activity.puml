@@ -1,15 +1,16 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshPoisInBackgroundAsync(), RefreshMapIfNeeded(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshPoisInBackgroundAsync(), RefreshMapIfNeeded(), LoadMap(), GetMapPoiSignature(), GetPoiVisualPositions(), ShowMapPoiSheet(), RenderPoiCards(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId(), BuildRecoveryPayload(), BuildQrCodeUrl(), TrySetDeviceIdOverride()
 ' - VinhKhanhTour.API/Controllers/PoiController.cs: GetAll()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: GetExperienceProfile(), RecordView(), SyncHistory()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: GetStatus()
 ' Note: So do chi tiet hoa fallback seed data, khoi phuc lich su/XP, render tab explore-ban do-cai dat, va luong khoi phuc ma thiet bi trong MainPage.
+' Note: Map hien tai ve vong geofence theo toa do that cua POI, co the offset marker hien thi de tranh chong len, ve guide line noi marker den toa do that, va chi rebuild HTML map khi chu ky POI thay doi.
 ' Note: Luong ghi nhan "visit" khi geofence trigger (RecordPoiVisitAsync -> POST /api/heartbeat/visit) duoc mo hinh o F03 (Geofence/Audio) de tach concern.
 title F02 - Tai va kham pha danh sach POI
 start
@@ -44,6 +45,15 @@ else (Da tai)
 endif
 
 :RefreshMapIfNeeded();
+if (MapWebView null hoac chu ky POI thay doi?) then (Co)
+  :LoadMap();
+  :GetPoiVisualPositions();
+  :Ve geofence circle theo ViDo/KinhDo that;
+  :Ve marker theo DisplayViDo/DisplayKinhDo;
+  :Neu marker bi offset -> ve guide line + diem true position;
+else (Khong)
+  :Chi update user location/hightlight tren map hien co;
+endif
 :RenderPoiCards();
 :UpdateApiConnectionUi();
 :RestorePoiHistoryAsync();
@@ -52,6 +62,7 @@ endif
 
 if (Nguoi dung chuyen tab Ban do?) then (Co)
   :Map tab load marker tu _pois;
+  :Marker bam vao -> poi://{id};
   :Cho phep bam marker/card de mo sheet chi tiet;
 endif
 

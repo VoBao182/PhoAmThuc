@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
@@ -10,6 +10,7 @@
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Code hien tai xac nhan vao POI sau khi dwell 5 giay trong ban kinh. Heartbeat gui moi 10 giay va refresh POI moi 20 giay voi GPS poll 5 giay.
 ' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI, giu POI hien tai neu cung muc uu tien va chenh lech <= 5m, va HeartbeatController se verify lai current POI tren server voi tolerance 5m.
+' Note: Geofence/audio luon dua tren toa do that cua POI (ViDo/KinhDo, BanKinh). Neu map hien marker offset de de nhin thi chi la presentation, khong doi logic geofence.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
 :EnsureGpsTrackingAsync();

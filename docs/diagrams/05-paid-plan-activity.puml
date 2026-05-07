@@ -1,14 +1,16 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 3158ff7
+' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnCopyNoiDungClicked(), OnDaChuyenKhoanClicked()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTourDemo/ApiConnectionPrompt.cs: EnsureConnectedApiBaseUrlAsync()
+' - VinhKhanhTourDemo/AppEndpointOptions.cs: HostedApiBaseUrlFallback
 ' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: OnAppearing(), StartPollingAsync(), PollStatusAsync(), ShowSuccess(), ShowRejected(), ClosePaymentFlowAsync()
 ' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
 ' Note: So do chi tiet hoa tao noi dung chuyen khoan/VietQR, prompt API URL, polling 10 giay, va cach dong modal stack sau khi duyet/tu choi.
+' Note: Ban debug/ad-hoc hien tai uu tien hosted API fallback https://phoamthuc.onrender.com; prompt nhap API URL chu yeu xay ra khi API do khong reachable hoac can override.
 title F05 - Thanh toan goi tra phi va cho duyet
 start
 :SubscriptionPage.OnMuaGoiClicked(loaiGoi != "thu");
