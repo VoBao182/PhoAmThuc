@@ -3,20 +3,21 @@
 ' Status: VERIFIED
 ' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory(), VerifyCurrentPoiAsync()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
-' Note: Sequence da sync dwell 5 giay truoc khi xac nhan vao POI, heartbeat 10 giay, refresh POI 20 giay, va DeviceIdentity.GetDeviceId().
-' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI, giu POI hien tai neu cung muc uu tien + chenh lech <= 5m, va HeartbeatController verify lai current POI tren server.
-' Note: Geofence va heartbeat van dung toa do that cua POI; marker offset tren map (neu co) khong anh huong xac dinh "dang o quan".
+' Note: Sequence da sync dwell 5 giay truoc khi xac nhan vao POI, heartbeat 10 giay, refresh POI 20 giay.
+' Note: Nhanh "giua 2 POI" tach tuong minh: sort theo MucUuTien -> Distance -> TenPOI + hysteresis 5m.
+' Note: Queue audio per-device duoc tach hoan toan vao SpeakQueue (lock + semaphore + dedup); chi tiet o 03b-queue-playback-sequence.puml.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 
 actor Guest
 participant MainPage
 participant DeviceIdentity
 participant "Geolocation / GPS" as GPS
+participant "SpeakQueue\n(per-device)" as SpeakQueue
 participant "HeartbeatController" as HeartbeatController
 participant "ThuyetMinhController" as ThuyetMinhController
 participant "LogController" as LogController
@@ -35,61 +36,82 @@ loop moi 5 giay
   MainPage -> GPS: GetLocationAsync()
   GPS --> MainPage: lat/lng
   MainPage -> MainPage: CheckGeofence(location)
-  MainPage -> MainPage: SelectPoiForLocation(location)
-  note right of MainPage
-    Loc POI co distance <= BanKinh
-    OrderBy MucUuTien (nho hon thang)
-    ThenBy DistanceMeters
-    ThenBy TenPOI
-    Hysteresis: giu _currentPoi neu cung
-    MucUuTien va chenh lech <= 5m
-  end note
 
-  alt khong co ung vien trong ban kinh
-    MainPage -> MainPage: _candidatePoi = null\n_currentPoi = null\nClearHighlight()\nRenderPoiCards()
-  else vao ung vien moi
-    MainPage -> MainPage: _candidatePoi = nearest\n_candidateSinceUtc = now
-  else dang dwell < 5 giay
-    MainPage -> MainPage: tiep tuc cho dwell\nchua audio/chua report CMS
-  else dwell dat 5 giay va POI duoc xac nhan
-    MainPage -> MainPage: _currentPoi = nearest\nHighlightNearestPoi()\nRenderPoiCards()
-    alt vao POI moi va da qua cooldown
-      MainPage -> MainPage: RecordVisitedPoi(nearest)\nUpdateCaiDatUI()
-      MainPage -> DeviceIdentity: GetDeviceId()
-      MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-      HeartbeatController -> DB: dong bo visited/viewed tu local Preferences
-      DB --> HeartbeatController: synced
-
-      MainPage -> DeviceIdentity: GetDeviceId()
-      MainPage -> HeartbeatController: POST /api/heartbeat/visit
-      HeartbeatController -> DB: dedup 10 phut + insert LichSuPhat(Nguon="app-geofence")
-      DB --> HeartbeatController: saved
-
-      MainPage -> MainPage: QueuePoiPlayback(nearest)
-      MainPage -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode
-      ThuyetMinhController -> DB: load ThuyetMinh + BanDich fallback ve "vi"
-      DB --> ThuyetMinhController: NoiDung / FileAudio
-      ThuyetMinhController --> MainPage: ThuyetMinhResponse
-
-      MainPage -> TTS: SpeakAsync(content)
-      TTS --> MainPage: da doc xong
-
-      MainPage -> LogController: POST /api/log
-      LogController -> DB: insert LichSuPhat(Nguon="GPS")
-      DB --> LogController: saved
-    else khong vao POI moi hoac dang cooldown
-      MainPage -> MainPage: cap nhat highlight / card / map
+  group SelectPoiForLocation - xu ly chong lan giua 2 POI
+    MainPage -> MainPage: tinh distance moi POI\nloc distance <= BanKinh\nsort MucUuTien -> Distance -> TenPOI
+    alt khong co POI nao trong ban kinh
+      MainPage -> MainPage: return null\n_candidatePoi=null, _currentPoi=null
+    else top1 == _currentPoi (giu nguyen)
+      MainPage -> MainPage: return top1
+    else _currentPoi != null va vao vung 2 POI
+      MainPage -> MainPage: tim _currentPoi trong candidates
+      alt _currentPoi cung MucUuTien voi top1\nVA chenh distance <= 5m
+        MainPage -> MainPage: HYSTERESIS: giu _currentPoi\n(tranh nhay POI do GPS jitter)
+      else top1 uu tien cao hon\nhoac chenh > 5m
+        MainPage -> MainPage: doi sang top1
+      end
     end
+  end
+
+  alt nearest != _candidatePoi (vao ung vien moi)
+    MainPage -> MainPage: _candidatePoi = nearest\n_candidateSinceUtc = now\nreset dwell
+  else dwell < 5 giay
+    MainPage -> MainPage: tiep tuc cho dwell\nchua audio/chua report CMS
+  else dwell >= 5s va isNewPoi va qua cooldown 10 phut
+    MainPage -> MainPage: _currentPoi = nearest\n_lastSpokenTime[poiKey] = now\nHighlightNearestPoi()\nRenderPoiCards()
+
+    MainPage -> DeviceIdentity: GetDeviceId()
+    MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
+    HeartbeatController -> DB: dong bo visited/viewed tu local
+    DB --> HeartbeatController: synced
+
+    MainPage -> HeartbeatController: POST /api/heartbeat/visit
+    HeartbeatController -> HeartbeatController: dedup 10 phut\nverify VerifyCurrentPoiAsync (BanKinh+5m)
+    HeartbeatController -> DB: insert LichSuPhat(Nguon="app-geofence")\nneu khong dedup va verify pass
+    DB --> HeartbeatController: saved / skipped
+
+    note right of MainPage
+      Tu day chuyen sang SpeakQueue
+      (chi tiet o 03b-queue-playback-sequence.puml).
+      Phan duoi chi tom tat lai cac
+      tuong tac voi backend de ghi log.
+    end note
+
+    MainPage -> SpeakQueue: QueuePoiPlayback(nearest)
+    note right of SpeakQueue
+      lock(_speakQueueGate)
+      neu _playingPoi.Id == poi.Id
+      hoac _queuedSpeakPoiIds.Contains
+      -> SKIP (tranh phat trung POI cu)
+      else enqueue + start processor
+    end note
+    SpeakQueue -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode
+    ThuyetMinhController -> DB: load ThuyetMinh + BanDich fallback "vi"
+    DB --> ThuyetMinhController: NoiDung / FileAudio
+    ThuyetMinhController --> SpeakQueue: ThuyetMinhResponse
+
+    SpeakQueue -> TTS: SpeakAsync(content)\n(qua _speakLock semaphore - serial)
+    TTS --> SpeakQueue: da doc xong
+
+    SpeakQueue -> LogController: POST /api/log
+    LogController -> DB: insert LichSuPhat(Nguon="GPS")
+    DB --> LogController: saved
+  else dwell >= 5s nhung dang cooldown / khong phai POI moi
+    MainPage -> MainPage: cap nhat highlight / card / map\n(log "cooldown N phut con lai" neu can)
   end
 
   opt moi 10 giay
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat
     alt toa do ngoai vung phuc vu
-      HeartbeatController --> MainPage: skipped = true, reason = out_of_service_area
+      HeartbeatController --> MainPage: skipped = true,\nreason = out_of_service_area
     else toa do hop le
       HeartbeatController -> HeartbeatController: VerifyCurrentPoiAsync(req.PoiIdHienTai, lat, lng)
-      HeartbeatController -> DB: upsert VitriKhach voi currentPoi da verify
+      alt user van trong BanKinh+5m cua POI claim
+        HeartbeatController -> DB: upsert VitriKhach voi currentPoi da verify
+      else user da ra ngoai BanKinh+5m
+        HeartbeatController -> DB: upsert VitriKhach voi currentPoi=null\n(CMS hien "online/dang di chuyen")
+      end
       DB --> HeartbeatController: saved
     end
   end

@@ -277,7 +277,7 @@ FEATURES = [
         ],
         "operation": [
             "Index.OnGetAsync() nhận tham số mode/date/week/month/year/from/to rồi ResolveRange() để xác định SinceUtc, UntilUtc, Granularity và RangeLabel.",
-            "LoadPoiSectionAsync() tải danh sách POI và tính TongPOI, TongMonAn, SoQuanQuaHan với cơ chế retry khi gặp lỗi disposed wait handle.",
+            "LoadPoiSectionAsync() tải danh sách POI và tính TongPOI (tất cả POI), POIDangHoatDong (TrangThai=true và còn hạn duy trì), SoQuanQuaHan với cơ chế retry khi gặp lỗi disposed wait handle.",
             "LoadAnalyticsWithRetryAsync() gọi LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync() và LoadSummaryAsync() trên shared DbConnection.",
             "Sau khi có dữ liệu, hệ thống chạy FillMissingBuckets() rồi serialize ActivityJson, GeoJson và RevenueJson để giao diện JS dùng trực tiếp.",
             "Dashboard hiện tại không polling tự động; dữ liệu cập nhật theo mỗi lần admin đổi mốc thời gian hoặc tải lại trang.",

@@ -31,7 +31,7 @@ public class IndexModel : PageModel
     // POI list + basic stats
     public List<POI> POIs { get; set; } = [];
     public int TongPOI { get; set; }
-    public int TongMonAn { get; set; }
+    public int POIDangHoatDong { get; set; }
     public int SoQuanQuaHan { get; set; }
     public string ApiBaseUrl => _config["ApiBaseUrl"] ?? "http://localhost:5118";
     public string? ErrorMessage { get; private set; }
@@ -107,8 +107,9 @@ public class IndexModel : PageModel
                     .ToListAsync();
 
                 var now = DateTime.UtcNow;
-                TongPOI = POIs.Count(p => p.TrangThai);
-                TongMonAn = POIs.SelectMany(p => p.MonAns).Count(m => m.TinhTrang);
+                TongPOI = POIs.Count;
+                POIDangHoatDong = POIs.Count(p =>
+                    p.TrangThai && p.NgayHetHanDuyTri.HasValue && p.NgayHetHanDuyTri.Value >= now);
                 SoQuanQuaHan = POIs.Count(p =>
                     p.TrangThai && (p.NgayHetHanDuyTri == null || p.NgayHetHanDuyTri < now));
                 return;
@@ -122,7 +123,7 @@ public class IndexModel : PageModel
                 _logger.LogError(ex, "Failed to load POIs from database on CMS home page");
                 POIs = [];
                 TongPOI = 0;
-                TongMonAn = 0;
+                POIDangHoatDong = 0;
                 SoQuanQuaHan = 0;
                 ErrorMessage = IsDisposedWaitHandle(ex)
                     ? "Tạm thời chưa tải được danh sách POI. Hãy thử lại sau vài giây."

@@ -1,0 +1,73 @@
+@startuml
+' Diagram: F11 - State machine cua YeuCauThanhToan (yeu cau thanh toan goi app)
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 2497a96
+' Source:
+' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs: TrangThai = "cho_duyet" | "da_duyet" | "tu_choi"
+' - VinhKhanhTour.API/Controllers/SubscriptionController.cs: CreateRequest(), GetRequestStatus()
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTourDemo/PaymentPage.xaml.cs: OnDaChuyenKhoanClicked()
+' - VinhKhanhTourDemo/PaymentStatusPage.xaml.cs: PollStatusAsync(), ShowSuccess(), ShowRejected()
+' Note: Day la state diagram cua mot YeuCauThanhToan tu khi tao den khi ket thuc.
+' Note: Cot DB: trangthai (cho_duyet/da_duyet/tu_choi), ngaytao, ngayduyet, ghichu_admin.
+' Note: Trang thai cuoi (da_duyet, tu_choi) la terminal — khong co transition reopen trong code hien tai.
+' Note: F08 khong co transaction guard giua 2 admin Approve dong thoi (rui ro RISK-014/concurrency); nut Approve chi check "TrangThai != cho_duyet" sau khi load, KHONG dung row lock.
+title F11 - State machine: YeuCauThanhToan
+
+[*] --> cho_duyet : Khach POST /api/subscription/request\n(tao YeuCauThanhToan, NgayTao=now)
+
+state cho_duyet {
+  cho_duyet : entry / TrangThai = "cho_duyet"
+  cho_duyet : entry / NgayTao = UtcNow
+  cho_duyet : NgayDuyet = null
+  cho_duyet : GhiChuAdmin = null
+  cho_duyet : --
+  cho_duyet : App polling moi 10 giay:
+  cho_duyet :   GET /api/subscription/request/{yeuCauId}
+  cho_duyet : Admin thay trong CMS:
+  cho_duyet :   /DuyetThanhToan?tab=cho_duyet
+  cho_duyet :   PendingSnapshot polling
+}
+
+cho_duyet --> da_duyet : Admin POST OnPostApproveAsync(yeuCauId)\n[load + check TrangThai == cho_duyet]\n/ Tao DangKyApp moi (gia han noi tiep)\n/ TrangThai = "da_duyet"\n/ NgayDuyet = UtcNow
+
+cho_duyet --> tu_choi : Admin POST OnPostRejectAsync(yeuCauId, lyDo)\n[load + check TrangThai == cho_duyet]\n/ TrangThai = "tu_choi"\n/ NgayDuyet = UtcNow\n/ GhiChuAdmin = lyDo
+
+state da_duyet {
+  da_duyet : entry / TrangThai = "da_duyet"
+  da_duyet : entry / NgayDuyet = UtcNow
+  da_duyet : entry / Tao DangKyApp(MaThietBi, LoaiGoi, NgayBatDau, NgayHetHan)
+  da_duyet : entry / Neu da co goi con han:\n  NgayBatDau = NgayHetHan cua goi cu\n  (gia han noi tiep, khong mat ngay)
+  da_duyet : entry / Neu het han / chua co:\n  NgayBatDau = UtcNow
+  da_duyet : --
+  da_duyet : App ShowSuccess() + Preferences.Set(sub_ngay_het_han)
+  da_duyet : Polling dung lai (PollCts.Cancel())
+}
+
+state tu_choi {
+  tu_choi : entry / TrangThai = "tu_choi"
+  tu_choi : entry / NgayDuyet = UtcNow
+  tu_choi : entry / GhiChuAdmin = lyDo
+  tu_choi : --
+  tu_choi : App ShowRejected(lyDo)
+  tu_choi : User co the bam "Thu lai":
+  tu_choi :   PopModalAsync() → quay lai PaymentPage
+  tu_choi :   tao YeuCauThanhToan MOI (Id khac)
+  tu_choi : Polling dung lai (PollCts.Cancel())
+}
+
+da_duyet --> [*]
+tu_choi --> [*]
+
+note bottom of cho_duyet
+  Edge case chua xu ly trong code (rui ro RISK):
+  - 2 admin cung Approve 1 yeu cau → ca 2 deu tao DangKyApp moi (race).
+    Khac phuc: them transaction + select for update,
+    hoac unique constraint tren (YeuCauId).
+  - Polling 404/500 → app im lang vong lap mai
+    (RISK-013): can them backoff + max retry.
+  - Khach "Thu lai" sau tu_choi tao request moi
+    nhung KHONG xoa request cu → DB co the dem
+    nhieu ban "tu_choi" cho cung 1 thiet bi.
+end note
+@enduml

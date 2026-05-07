@@ -1,0 +1,115 @@
+@startuml
+' Diagram: F03b - Hang doi audio thuyet minh per-device (Sequence, sub-sequence cua F03)
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 2497a96
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync(), OnListenClicked()
+' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
+' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
+' Note: Sequence mo phong tinh huong "user di chuyen qua nhieu POI lien tuc" + "user bam Nghe lai trong khi POI khac dang phat" de cho thay 3 lop chong trung.
+' Note: Day la queue per-device. Khi nhieu khach cung vao 1 POI, moi may co _speakQueue rieng; KHONG co server-side queue.
+title F03b - Hang doi audio thuyet minh per-device
+
+actor Guest
+participant CheckGeofence
+participant QueuePoiPlayback
+participant "_speakQueue\n_queuedSpeakPoiIds\n(lock _speakQueueGate)" as Q
+participant ProcessSpeakQueueAsync as Proc
+participant "SpeakPoiAsync\n(qua _speakLock\nsemaphore)" as Speak
+participant "ThuyetMinhController" as ThuyetMinh
+participant "LogController" as LogC
+participant "TextToSpeech" as TTS
+database DB
+
+== Tinh huong 1: Vao POI A lan dau ==
+
+CheckGeofence -> QueuePoiPlayback: QueuePoiPlayback(A)
+QueuePoiPlayback -> Q: lock + check
+Q --> QueuePoiPlayback: _playingPoi=null, queue rong\n_queuedSpeakPoiIds khong co A
+QueuePoiPlayback -> Q: enqueue(A) + add A vao set\n_isProcessingSpeakQueue = true
+QueuePoiPlayback -> Proc: start ProcessSpeakQueueAsync()\n(tren MainThread)
+
+Proc -> Q: lock + dequeue
+Q --> Proc: A (queue rong sau do)
+Proc -> Speak: await SpeakPoiAsync(A)
+Speak -> Speak: await _speakLock.WaitAsync()
+Speak -> ThuyetMinh: GET /api/thuyet-minh/{A.Id}?lang=vi
+ThuyetMinh -> DB: load BanDich(vi)
+DB --> ThuyetMinh: NoiDung
+ThuyetMinh --> Speak: ThuyetMinhResponse
+Speak -> Speak: _playingPoi = A\nShowNowPlaying(A)
+Speak -> TTS: SpeakAsync(content, locale)
+TTS --> Speak: done
+Speak -> LogC: POST /api/log (poiId=A, Nguon=GPS)
+LogC -> DB: insert LichSuPhat
+Speak -> Speak: _playingPoi = null\nHideNowPlaying()\n_speakLock.Release()
+
+Proc -> Q: lock + check (rong)
+Q --> Proc: empty
+Proc -> Proc: _isProcessingSpeakQueue = false\nreturn
+
+== Tinh huong 2: Dang phat A, user di sang POI B (khong cooldown) ==
+
+CheckGeofence -> QueuePoiPlayback: QueuePoiPlayback(B)
+QueuePoiPlayback -> Q: lock + check
+Q --> QueuePoiPlayback: _playingPoi = A (dang phat)\nA != B, B chua co trong set
+QueuePoiPlayback -> Q: enqueue(B) + add B vao set
+note right of Q
+  Khong cancel A — A van phat
+  het roi moi den B (FIFO).
+  Day la y do thiet ke: user
+  duoc nghe het thuyet minh.
+end note
+QueuePoiPlayback -> QueuePoiPlayback: _isProcessingSpeakQueue=true (da chay)\n-> KHONG start processor moi
+QueuePoiPlayback --> CheckGeofence: return
+
+... A van dang TTS ...
+
+Speak -> Speak: A xong, _speakLock.Release()
+Proc -> Q: lock + dequeue tiep
+Q --> Proc: B
+Proc -> Speak: await SpeakPoiAsync(B)
+note right of Speak
+  Cung dung _speakLock semaphore -
+  vi A da release nen B WaitAsync
+  duoc cap, KHONG chong cheo TTS.
+end note
+Speak -> ThuyetMinh: GET /api/thuyet-minh/{B.Id}
+Speak -> TTS: SpeakAsync(content B)
+TTS --> Speak: done
+Speak -> LogC: POST /api/log (poiId=B)
+
+== Tinh huong 3: Re-enqueue POI A (chong trung) ==
+
+CheckGeofence -> QueuePoiPlayback: QueuePoiPlayback(A)\n(GPS jitter, dwell trigger lai)
+QueuePoiPlayback -> Q: lock + check
+alt A dang phat (_playingPoi.Id == A.Id)
+  Q --> QueuePoiPlayback: HIT lop 1: _playingPoi == A
+  QueuePoiPlayback --> CheckGeofence: SKIP (return ngay)
+else A da trong queue (_queuedSpeakPoiIds.Contains(A.Id))
+  Q --> QueuePoiPlayback: HIT lop 2: A da queued
+  QueuePoiPlayback --> CheckGeofence: SKIP (return ngay)
+else A khong dang phat va khong trong queue
+  note right of QueuePoiPlayback
+    Vi du: user roi A > 10 phut, vao lai.
+    Cooldown da het, va A da phat xong
+    nen khong con trong _playingPoi/_queuedSpeakPoiIds.
+    -> Chap nhan enqueue lai.
+  end note
+  Q --> QueuePoiPlayback: chua co
+  QueuePoiPlayback -> Q: enqueue(A)
+end
+
+== Tinh huong 4: User bam "Nghe lai" tu MainPage ==
+
+Guest -> CheckGeofence: bam BtnListen (OnListenClicked)
+CheckGeofence -> QueuePoiPlayback: QueuePoiPlayback(_currentPoi)
+QueuePoiPlayback -> Q: lock + check
+alt _currentPoi dang phat
+  Q --> QueuePoiPlayback: SKIP (lop 1)
+else _currentPoi da trong queue
+  Q --> QueuePoiPlayback: SKIP (lop 2)
+else hop le
+  QueuePoiPlayback -> Q: enqueue\n(qua _speakLock semaphore khi den luot)
+end
+@enduml

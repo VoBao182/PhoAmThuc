@@ -7,6 +7,7 @@
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi()
 ' Note: So do chi tiet hoa 11 che do range, 2 pha tai du lieu POI/analytics, retry ClearNpgsqlPoolsQuietly, va 5 nhom truy van raw Npgsql.
+' Note: 3 the thong ke o stats-grid: TongPOI (tat ca POI ke ca chua gia han), POIDangHoatDong (TrangThai=true va NgayHetHanDuyTri >= now), Ngon ngu (hard-code 3).
 title F10 - Dashboard tong quan va monitoring CMS
 start
 :Index.OnGetAsync(mode,date,week,month,year,from,to);
@@ -22,7 +23,9 @@ end note
 :LoadPoiSectionAsync();
 if (Load POI thanh cong?) then (Co)
   :_db.POIs.AsNoTracking()\n.Include(MonAns).OrderBy(MucUuTien);
-  :Tinh TongPOI, TongMonAn, SoQuanQuaHan;
+  :TongPOI = POIs.Count\n(tat ca POI ke ca chua gia han);
+  :POIDangHoatDong = POIs.Count(p =>\np.TrangThai && p.NgayHetHanDuyTri.HasValue\n&& p.NgayHetHanDuyTri >= now);
+  :SoQuanQuaHan = POIs.Count(p =>\np.TrangThai && (NgayHetHanDuyTri == null\n|| NgayHetHanDuyTri < now));
   :Index.cshtml dung ImageUrlHelper.ResolvePoi de hien anh;
 else (Khong)
   :Neu IsDisposedWaitHandle va attempt dau -> ClearNpgsqlPoolsQuietly();

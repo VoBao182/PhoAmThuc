@@ -216,10 +216,10 @@
         <div>
             <div class="eyebrow">Tổng quan hệ thống</div>
             <h1>Dashboard quản lý Vĩnh Khánh Tour</h1>
-            <p>Theo dõi nhanh số lượng điểm đến, món ăn và tình trạng nội dung trên CMS.</p>
+            <p>Theo dõi nhanh số lượng điểm đến, ngôn ngữ và tình trạng nội dung trên CMS.</p>
         </div>
         <div class="hero-badge">
-            <span>@Model.TongPOI</span>
+            <span>@Model.POIDangHoatDong</span>
             <small>POI đang hoạt động</small>
         </div>
     </div>
@@ -239,12 +239,12 @@
         <article class="stat-tile accent-orange">
             <div class="tile-label">Tổng POI</div>
             <div class="tile-value">@Model.TongPOI</div>
-            <div class="tile-sub">Địa điểm đang hiển thị trên hệ thống</div>
+            <div class="tile-sub">Tổng tất cả địa điểm trong CMS (kể cả chưa gia hạn)</div>
         </article>
         <article class="stat-tile accent-blue">
-            <div class="tile-label">Tổng món ăn</div>
-            <div class="tile-value">@Model.TongMonAn</div>
-            <div class="tile-sub">Món đang bật trong thực đơn</div>
+            <div class="tile-label">POI đang hoạt động</div>
+            <div class="tile-value">@Model.POIDangHoatDong</div>
+            <div class="tile-sub">Đang hiển thị trên app (đã gia hạn)</div>
         </article>
         <article class="stat-tile accent-green">
             <div class="tile-label">Ngôn ngữ</div>

@@ -1,0 +1,180 @@
+@startuml
+' Diagram: F12 - ERD tong the cua VinhKhanhTour
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 2497a96
+' Source:
+' - VinhKhanhTour.API/Models/POI.cs, ThuyetMinh.cs, BanDich.cs, MonAn.cs
+' - VinhKhanhTour.API/Models/DangKyApp.cs, YeuCauThanhToan.cs
+' - VinhKhanhTour.API/Models/DangKyDichVu.cs, HoaDon.cs
+' - VinhKhanhTour.API/Models/LichSuPhat.cs, VitriKhach.cs, TaiKhoan.cs
+' - VinhKhanhTour.API/Data/AppDbContext.cs
+' Note: Vung khach hang anh danh: dinh danh bang MaThietBi (string, sinh tu Preferences),
+'   khong join cung TaiKhoan. Cac bang DangKyApp / YeuCauThanhToan / VitriKhach / LichSuPhat
+'   noi voi nhau qua MaThietBi (logical foreign key, KHONG co FK constraint trong DB).
+' Note: Vung POI: POI 1-N ThuyetMinh, ThuyetMinh 1-N BanDich, POI 1-N MonAn,
+'   POI 1-N DangKyDichVu (lich su goi duy tri), POI 1-N HoaDon.
+' Note: Vung audit: LichSuPhat luu tat ca su kien VIEW/GPS/app-geofence,
+'   POIId va MaThietBi co the null cho cac event hop le.
+title F12 - ERD tong the VinhKhanhTour
+
+' ---------------- Vung POI noi dung ----------------
+entity "POI" as POI {
+  * id : uuid <<PK>>
+  --
+  * tenpoi : varchar
+  vido : double
+  kinhdo : double
+  bankinh : int = 30
+  mucuutien : int = 1
+  trangthai : bool
+  sdt : varchar
+  diachi : varchar
+  anhdaidien : varchar
+  ngayhethanduytri : timestamptz
+}
+
+entity "ThuyetMinh" as TM {
+  * id : uuid <<PK>>
+  --
+  * poiid : uuid <<FK -> POI>>
+  thutu : int = 1
+  trangthai : bool
+}
+
+entity "BanDich" as BD {
+  * id : uuid <<PK>>
+  --
+  * thuyetminhid : uuid <<FK -> ThuyetMinh>>
+  ngonngu : varchar(2)  -- vi/en/zh
+  noidung : text
+  fileaudio : varchar
+}
+
+entity "MonAn" as MA {
+  * id : uuid <<PK>>
+  --
+  * poiid : uuid <<FK -> POI>>
+  tenmonan : varchar
+  dongia : numeric
+  phanloai : varchar
+  mota : text
+  hinhanh : varchar
+  tinhtrang : bool
+}
+
+' ---------------- Vung phi duy tri / hoa don ----------------
+entity "DangKyDichVu" as DKDV {
+  * id : uuid <<PK>>
+  --
+  * poiid : uuid <<FK -> POI>>
+  phiduytrithang : numeric
+  phiconvert : numeric
+  ngaybatdau : timestamptz
+  ngayhethan : timestamptz
+  trangthai : bool
+}
+
+entity "HoaDon" as HD {
+  * id : uuid <<PK>>
+  --
+  * poiid : uuid <<FK -> POI>>
+  taikhoanid : uuid <<FK -> TaiKhoan>> (nullable)
+  loaiphi : varchar  -- "duytri" | "convert"
+  sotien : numeric
+  ngaythanhtoan : timestamptz
+  kythanhtoan : varchar  -- "yyyy-MM"
+  ghichu : text
+}
+
+' ---------------- Vung khach hang an danh ----------------
+entity "DangKyApp\n(goi su dung app)" as DKA {
+  * id : uuid <<PK>>
+  --
+  * mathietbi : varchar  <<logical key>>
+  loaigoi : varchar  -- "ngay"|"thang"|"nam"
+  ngaybatdau : timestamptz
+  ngayhethan : timestamptz
+  sotien : numeric
+}
+
+entity "YeuCauThanhToan\n(yeu cau cho duyet)" as YCTT {
+  * id : uuid <<PK>>
+  --
+  * mathietbi : varchar  <<logical key>>
+  loaigoi : varchar
+  sotien : numeric
+  noidung_chuyen : varchar
+  trangthai : varchar  -- "cho_duyet"|"da_duyet"|"tu_choi"
+  ghichu_admin : text
+  ngaytao : timestamptz
+  ngayduyet : timestamptz (nullable)
+}
+
+entity "VitriKhach\n(heartbeat snapshot)" as VTK {
+  * id : uuid <<PK>>
+  --
+  * mathietbi : varchar  <<unique logical>>
+  lat : double
+  lng : double
+  lancuoi_heartbeat : timestamptz
+  poiid_hientai : uuid <<FK -> POI>> (nullable)
+  ten_poi_hientai : varchar
+}
+
+entity "LichSuPhat\n(audit VIEW/GPS/app-geofence)" as LSP {
+  * id : uuid <<PK>>
+  --
+  taikhoanid : uuid (nullable)
+  poiid : uuid <<FK -> POI>> (nullable)
+  thuyetminhid : uuid (nullable)
+  thoigian : timestamptz
+  ngonngudung : varchar(20)
+  nguon : varchar(50)  -- "VIEW"|"GPS"|"app-geofence"
+  mathietbi : varchar  <<logical>>
+}
+
+entity "TaiKhoan" as TK {
+  * id : uuid <<PK>>
+  --
+  tendangnhap : varchar
+  matkhau : varchar  -- BCrypt hash
+  tentaikhoan : varchar
+  email : varchar
+  sodienthoai : varchar
+  vaitro : varchar  -- "khach"|"admin"|"quanly"
+  trangthai : bool
+  ngaytao : timestamptz
+  poiid : uuid <<FK -> POI>> (nullable, chi cho quanly)
+}
+
+' ---------------- Quan he ----------------
+POI ||--o{ TM : "1 POI co\nN nhom thuyet minh"
+TM ||--o{ BD : "1 ThuyetMinh co\nN ban dich theo ngon ngu"
+POI ||--o{ MA : "1 POI co N mon an"
+
+POI ||--o{ DKDV : "1 POI co lich su\nDangKyDichVu (phi duy tri)"
+POI ||--o{ HD : "1 POI co N HoaDon"
+TK }o--o{ HD : "TaiKhoan ghi nhan\n(nullable)"
+
+POI ||--o{ LSP : "POIId nullable\n(LichSuPhat ghi su kien)"
+POI ||--o{ VTK : "PoiIdHienTai nullable\n(POI khach dang dung)"
+TK }o--o{ POI : "quanly co the\nphu trach 1 POI"
+
+' MaThietBi - khoa logic giua cac bang an danh
+note as N1
+  **MaThietBi (logical key)**
+  - DangKyApp.mathietbi
+  - YeuCauThanhToan.mathietbi
+  - VitriKhach.mathietbi (UNIQUE)
+  - LichSuPhat.mathietbi
+
+  Khong co FK constraint trong DB.
+  Ung dung join logic theo MaThietBi
+  de tong hop trang thai khach hang
+  trong CMS BanDo va Dashboard.
+end note
+DKA .. N1
+YCTT .. N1
+VTK .. N1
+LSP .. N1
+@enduml

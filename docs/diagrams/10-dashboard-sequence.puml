@@ -6,6 +6,7 @@
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, shared EF connection, va serialize JSON cho chart/heatmap/revenue.
+' Note: 3 the thong ke o stats-grid: TongPOI (tat ca POI ke ca chua gia han), POIDangHoatDong (TrangThai=true va con han duy tri), Ngon ngu (3).
 title F10 - Dashboard tong quan va monitoring CMS
 
 actor Admin
@@ -26,7 +27,7 @@ end note
 IndexModel -> AppDbContext: LoadPoiSectionAsync()\nPOIs.Include(MonAns)
 AppDbContext -> DB: SELECT poi + monan ORDER BY MucUuTien
 DB --> AppDbContext: POIs
-IndexModel -> IndexModel: tinh TongPOI,\nTongMonAn,\nSoQuanQuaHan
+IndexModel -> IndexModel: TongPOI = POIs.Count\nPOIDangHoatDong = POIs.Count(p =>\n  p.TrangThai && NgayHetHanDuyTri >= now)\nSoQuanQuaHan = POIs.Count(p =>\n  p.TrangThai && (null || NgayHetHanDuyTri < now))
 
 IndexModel -> IndexModel: LoadAnalyticsWithRetryAsync()
 IndexModel -> AppDbContext: Database.GetDbConnection()

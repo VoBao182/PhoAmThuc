@@ -569,7 +569,7 @@ Bo test case nay duoc cai thien theo cac so do trong `docs/diagrams`. Muc tieu k
 | DIAG-010-003 | P1 | Boundary | `10-dashboard-activity` | `from > to` | Submit custom | Tu swap `from/to`, label dung, khong loi |
 | DIAG-010-004 | P1 | Boundary | `10-dashboard-activity` | Custom 1-2 ngay, 3-95 ngay, >95 ngay | Submit | Granularity lan luot `hour`, `day`, `month` |
 | DIAG-010-005 | P1 | Negative | `10-dashboard-activity` | Mode/input sai | Submit | Fallback last7 hoac now hop ly, khong crash |
-| DIAG-010-006 | P1 | Data | `10-dashboard-sequence` | Co POI active/expired/no-expiry/menu | Mo Dashboard | TongPOI, TongMonAn, SoQuanQuaHan dung |
+| DIAG-010-006 | P1 | Data | `10-dashboard-sequence` | Co POI active/expired/no-expiry/menu | Mo Dashboard | TongPOI (tat ca POI), POIDangHoatDong (con han), SoQuanQuaHan dung |
 | DIAG-010-007 | P1 | Data | `10-dashboard-sequence` | Co lichsuphat VIEW/GPS trong range | Mo Dashboard | ActivityBuckets, TopPoi, GeoPoints dung range va nguon |
 | DIAG-010-008 | P1 | Data | `10-dashboard-sequence` | Co `dangkyapp` + `hoadon` trong range | Mo Dashboard | RevenueBuckets va TotalRevenue dung |
 | DIAG-010-009 | P1 | Data | `10-dashboard-sequence` | Bucket thieu du lieu | Mo chart | `FillMissingBuckets` chen bucket 0 de chart lien mach |

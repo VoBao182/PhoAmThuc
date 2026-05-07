@@ -1,0 +1,102 @@
+@startuml
+' Diagram: F03b - Hang doi audio thuyet minh per-device (Activity, sub-activity cua F03)
+' Status: VERIFIED
+' Baseline: branch master, current worktree @ HEAD 2497a96
+' Source:
+' - VinhKhanhTourDemo/MainPage.xaml.cs: QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync(), ShowNowPlaying(), HideNowPlaying()
+' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
+' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
+' Note: So do tach rieng phan hang doi audio per-device de F03 khong qua tai. Day la queue *trong 1 thiet bi* (1 nguoi dung), KHONG phai server-side queue khi nhieu khach cung vao 1 quan.
+' Note: Server khong xep hang theo POI. Khi nhieu khach o cung 1 POI, moi may tu quan ly queue cua minh; chong trung audio = cooldown 10 phut + dedup _queuedSpeakPoiIds + _playingPoi check.
+' Note: 3 lop chong trung khi user di chuyen lien tuc giua nhieu POI:
+'   1. _playingPoi.Id == poi.Id           -> POI dang phat: skip
+'   2. _queuedSpeakPoiIds.Contains(poi.Id) -> da co trong queue: skip
+'   3. _speakLock semaphore                -> serial hoa TTS, chi 1 SpeakAsync chay 1 luc
+title F03b - Hang doi audio thuyet minh per-device
+
+|MainPage / Caller|
+start
+:Caller goi QueuePoiPlayback(poi);
+note right
+  Caller gom: F03 geofence trigger,
+  va nut "Nghe lai" (OnListenClicked)
+  trong MainPage.
+end note
+
+|QueuePoiPlayback|
+:lock(_speakQueueGate);
+if (_playingPoi != null VA _playingPoi.Id == poi.Id?) then (Co - dang phat POI nay)
+  :return (skip, khong enqueue);
+  note right: Tranh ghi de chinh POI dang phat
+  stop
+elseif (_queuedSpeakPoiIds.Contains(poi.Id)?) then (Co - da co trong queue)
+  :return (skip, khong enqueue);
+  note right
+    Vi du: user di lap di lap lai
+    quanh mep POI A -> dwell trigger
+    nhieu lan -> chi enqueue 1 lan.
+  end note
+  stop
+else (chua co)
+  :_speakQueue.Enqueue(poi);
+  :_queuedSpeakPoiIds.Add(poi.Id);
+  if (_isProcessingSpeakQueue?) then (Co)
+    :unlock va tra ve\n(processor cu se dequeue tiep);
+  else (Khong)
+    :_isProcessingSpeakQueue = true;
+    :shouldStartProcessor = true;
+  endif
+endif
+:unlock(_speakQueueGate);
+
+if (shouldStartProcessor?) then (Co)
+  :MainThread.BeginInvokeOnMainThread(\n  () => _ = ProcessSpeakQueueAsync());
+else (Khong)
+  stop
+endif
+
+|ProcessSpeakQueueAsync|
+while (true) is (loop drain queue)
+  :lock(_speakQueueGate);
+  if (_speakQueue.Count == 0?) then (Co - rong)
+    :_isProcessingSpeakQueue = false;
+    :unlock + return;
+    stop
+  else (Khong)
+    :poi = _speakQueue.Dequeue();
+    :_queuedSpeakPoiIds.Remove(poi.Id);
+    :unlock(_speakQueueGate);
+    :await SpeakPoiAsync(poi);
+  endif
+endwhile
+
+|SpeakPoiAsync(poi)|
+:await _speakLock.WaitAsync();
+note right
+  Semaphore serial hoa TTS:
+  ngay ca khi processor bi goi
+  song song (race), chi 1 SpeakAsync
+  chay tai 1 thoi diem.
+end note
+:GET /api/thuyet-minh/{poiId}?lang=langCode;
+if (Co NoiDung tu API?) then (Co)
+  :content = NoiDung;
+else (Khong)
+  :content = "Chao mung ban den {TenPOI}"\n(fallback theo langCode);
+endif
+:_playingPoi = poi;
+:ShowNowPlaying(poi);
+:RenderPoiCards();
+:await TextToSpeech.SpeakAsync(content, locale);
+if (Throw exception?) then (Co)
+  :Log error;
+  :Speak fallback "Welcome to {TenPOI}";
+endif
+:LogPlaybackAsync(poi.Id, langCode);
+:POST /api/log (Nguon=GPS);
+:_playingPoi = null;
+:HideNowPlaying();
+:RenderPoiCards();
+:_speakLock.Release();
+stop
+@enduml

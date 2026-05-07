@@ -32,6 +32,14 @@ Vi du: `Mua goi tra phi` la chuc nang. Cac task con ben trong no gom `SetupUi()`
 
 - `00-overall-usecase.puml`: use case tong quan cua toan bo do an.
 
+## Tep bo sung (sub-activity, state, ERD)
+
+| ID | Noi dung | Tep so do |
+| --- | --- | --- |
+| F03b | Hang doi audio thuyet minh per-device: enqueue voi 3 lop chong trung (`_playingPoi`, `_queuedSpeakPoiIds`, `_speakLock` semaphore), processor don, va luong drain queue | `03b-queue-playback-activity.puml`, `03b-queue-playback-sequence.puml` |
+| F11 | State diagram cua `YeuCauThanhToan`: `cho_duyet` -> `da_duyet` / `tu_choi` voi cac transition theo controller CMS va ghi chu rui ro concurrency / polling | `11-yeucauthanhtoan-state.puml` |
+| F12 | ERD tong the: vung POI noi dung (POI/ThuyetMinh/BanDich/MonAn), vung phi duy tri (DangKyDichVu/HoaDon), vung khach hang an danh (DangKyApp/YeuCauThanhToan/VitriKhach/LichSuPhat) noi nhau qua `MaThietBi` (logical key, khong co FK constraint) | `12-erd.puml` |
+
 ## Ghi chu pham vi va trung thuc voi code
 
 - `UploadController` duoc mo hinh nhu task ben trong F06, vi no chi phuc vu thao tac tao/sua POI.

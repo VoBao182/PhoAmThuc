@@ -3,14 +3,15 @@
 ' Status: VERIFIED
 ' Baseline: branch master, current worktree @ HEAD 2497a96
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory(), VerifyCurrentPoiAsync()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Code hien tai xac nhan vao POI sau khi dwell 5 giay trong ban kinh. Heartbeat gui moi 10 giay va refresh POI moi 20 giay voi GPS poll 5 giay.
-' Note: SelectPoiForLocation() sap xep ung vien theo MucUuTien -> DistanceMeters -> TenPOI, giu POI hien tai neu cung muc uu tien va chenh lech <= 5m, va HeartbeatController se verify lai current POI tren server voi tolerance 5m.
-' Note: Geofence/audio luon dua tren toa do that cua POI (ViDo/KinhDo, BanKinh). Neu map hien marker offset de de nhin thi chi la presentation, khong doi logic geofence.
+' Note: Nhanh "giua 2 POI" duoc tach tuong minh: sort theo MucUuTien -> Distance -> TenPOI; hysteresis 5m giu POI cu khi cung MucUuTien.
+' Note: Queue audio per-device (1 may): _speakQueue + _queuedSpeakPoiIds dedup, _speakQueueGate lock, _speakLock semaphore serial hoa TTS. Sub-activity tach o 03b-queue-playback-activity.puml.
+' Note: Geofence/audio luon dua tren toa do that cua POI (ViDo/KinhDo, BanKinh). Marker offset tren map chi la presentation, khong doi logic geofence.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
 :EnsureGpsTrackingAsync();
@@ -28,44 +29,65 @@ while (token chua bi cancel?) is (Co)
     :CheckGeofence(location);
     :UpdateUserLocationOnMap(location);
 
-    :SelectPoiForLocation(location);
-    note right
-      Loc POI co distance <= BanKinh
-      OrderBy MucUuTien (nho hon thang)
-      ThenBy DistanceMeters
-      ThenBy TenPOI
-      Neu _currentPoi cung muc uu tien va
-      chi xa hon top1 <= 5m thi giu _currentPoi
-    end note
+    partition "SelectPoiForLocation - xu ly chong lan giua 2 POI" {
+      :Tinh distance toi tat ca POI;
+      :Loc candidates co distance <= BanKinh;
+      if (candidates rong?) then (Co)
+        :return null;
+      else (Khong)
+        :Sort: MucUuTien ASC -> DistanceMeters ASC -> TenPOI;
+        :top1 = candidates[0];
+        if (_currentPoi null hoac _currentPoi.Id == top1.Id?) then (Co)
+          :return top1;
+        else (Khong - dang giao 2 POI)
+          :Tim _currentPoi trong candidates;
+          if (_currentPoi van trong ban kinh\nVA cung MucUuTien voi top1\nVA chenh top1 <= 5m?) then (Co)
+            :Hysteresis: giu _currentPoi\n(tranh nhay qua lai do GPS jitter);
+          else (Khong)
+            :Doi sang top1\n(POI uu tien cao hon hoac\nxa hon top1 > 5m);
+          endif
+        endif
+      endif
+    }
+
     if (co ung vien POI trong ban kinh?) then (Co)
       if (_candidatePoi khac nearest?) then (Co)
         :Gan _candidatePoi = nearest;
         :Gan _candidateSinceUtc = now;
-        :Cho dwell tiep, chua xac nhan POI;
+        :Reset dwell timer;
+        note right
+          Vao mep POI hoac doi candidate
+          giua chu ky GPS jitter -> dwell
+          reset, KHONG trigger audio.
+        end note
       else (Khong)
         if (dwell < 5 giay?) then (Co)
           :Tiep tuc dwell, chua audio/chua report CMS;
         else (Khong)
           :Xac nhan _currentPoi = nearest;
           :HighlightNearestPoi();\nRenderPoiCards();
-          if (isNewPoi && qua cooldown?) then (Co)
+          if (isNewPoi VA qua cooldown 10 phut?) then (Co)
+            :_lastSpokenTime[poiKey] = now;
             :RecordVisitedPoi(nearest);
             :SyncPoiHistoryAsync();
             :POST /api/heartbeat/sync-history;
             :RecordPoiVisitAsync(nearest);
             :POST /api/heartbeat/visit;
+            note right
+              Server dedup 10 phut o
+              LichSuPhat(Nguon=app-geofence)
+              + verify lai BanKinh+5m.
+            end note
             :QueuePoiPlayback(nearest);
+            note right
+              Sub-activity tach rieng:
+              03b-queue-playback-activity.puml
+              (enqueue voi dedup, processor
+              don, _speakLock serial hoa TTS).
+            end note
             :UpdateCaiDatUI();
-            :GET /api/thuyet-minh/{poiId}?lang=...;
-            if (Co NoiDung/API hop le?) then (Co)
-              :TextToSpeech.Default.SpeakAsync(content);
-            else (Khong)
-              :Speak text fallback;
-            endif
-            :LogPlaybackAsync(poiId, lang);
-            :POST /api/log;
           else (Khong)
-            :Chi highlight / render lai card;
+            :Chi highlight / render lai card\n(hoac chi log "cooldown N phut con lai");
           endif
         endif
       endif
@@ -81,8 +103,11 @@ while (token chua bi cancel?) is (Co)
       :DeviceIdentity.GetDeviceId();
       :POST /api/heartbeat;
       note right
-        Server bo qua toa do ngoai vung phuc vu
-        va verify lai currentPoi voi BanKinh + 5m
+        Server bo qua toa do ngoai vung phuc vu.
+        VerifyCurrentPoiAsync re-check claim:
+        neu user khong con trong BanKinh+5m
+        -> drop currentPoi, CMS hien
+        "online/dang di chuyen" thay vi "o quan".
       end note
     endif
 
