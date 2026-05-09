@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
@@ -22,14 +22,20 @@ participant "HeartbeatController" as HeartbeatController
 participant "ThuyetMinhController" as ThuyetMinhController
 participant "LogController" as LogController
 participant "TextToSpeech" as TTS
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 Guest -> MainPage: cho phep vi tri
 MainPage -> MainPage: EnsureGpsTrackingAsync()\nStartGpsTracking()
 opt dong bo lich su local khi vao lai MainPage
   MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-  HeartbeatController -> DB: chen bo sung VIEW/GPS con thieu theo MaThietBi
-  DB --> HeartbeatController: synced
+  HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+  DbContext -> DB: read existing history rows
+  DB --> DbContext: history rows
+  DbContext --> HeartbeatController: existing rows
+  HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+  DbContext -> DB: persist missing LichSuPhat rows
+  DB --> DbContext: saved
 end
 
 loop moi 5 giay
@@ -62,13 +68,27 @@ loop moi 5 giay
 
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-    HeartbeatController -> DB: dong bo visited/viewed tu local
-    DB --> HeartbeatController: synced
+    HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+    DbContext -> DB: read existing history rows
+    DB --> DbContext: history rows
+    DbContext --> HeartbeatController: existing rows
+    HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+    DbContext -> DB: persist missing LichSuPhat rows
+    DB --> DbContext: saved
 
     MainPage -> HeartbeatController: POST /api/heartbeat/visit
     HeartbeatController -> HeartbeatController: dedup 10 phut\nverify VerifyCurrentPoiAsync (BanKinh+5m)
-    HeartbeatController -> DB: insert LichSuPhat(Nguon="app-geofence")\nneu khong dedup va verify pass
-    DB --> HeartbeatController: saved / skipped
+    HeartbeatController -> DbContext: LichSuPhats.AnyAsync()
+    DbContext -> DB: read recent visit rows
+    DB --> DbContext: AnyAsync result
+    DbContext --> HeartbeatController: daCo
+    HeartbeatController -> DbContext: POIs.AsNoTracking().Where(...).Select(...).FirstOrDefaultAsync()
+    DbContext -> DB: read claimed POI row
+    DB --> DbContext: POI row
+    DbContext --> HeartbeatController: poi
+    HeartbeatController -> DbContext: LichSuPhats.Add()/SaveChangesAsync()
+    DbContext -> DB: persist visit row when needed
+    DB --> DbContext: saved
 
     note right of MainPage
       Tu day chuyen sang SpeakQueue
@@ -86,16 +106,19 @@ loop moi 5 giay
       else enqueue + start processor
     end note
     SpeakQueue -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode
-    ThuyetMinhController -> DB: load ThuyetMinh + BanDich fallback "vi"
-    DB --> ThuyetMinhController: NoiDung / FileAudio
+    ThuyetMinhController -> DbContext: POIs.AnyAsync()/ThuyetMinhs.FirstOrDefaultAsync()/BanDichs.FirstOrDefaultAsync()
+    DbContext -> DB: read POI, ThuyetMinh and BanDich rows
+    DB --> DbContext: rows
+    DbContext --> ThuyetMinhController: dto source rows
     ThuyetMinhController --> SpeakQueue: ThuyetMinhResponse
 
     SpeakQueue -> TTS: SpeakAsync(content)\n(qua _speakLock semaphore - serial)
     TTS --> SpeakQueue: da doc xong
 
     SpeakQueue -> LogController: POST /api/log
-    LogController -> DB: insert LichSuPhat(Nguon="GPS")
-    DB --> LogController: saved
+    LogController -> DbContext: LichSuPhats.Add()/SaveChangesAsync()
+    DbContext -> DB: persist LichSuPhat row
+    DB --> DbContext: saved
   else dwell >= 5s nhung dang cooldown / khong phai POI moi
     MainPage -> MainPage: cap nhat highlight / card / map\n(log "cooldown N phut con lai" neu can)
   end
@@ -108,11 +131,14 @@ loop moi 5 giay
     else toa do hop le
       HeartbeatController -> HeartbeatController: VerifyCurrentPoiAsync(req.PoiIdHienTai, lat, lng)
       alt user van trong BanKinh+5m cua POI claim
-        HeartbeatController -> DB: upsert VitriKhach voi currentPoi da verify
+        HeartbeatController -> DbContext: VitriKhachs.FirstOrDefaultAsync()/SaveChangesAsync()
+        DbContext -> DB: persist verified VitriKhach snapshot
       else user da ra ngoai BanKinh+5m
-        HeartbeatController -> DB: upsert VitriKhach voi currentPoi=null\n(CMS hien "online/dang di chuyen")
+        HeartbeatController -> DbContext: VitriKhachs.FirstOrDefaultAsync()/SaveChangesAsync()
+        DbContext -> DB: persist VitriKhach snapshot without current POI
       end
-      DB --> HeartbeatController: saved
+      DB --> DbContext: saved
+      DbContext --> HeartbeatController: snapshot saved
     end
   end
 

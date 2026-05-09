@@ -1,14 +1,14 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort(), DescribeRemaining(), SubscriptionBadgeClass(), ActivityBadgeClass(), ActivityBadgeText()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
 ' - VinhKhanhTour.API/Models/VitriKhach.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs
-' Note: Da sync theo BanDo hien tai: render server-side, raw Npgsql read co timeout/retry, chi lay toa do trong vung phuc vu va khac 0/0, filter/sort, tinh XP/level, va helper badge/remaining moi.
+' Note: Da sync theo BanDo hien tai: render server-side, helper doc du lieu co timeout/retry, chi lay toa do trong vung phuc vu va khac 0/0, filter/sort, tinh XP/level, va helper badge/remaining moi.
 title F09 - Theo doi khach hang va trang thai su dung
 start
 :BanDo/Index.OnGetAsync(search,filter,sort,dir);
@@ -17,15 +17,13 @@ start
 :onlineCutoff = now - 2 phut;
 :expiringSoonCutoff = now + 7 ngay;
 :LoadSubscriptionsAsync();
-:ExecuteRawReadAsync("goi dang ky");
-:Raw SQL max(ngayhethan), count goi paid,\ntong spent group by mathietbi;
+:Doc tong hop goi dang ky theo MaThietBi;
 :LoadLocationsAsync();
-:ExecuteRawReadAsync("vi tri khach hang");
-:Raw SQL tu vitrikhach,\nchi lay lat/lng trong vung phuc vu va khac 0/0;
+:Doc snapshot vi tri hop le tu VitriKhach;
 :LoadPoiActivityCountsAsync(VisitedSourceValues);
-:Dem DISTINCT poiid cho Nguon GPS/APP-GEOFENCE/APP_GEOFENCE/GEOFENCE;
+:Tong hop so POI da ghe theo nhom Nguon visited;
 :LoadPoiActivityCountsAsync(ViewedSourceValues);
-:Dem DISTINCT poiid cho Nguon VIEW;
+:Tong hop so POI da xem theo Nguon VIEW;
 :BuildCustomerRows() tu subscription,\nlocation, viewed, visited;
 :Hop nhat deviceIds va tinh ExpiresAt,\nremainingDays, remainingHours;
 :Tinh viewedCount, visitedCount,\npaidPackagesCount, totalSpent;

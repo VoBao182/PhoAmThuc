@@ -1,47 +1,57 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Data/AppDbContext.cs
-' Note: Sequence cap nhat theo raw Npgsql query hien tai, summary online/subscription/XP, chi lay toa do trong vung phuc vu, va khong con JS fetch HeartbeatController.
+' Note: Sequence cap nhat theo BanDo hien tai: render server-side, tong hop du lieu dang ky/vi tri/lich su o cap helper method, chi lay toa do hop le trong vung phuc vu.
+' Note: Sequence khong liet ke cau SQL; chi the hien cac ham doc du lieu va xu ly tong hop trong IndexModel.
 title F09 - Theo doi khach hang va trang thai su dung
 
 actor Admin
-participant "BanDo IndexModel" as IndexModel
-participant AppDbContext
-participant "NpgsqlConnection" as Npgsql
-database DB
+control "BanDo IndexModel" as IndexModel
+participant "AppDbContext\n<<persistence>>" as DbContext
+participant "Raw read helper\n(ExecuteRawReadAsync)" as RawRead
+database "PostgreSQL" as DB
 
-Admin -> IndexModel: mo /BanDo?search&filter&sort&dir
+Admin -> IndexModel: OnGetAsync(search, filter, sort, dir)
 IndexModel -> IndexModel: NormalizeOption(filter/sort)\nSortDir\nnow, onlineCutoff, expiringSoonCutoff
 
-IndexModel -> AppDbContext: Database.GetConnectionString()
-IndexModel -> Npgsql: ExecuteRawReadAsync("goi dang ky")
-Npgsql -> DB: SELECT mathietbi, max(ngayhethan)\nFROM dangkyapp GROUP BY mathietbi
-DB --> Npgsql: subscriptions
-Npgsql --> IndexModel: DeviceSubscription[]
+IndexModel -> IndexModel: LoadSubscriptionsAsync()
+IndexModel -> DbContext: Database.GetConnectionString()
+DbContext --> IndexModel: connection string
+IndexModel -> RawRead: ExecuteRawReadAsync("subscriptions")
+RawRead -> DB: read subscription aggregates
+DB --> RawRead: rows
+RawRead --> IndexModel: DeviceSubscription[]
 
-IndexModel -> Npgsql: ExecuteRawReadAsync("vi tri khach hang")
-Npgsql -> DB: SELECT mathietbi, lancuoi_heartbeat,\npoiid_hientai, ten_poi_hientai FROM vitrikhach\nWHERE lat/lng nam trong vung phuc vu va khac 0/0
-DB --> Npgsql: locations
-Npgsql --> IndexModel: DeviceLocation[]
+IndexModel -> IndexModel: LoadLocationsAsync()
+IndexModel -> RawRead: ExecuteRawReadAsync("locations")
+RawRead -> DB: read location snapshots
+DB --> RawRead: rows
+RawRead --> IndexModel: DeviceLocation[]
 
-IndexModel -> Npgsql: LoadPoiActivityCountsAsync(VisitedSourceValues)
-Npgsql -> DB: count DISTINCT poiid theo mathietbi\nWHERE nguon = ANY(visitedSources)
-DB --> Npgsql: visitedCounts
-Npgsql --> IndexModel: DevicePoiCount[]
+IndexModel -> IndexModel: LoadPoiActivityCountsAsync(VisitedSourceValues)
+IndexModel -> RawRead: ExecuteRawReadAsync("visitedCounts")
+RawRead -> DB: read visited POI counts
+DB --> RawRead: rows
+RawRead --> IndexModel: DevicePoiCount[]
 
-IndexModel -> Npgsql: LoadPoiActivityCountsAsync(ViewedSourceValues)
-Npgsql -> DB: count DISTINCT poiid theo mathietbi\nWHERE nguon = ANY(['VIEW'])
-DB --> Npgsql: viewedCounts
-Npgsql --> IndexModel: DevicePoiCount[]
+IndexModel -> IndexModel: LoadPoiActivityCountsAsync(ViewedSourceValues)
+IndexModel -> RawRead: ExecuteRawReadAsync("viewedCounts")
+RawRead -> DB: read viewed POI counts
+DB --> RawRead: rows
+RawRead --> IndexModel: DevicePoiCount[]
 
-IndexModel -> IndexModel: BuildCustomerRows()\nTinh expiresAt/currentPoi/isOnline\nTinh viewed/visited/XP/level
-IndexModel -> IndexModel: tinh TotalCustomers/OnlineCustomers\nActiveSubscriptionCustomers/ExpiringSoonCustomers
+IndexModel -> IndexModel: BuildCustomerRows()
+note right of IndexModel
+  BuildCustomerRows() derives:
+  expiresAt, currentPoi, isOnline,
+  viewedCount, visitedCount,
+  experiencePoints and level.
+end note
 IndexModel -> IndexModel: ApplySearch()\nApplyFilter()\nApplySort()
-IndexModel -> IndexModel: tinh DisplayedCustomers
-IndexModel --> Admin: render bang khach hang + summary tiles
+IndexModel --> Admin: render customer table + summary tiles
 @enduml

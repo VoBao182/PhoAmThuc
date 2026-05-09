@@ -1,47 +1,57 @@
 @startuml
 ' Diagram: F07 - Ghi nhan phi duy tri va lich su hoa don POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/Index.cshtml.cs: OnGetAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/GhiNhan.cshtml.cs: OnGetAsync(), OnPostAsync(), LoadPoiAsync()
 ' - VinhKhanhTour.CMS/Pages/ThanhToan/LichSu.cshtml.cs: OnGetAsync()
-' Note: Sequence mo ta chi tiet luong Razor PageModel hien tai, gom moc gia han, upsert DangKyDichVu, va tao HoaDon theo tung thang; khong suy dien them PaymentController du phong.
+' Note: Sequence mo ta luong Razor PageModel o cap method + persistence, khong liet ke cau SQL.
+' Note: Luong gom moc gia han, upsert DangKyDichVu, va tao HoaDon theo tung thang; khong suy dien them PaymentController du phong.
 title F07 - Ghi nhan phi duy tri va lich su hoa don POI
 
 actor Admin
-participant "ThanhToan/IndexModel" as IndexModel
-participant "GhiNhanModel" as GhiNhanModel
-participant "LichSuModel" as LichSuModel
-participant AppDbContext
-database DB
+control "ThanhToan/IndexModel" as IndexModel
+control "GhiNhanModel" as GhiNhanModel
+control "LichSuModel" as LichSuModel
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
-Admin -> IndexModel: mo /ThanhToan
-IndexModel -> AppDbContext: load POIs + DangKyDichVus active + HoaDons(thang hien tai)
-AppDbContext -> DB: SELECT du lieu thanh toan POI
-DB --> AppDbContext: data
-IndexModel -> IndexModel: lay PhiDuyTriThang moi nhat theo POI
-IndexModel --> Admin: danh sach + thong ke
+Admin -> IndexModel: OnGetAsync()
+IndexModel -> DbContext: POIs.Include(DangKyDichVus).Include(HoaDons).ToListAsync()
+DbContext -> DB: read POI payment rows
+DB --> DbContext: rows
+DbContext --> IndexModel: data
+IndexModel --> Admin: render list + summary
 
-Admin -> GhiNhanModel: mo /ThanhToan/GhiNhan?poiId=...
-GhiNhanModel -> AppDbContext: LoadPoiAsync(poiId)
-AppDbContext -> DB: SELECT POI + DangKyDichVu + 5 HoaDon gan nhat
-DB --> AppDbContext: data
-GhiNhanModel --> Admin: form ghi nhan
+Admin -> GhiNhanModel: OnGetAsync(poiId)
+GhiNhanModel -> DbContext: LoadPoiAsync(poiId)
+DbContext -> DB: read POI package and recent invoices
+DB --> DbContext: rows
+DbContext --> GhiNhanModel: data
+GhiNhanModel --> Admin: render form
 
-Admin -> GhiNhanModel: submit soThangGiaHan, phi, ghiChu
-GhiNhanModel -> AppDbContext: load poi + goi hien tai
-AppDbContext -> DB: SELECT / INSERT / UPDATE
-GhiNhanModel -> GhiNhanModel: neu POI con han -> mocGiaHan = han hien tai\nneu het han -> mocGiaHan = now\ncap nhat POI + upsert DangKyDichVu\ntao HoaDon theo tung ky yyyy-MM
-AppDbContext -> DB: SaveChanges()
-DB --> AppDbContext: saved
-GhiNhanModel --> Admin: redirect /ThanhToan?msg=...
+Admin -> GhiNhanModel: OnPostAsync()
+GhiNhanModel -> DbContext: LoadPoiAsync(poiId)
+DbContext -> DB: read current maintenance state
+DB --> DbContext: rows
+DbContext --> GhiNhanModel: poi + goi
+note right of GhiNhanModel
+  OnPostAsync() computes renewal anchor,
+  updates POI, upserts DangKyDichVu,
+  and creates HoaDon rows by month.
+end note
+GhiNhanModel -> DbContext: SaveChangesAsync()
+DbContext -> DB: persist maintenance changes
+DB --> DbContext: saved
+GhiNhanModel --> Admin: Redirect /ThanhToan
 
-opt xem lich su day du
-  Admin -> LichSuModel: mo /ThanhToan/LichSu?poiId=...
-  LichSuModel -> AppDbContext: query HoaDons cua POI
-  AppDbContext -> DB: SELECT hoadon ORDER BY NgayThanhToan DESC
-  DB --> AppDbContext: hoa don
-  LichSuModel --> Admin: bang lich su
+opt open invoice history
+  Admin -> LichSuModel: OnGetAsync(poiId)
+  LichSuModel -> DbContext: HoaDons.Where(...).OrderByDescending(...).ToListAsync()
+  DbContext -> DB: read invoice history rows
+  DB --> DbContext: HoaDon rows
+  DbContext --> LichSuModel: hoa don
+  LichSuModel --> Admin: render history table
 end
 @enduml

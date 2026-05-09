@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F02 - Tai va kham pha danh sach POI (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), LoadPoisFromApi(), RestoreSubscriptionStateAsync(), RestorePoiHistoryAsync(), RefreshMapIfNeeded(), LoadMap(), GetMapPoiSignature(), GetPoiVisualPositions(), ShowMapPoiSheet(), OnSearchTextChanged(), OpenPoiDetailAsync(), RecordPoiViewAsync(), SyncPoiHistoryAsync(), RefreshPoisInBackgroundAsync(), UpdateCaiDatUI(), OnCopyDeviceCodeClicked(), OnPasteDeviceCodeClicked(), OnScanDeviceQrClicked(), OnRestoreDeviceCodeClicked(), RestoreDeviceCodeAsync()
 ' - VinhKhanhTourDemo/QrScannerPage.xaml.cs: OnBarcodesDetected()
@@ -27,7 +27,8 @@ participant "SubscriptionController" as SubscriptionController
 participant Preferences
 participant "Leaflet WebView" as MapWebView
 participant DetailPage
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 Guest -> MainPage: mo man Explore
 MainPage -> MainPage: OnAppearing()\nApplyLocalizedUiText()\nUpdateCaiDatUI()
@@ -38,8 +39,10 @@ DeviceIdentity --> MainPage: qrUrl
 MainPage -> AppConfig: EnsureApiBaseUrlAsync()
 MainPage -> PoiController: GET /api/poi
 alt API tra du lieu thanh cong
-  PoiController -> DB: query POI dang hoat dong\nNgayHetHanDuyTri >= now
-  DB --> PoiController: danh sach POI
+  PoiController -> DbContext: POIs.Where(...).OrderBy(...).Select(...).ToListAsync()
+  DbContext -> DB: read active POI rows
+  DB --> DbContext: POI rows
+  DbContext --> PoiController: pois
   PoiController --> MainPage: List<PoiDto>
   MainPage -> MainPage: _isUsingFallbackData = false\n_lastDataLoadError = null
 else API loi / khong reachable
@@ -60,8 +63,10 @@ opt restore lich su/XP tu server
   MainPage -> DeviceIdentity: GetDeviceId()
   MainPage -> AppConfig: EnsureApiBaseUrlAsync()
   MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
-  HeartbeatController -> DB: doc LichSuPhat VIEW/GPS theo MaThietBi
-  DB --> HeartbeatController: viewed/visited ids + XP/level
+  HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+  DbContext -> DB: read LichSuPhat rows by MaThietBi
+  DB --> DbContext: LichSuPhat rows
+  DbContext --> HeartbeatController: history rows
   HeartbeatController --> MainPage: UserExperienceProfileResponse
   MainPage -> Preferences: MergeSavedPoiIds(viewed/visited)
   MainPage -> MainPage: UpdateCaiDatUI()
@@ -70,8 +75,13 @@ end
 opt dong bo lich su local sau khi tai POI / vao lai man hinh
   MainPage -> DeviceIdentity: GetDeviceId()
   MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-  HeartbeatController -> DB: kiem tra VIEW/GPS da co\nchen thieu tu ViewedPoiIds/VisitedPoiIds
-  DB --> HeartbeatController: insertedViews / insertedVisits
+  HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+  DbContext -> DB: read existing history rows
+  DB --> DbContext: history rows
+  DbContext --> HeartbeatController: existing rows
+  HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+  DbContext -> DB: persist missing LichSuPhat rows
+  DB --> DbContext: saved
   HeartbeatController --> MainPage: 200 OK
 end
 
@@ -82,11 +92,21 @@ Guest -> MainPage: bam "Xem chi tiet"
 MainPage -> MainPage: OpenPoiDetailAsync(poi)\nRecordViewedPoi(poi)
 MainPage -> Preferences: Save viewed_poi_ids
 MainPage -> HeartbeatController: POST /api/heartbeat/view
-HeartbeatController -> DB: dedup 5 phut + insert LichSuPhat(Nguon="VIEW")
-DB --> HeartbeatController: saved
+HeartbeatController -> DbContext: LichSuPhats.AnyAsync()
+DbContext -> DB: read recent VIEW rows
+DB --> DbContext: AnyAsync result
+DbContext --> HeartbeatController: daCo
+HeartbeatController -> DbContext: LichSuPhats.Add()/SaveChangesAsync()
+DbContext -> DB: persist VIEW row when needed
+DB --> DbContext: saved
 MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-HeartbeatController -> DB: bo sung lich su local neu can
-DB --> HeartbeatController: synced
+HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+DbContext -> DB: read existing history rows
+DB --> DbContext: history rows
+DbContext --> HeartbeatController: existing rows
+HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+DbContext -> DB: persist missing LichSuPhat rows
+DB --> DbContext: saved
 MainPage -> MainPage: UpdateCaiDatUI()
 MainPage -> DetailPage: PushAsync(new DetailPage(poi))
 
@@ -111,18 +131,31 @@ else nguoi dung paste / nhap ma thiet bi
     MainPage -> AppConfig: EnsureApiBaseUrlAsync()
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
-    SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
-    DB --> SubscriptionController: status
+    SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+    DbContext -> DB: read active DangKyApp rows
+    DB --> DbContext: DangKyApp rows
+    DbContext --> SubscriptionController: goi
+    SubscriptionController -> DbContext: DangKyApps.AsNoTracking().AnyAsync()
+    DbContext -> DB: read free-trial usage rows
+    DB --> DbContext: AnyAsync result
+    DbContext --> SubscriptionController: daDungThu
     SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
     MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
     MainPage -> DeviceIdentity: GetDeviceId()
     MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
-    HeartbeatController -> DB: doc VIEW/GPS + XP/level
-    DB --> HeartbeatController: profile
+    HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+    DbContext -> DB: read LichSuPhat rows by MaThietBi
+    DB --> DbContext: LichSuPhat rows
+    DbContext --> HeartbeatController: history rows
     HeartbeatController --> MainPage: UserExperienceProfileResponse
     MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-    HeartbeatController -> DB: bo sung lich su local neu can
-    DB --> HeartbeatController: synced
+    HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+    DbContext -> DB: read existing history rows
+    DB --> DbContext: history rows
+    DbContext --> HeartbeatController: existing rows
+    HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+    DbContext -> DB: persist missing LichSuPhat rows
+    DB --> DbContext: saved
     MainPage -> MainPage: UpdateCaiDatUI()
     MainPage -> DeviceIdentity: BuildRecoveryPayload()
     DeviceIdentity --> MainPage: payload moi
@@ -146,18 +179,31 @@ else nguoi dung scan QR trong Cai dat
       MainPage -> AppConfig: EnsureApiBaseUrlAsync()
       MainPage -> DeviceIdentity: GetDeviceId()
       MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
-      SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
-      DB --> SubscriptionController: status
+      SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+      DbContext -> DB: read active DangKyApp rows
+      DB --> DbContext: DangKyApp rows
+      DbContext --> SubscriptionController: goi
+      SubscriptionController -> DbContext: DangKyApps.AsNoTracking().AnyAsync()
+      DbContext -> DB: read free-trial usage rows
+      DB --> DbContext: AnyAsync result
+      DbContext --> SubscriptionController: daDungThu
       SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
       MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
       MainPage -> DeviceIdentity: GetDeviceId()
       MainPage -> HeartbeatController: GET /api/heartbeat/profile/{maThietBi}
-      HeartbeatController -> DB: doc VIEW/GPS + XP/level
-      DB --> HeartbeatController: profile
+      HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+      DbContext -> DB: read LichSuPhat rows by MaThietBi
+      DB --> DbContext: LichSuPhat rows
+      DbContext --> HeartbeatController: history rows
       HeartbeatController --> MainPage: UserExperienceProfileResponse
       MainPage -> HeartbeatController: POST /api/heartbeat/sync-history
-      HeartbeatController -> DB: bo sung lich su local neu can
-      DB --> HeartbeatController: synced
+      HeartbeatController -> DbContext: LichSuPhats.Where(...).ToListAsync()
+      DbContext -> DB: read existing history rows
+      DB --> DbContext: history rows
+      DbContext --> HeartbeatController: existing rows
+      HeartbeatController -> DbContext: LichSuPhats.AddRange()/SaveChangesAsync()
+      DbContext -> DB: persist missing LichSuPhat rows
+      DB --> DbContext: saved
       MainPage -> MainPage: UpdateCaiDatUI()
       MainPage -> DeviceIdentity: BuildRecoveryPayload()
       DeviceIdentity --> MainPage: payload moi
@@ -177,8 +223,10 @@ opt refresh nen 20 giay
   MainPage -> AppConfig: EnsureApiBaseUrlAsync()
   MainPage -> PoiController: GET /api/poi
   alt API thanh cong
-    PoiController -> DB: query lai POI
-    DB --> PoiController: danh sach moi
+    PoiController -> DbContext: POIs.Where(...).OrderBy(...).Select(...).ToListAsync()
+    DbContext -> DB: read active POI rows
+    DB --> DbContext: POI rows
+    DbContext --> PoiController: pois
     PoiController --> MainPage: List<PoiDto>
   else API loi
     PoiController --> MainPage: exception

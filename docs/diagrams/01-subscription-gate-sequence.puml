@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F01 - Kich hoat va khoi phuc quyen su dung app (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/App.xaml.cs: CreateWindow()
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs: RouteAsync()
@@ -31,7 +31,8 @@ participant PaymentPage
 participant ApiConnectionPrompt
 participant AppConfig
 participant "SubscriptionController" as SubscriptionController
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 Guest -> App: mo ung dung
 App -> LaunchPage: CreateWindow()\nNavigationPage(new LaunchPage)
@@ -66,12 +67,18 @@ end
 
 opt MainPage xuat hien nhung subscription local khong hop le
   MainPage -> MainPage: EnsureSubscriptionGateAsync()
-  MainPage -> Preferences: KiemTraSubscription()
+  MainPage -> MainPage: KiemTraSubscription()
   MainPage -> DeviceIdentity: GetDeviceId()
   MainPage -> AppConfig: EnsureApiBaseUrlAsync()
   MainPage -> SubscriptionController: GET /api/subscription/status/{deviceId}
-  SubscriptionController -> DB: doc DangKyApp con han\nkiem tra da dung thu
-  DB --> SubscriptionController: status
+  SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+  DbContext -> DB: read active DangKyApp rows
+  DB --> DbContext: DangKyApp rows
+  DbContext --> SubscriptionController: goi
+  SubscriptionController -> DbContext: DangKyApps.AsNoTracking().AnyAsync()
+  DbContext -> DB: read free-trial usage rows
+  DB --> DbContext: AnyAsync result
+  DbContext --> SubscriptionController: daDungThu
   SubscriptionController --> MainPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
   MainPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han)
   alt van chua co goi hop le
@@ -96,8 +103,14 @@ else nguoi dung paste / nhap recovery code
     AppConfig --> ApiConnectionPrompt: apiBaseUrl?
     ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
     SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
-    SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
-    DB --> SubscriptionController: status
+    SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+    DbContext -> DB: read active DangKyApp rows
+    DB --> DbContext: DangKyApp rows
+    DbContext --> SubscriptionController: goi
+    SubscriptionController -> DbContext: DangKyApps.AsNoTracking().AnyAsync()
+    DbContext -> DB: read free-trial usage rows
+    DB --> DbContext: AnyAsync result
+    DbContext --> SubscriptionController: daDungThu
     SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
     SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
     SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
@@ -132,8 +145,14 @@ else nguoi dung scan QR recovery
       AppConfig --> ApiConnectionPrompt: apiBaseUrl?
       ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
       SubscriptionPage -> SubscriptionController: GET /api/subscription/status/{restoredDeviceId}
-      SubscriptionController -> DB: doc DangKyApp theo ma thiet bi
-      DB --> SubscriptionController: status
+      SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+      DbContext -> DB: read active DangKyApp rows
+      DB --> DbContext: DangKyApp rows
+      DbContext --> SubscriptionController: goi
+      SubscriptionController -> DbContext: DangKyApps.AsNoTracking().AnyAsync()
+      DbContext -> DB: read free-trial usage rows
+      DB --> DbContext: AnyAsync result
+      DbContext --> SubscriptionController: daDungThu
       SubscriptionController --> SubscriptionPage: CoDangKy, NgayHetHan,\nSoNgayConLai, LoaiGoi, DaDungThu
       SubscriptionPage -> Preferences: Set(da_dung_thu)\nSet(sub_ngay_het_han neu co)
       SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()
@@ -168,8 +187,14 @@ alt nguoi dung chon goi dung thu
   alt ket noi API thanh cong
     ApiConnectionPrompt --> SubscriptionPage: apiBaseUrl
     SubscriptionPage -> SubscriptionController: POST /api/subscription/purchase
-    SubscriptionController -> DB: neu goi thu, kiem tra da dung thu\ninsert DangKyApp
-    DB --> SubscriptionController: saved
+    SubscriptionController -> DbContext: DangKyApps.AnyAsync()
+    DbContext -> DB: read free-trial usage rows
+    DB --> DbContext: AnyAsync result
+    DbContext --> SubscriptionController: daDungThu
+    SubscriptionController -> DbContext: DangKyApps.Add()
+    SubscriptionController -> DbContext: SaveChangesAsync()
+    DbContext -> DB: persist DangKyApp row
+    DB --> DbContext: saved
     SubscriptionController --> SubscriptionPage: ngayHetHan
     SubscriptionPage -> Preferences: Set(sub_ngay_het_han)\nSet(da_dung_thu)
     SubscriptionPage -> SubscriptionPage: UpdateTrialButtonState()\nHideApiGuide()

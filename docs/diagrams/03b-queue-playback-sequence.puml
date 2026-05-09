@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F03b - Hang doi audio thuyet minh per-device (Sequence, sub-sequence cua F03)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/MainPage.xaml.cs: QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync(), OnListenClicked()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
@@ -19,7 +19,8 @@ participant "SpeakPoiAsync\n(qua _speakLock\nsemaphore)" as Speak
 participant "ThuyetMinhController" as ThuyetMinh
 participant "LogController" as LogC
 participant "TextToSpeech" as TTS
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 == Tinh huong 1: Vao POI A lan dau ==
 
@@ -34,14 +35,17 @@ Q --> Proc: A (queue rong sau do)
 Proc -> Speak: await SpeakPoiAsync(A)
 Speak -> Speak: await _speakLock.WaitAsync()
 Speak -> ThuyetMinh: GET /api/thuyet-minh/{A.Id}?lang=vi
-ThuyetMinh -> DB: load BanDich(vi)
-DB --> ThuyetMinh: NoiDung
+ThuyetMinh -> DbContext: POIs.AnyAsync()/ThuyetMinhs.FirstOrDefaultAsync()/BanDichs.FirstOrDefaultAsync()
+DbContext -> DB: read POI, ThuyetMinh and BanDich rows
+DB --> DbContext: rows
+DbContext --> ThuyetMinh: dto source rows
 ThuyetMinh --> Speak: ThuyetMinhResponse
 Speak -> Speak: _playingPoi = A\nShowNowPlaying(A)
 Speak -> TTS: SpeakAsync(content, locale)
 TTS --> Speak: done
 Speak -> LogC: POST /api/log (poiId=A, Nguon=GPS)
-LogC -> DB: insert LichSuPhat
+LogC -> DbContext: LichSuPhats.Add()/SaveChangesAsync()
+DbContext -> DB: persist LichSuPhat row
 Speak -> Speak: _playingPoi = null\nHideNowPlaying()\n_speakLock.Release()
 
 Proc -> Q: lock + check (rong)

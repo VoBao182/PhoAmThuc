@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F04 - Xem chi tiet POI, thuc don, audio guide va chi duong (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/DetailPage.xaml.cs: LoadDetail(), ConfigureAudioPlayer(), OnNgheClicked(), OnAudioWebViewNavigated(), OnAudioWebViewNavigating(), OnMapClicked()
 ' - VinhKhanhTourDemo/FoodImageCatalog.cs: GetPoiImageSource(), GetDishImageSource()
@@ -18,7 +18,8 @@ participant "PoiController" as PoiController
 participant AudioWebView
 participant "TextToSpeech" as TTS
 participant "Google Maps / Browser" as Maps
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 Guest -> DetailPage: mo DetailPage(poi)
 DetailPage -> DetailPage: InitializeAudioBridge()\nApplyLocalizedLabels()
@@ -26,8 +27,10 @@ DetailPage -> AppConfig: EnsureApiBaseUrlAsync()
 DetailPage -> PoiController: GET /api/poi/{id}?lang=_lang
 
 alt API tra ve PoiDetailDto thanh cong
-  PoiController -> DB: Include MonAns + ThuyetMinhs + BanDichs
-  DB --> PoiController: poi detail
+  PoiController -> DbContext: POIs.Include(...).FirstOrDefaultAsync()
+  DbContext -> DB: read POI detail rows
+  DB --> DbContext: POI detail rows
+  DbContext --> PoiController: poi detail
   PoiController --> DetailPage: PoiDetailDto
   DetailPage -> FoodImageCatalog: GetPoiImageSource(AnhDaiDien, TenPOI)
   FoodImageCatalog -> AppConfig: ResolveImageUrl(raw/fallback)

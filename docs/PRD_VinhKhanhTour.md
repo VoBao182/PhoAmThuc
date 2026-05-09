@@ -1,6 +1,12 @@
 # PRD – VinhKhanhTour: Hệ thống hướng dẫn du lịch phố ẩm thực Vĩnh Khánh
 
-> **Phiên bản:** 1.0 | **Ngày:** 17/04/2026
+> **Phiên bản:** 1.3 | **Ngày:** 09/05/2026
+>
+> **Lưu ý phiên bản 1.3:** Bổ sung chi tiết kỹ thuật cho F01–F05 theo cùng format F06–F10: sơ đồ liên quan, phân lớp triển khai, method names và quy tắc nghiệp vụ chính. Đồng bộ cả bản Markdown và DOCX.
+>
+> **Lưu ý phiên bản 1.2:** Đồng bộ với các sequence diagrams F01–F05 đã được chuẩn hoá theo cùng convention UML stereotype như F06–F10 (`AppDbContext <<persistence>>`, `database "PostgreSQL"`, message ở cấp method thay vì SQL).
+>
+> **Lưu ý phiên bản 1.1:** Đánh số lại F06–F10 để khớp với diagrams (`docs/diagrams/06`–`10`); tách luồng thanh toán app thành F05 (phía App) và F08 (phía Admin); bổ sung F10 Dashboard; cập nhật chi tiết kỹ thuật theo các sequence diagrams (UI / PageModel / Persistence).
 
 ---
 
@@ -142,144 +148,331 @@ taikhoan ── hoadon
 
 ### F01 – Khởi động & Subscription Gate
 
-**Mô tả:** Mỗi lần mở app, kiểm tra xem thiết bị có gói hợp lệ không.
+**Mô tả:** Mỗi lần mở app, kiểm tra quyền sử dụng của thiết bị, cho phép kích hoạt dùng thử hoặc khôi phục gói cũ bằng recovery code/QR.
+**Diagrams:** `docs/diagrams/01-subscription-gate-activity.puml`, `01-subscription-gate-sequence.puml`.
+
+**Phân lớp triển khai:**
+
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `LaunchPage.xaml`, `SubscriptionPage.xaml`, `QrScannerPage.xaml` |
+| Page/Control | `LaunchPage.OnAppearing / RouteAsync`, `MainPage.OnAppearing / EnsureSubscriptionGateAsync`, `SubscriptionPage.UpdateRecoveryCard`, `OnMuaGoiClicked`, `OnPasteRecoveryCodeClicked`, `OnEnterRecoveryCodeClicked`, `OnScanRecoveryQrClicked`, `RestoreFromRecoveryCodeAsync`, `RestoreSubscriptionStateAsync`, `ActivateFreeTrialAsync` |
+| Domain/helper | `SubscriptionState.IsSubscriptionActive`, `HasStoredSubscriptionRecord`, `CalculateRemainingDays`, `DeviceIdentity.GetDeviceId`, `BuildRecoveryPayload`, `BuildQrCodeUrl`, `TrySetDeviceIdOverride`, `ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync` |
+| Controller (control) | `SubscriptionController.GetStatus` (`GET /api/subscription/status/{maThietBi}`), `Purchase` (`POST /api/subscription/purchase`) |
+| Persistence | `Preferences` (`sub_ngay_het_han`, `da_dung_thu`, `device_id`, `device_id_override`) + `AppDbContext` → PostgreSQL bảng `dangkyapp` |
 
 **Luồng chính:**
-1. `MainPage.OnAppearing()` → đọc `sub_ngay_het_han` từ `Preferences`
-2. Nếu hết hạn hoặc chưa có → điều hướng sang `SubscriptionPage`
-3. Nếu còn hạn → tải danh sách POI và bắt đầu GPS tracking
+1. `LaunchPage.RouteAsync()` kiểm tra `SubscriptionState.IsSubscriptionActive()`.
+2. Nếu local còn hạn → mở `MainPage`; nếu không → mở `SubscriptionPage(HasStoredSubscriptionRecord())`.
+3. Khi `MainPage.OnAppearing()`, app gọi `EnsureSubscriptionGateAsync()`; nếu local hết hạn, app thử `RestoreSubscriptionStateAsync()` qua API trước khi hiện modal.
+4. Trên `SubscriptionPage`, gói `thu` gọi `ActivateFreeTrialAsync()` → `POST /api/subscription/purchase`; gói trả phí mở `PaymentPage` (F05).
+5. Recovery code/QR đi qua `DeviceIdentity.TrySetDeviceIdOverride()` rồi gọi `GET /api/subscription/status/{deviceId}` để đồng bộ lại hạn gói.
 
-**Điều kiện biên:**
-- Gói miễn phí "thu": chỉ được dùng 1 lần/thiết bị (kiểm tra flag `da_dung_thu`)
-- Gói trả phí: cần trải qua luồng QR → admin duyệt
+**Quy tắc nghiệp vụ chính:**
+- Gói miễn phí `thu` chỉ dùng 1 lần/thiết bị; API kiểm tra `DangKyApp.LoaiGoi == "thu"`.
+- Ngày hết hạn được lưu dạng ISO round-trip vào `Preferences["sub_ngay_het_han"]`.
+- Nếu không kết nối được API, `ApiConnectionPrompt` cho phép nhập base URL thủ công trước khi kích hoạt/khôi phục.
 
 ---
 
 ### F02 – Danh sách & Tìm kiếm POI
 
-**Mô tả:** Hiển thị danh sách quán/điểm tham quan, hỗ trợ tìm kiếm.
+**Mô tả:** Hiển thị danh sách quán/điểm tham quan, hỗ trợ tìm kiếm, render card/map và đồng bộ lịch sử trải nghiệm của thiết bị.
+**Diagrams:** `docs/diagrams/02-poi-explore-activity.puml`, `02-poi-explore-sequence.puml`.
 
-**API:** `GET /api/poi`  
-**Điều kiện lọc:** `TrangThai = true` AND (`NgayHetHanDuyTri IS NULL` OR `NgayHetHanDuyTri > now()`)
+**Phân lớp triển khai:**
 
-**Tính năng:**
-- Tìm kiếm văn bản: lọc theo tên POI (normalize dấu tiếng Việt)
-- Sắp xếp theo `MucUuTien`
-- Hiển thị ảnh đại diện, tên, địa chỉ, số điện thoại
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `MainPage.xaml` (tab Khám phá/Bản đồ/Cài đặt, search box, POI cards), `QrScannerPage.xaml` |
+| Page/Control | `MainPage.OnAppearing`, `LoadPoisFromApi`, `RefreshPoisInBackgroundAsync`, `RenderPoiCards`, `OnSearchTextChanged`, `OpenPoiDetailAsync`, `RestorePoiHistoryAsync`, `SyncPoiHistoryAsync`, `UpdateCaiDatUI`, `RecordPoiViewAsync` |
+| Domain/helper | `DeviceIdentity.GetDeviceId`, `GetSavedPoiIds`, `MergeSavedPoiIds`, `FoodImageCatalog.GetPoiImageSource`, `AppConfig.EnsureApiBaseUrlAsync` |
+| Controller (control) | `PoiController.GetAll` (`GET /api/poi`), `HeartbeatController.GetExperienceProfile` (`GET /api/heartbeat/profile/{maThietBi}`), `SyncHistory` (`POST /api/heartbeat/sync-history`), `RecordView` (`POST /api/heartbeat/view`) |
+| Persistence | `Preferences` (viewed/visited POI ids, device id) + `AppDbContext` → PostgreSQL bảng `poi`, `lichsuphat` |
+
+**Điều kiện lọc API:** `PoiController.GetAll()` chỉ trả POI có `TrangThai = true`, `NgayHetHanDuyTri.HasValue` và `NgayHetHanDuyTri >= DateTime.UtcNow`, sắp xếp theo `MucUuTien`.
+
+**Luồng chính:**
+1. `MainPage.OnAppearing()` qua được subscription gate thì gọi `LoadPoisFromApi()`.
+2. `LoadPoisFromApi()` gọi `GET /api/poi`; nếu lỗi thì dùng `CreateFallbackPois()` để vẫn test được UI.
+3. Sau khi tải dữ liệu, app gọi `RestorePoiHistoryAsync()` và `SyncPoiHistoryAsync()` để đồng bộ viewed/visited/XP.
+4. `RenderPoiCards()` tính khoảng cách theo vị trí hiện tại, hiển thị ảnh, badge, trạng thái gần/đang phát và nút mở chi tiết.
+5. `OnSearchTextChanged()` cập nhật `_searchText` và render lại danh sách tức thời.
+6. Nền GPS gọi `RefreshPoisInBackgroundAsync()` định kỳ để nhận POI mới/sửa/ẩn từ CMS.
+
+**Quy tắc nghiệp vụ chính:**
+- POI quá hạn duy trì bị ẩn khỏi app ngay tại API.
+- Lịch sử xem/ghe được lưu local trước, sau đó sync lên server để CMS/XP không lệch khi có request fire-and-forget bị rớt.
+- `FoodImageCatalog` cung cấp ảnh fallback khi `AnhDaiDien` thiếu hoặc URL không dùng được.
 
 ---
 
 ### F03 – Tự động phát thuyết minh (Geofence + Audio)
 
-**Mô tả:** Khi khách bước vào vùng bán kính của quán, app tự động phát audio guide.
+**Mô tả:** Khi khách bước vào vùng bán kính của quán và đứng đủ thời gian xác nhận, app tự động đưa POI vào hàng đợi phát thuyết minh.
+**Diagrams:** `docs/diagrams/03-geofence-audio-activity.puml`, `03-geofence-audio-sequence.puml`; sub-flow queue: `03b-queue-playback-activity.puml`, `03b-queue-playback-sequence.puml`.
 
-**Luồng:**
-1. GPS poll mỗi 5 giây
-2. Tính khoảng cách đến từng POI bằng Haversine
-3. Nếu `khoangCach <= BanKinh (30m)` → đánh dấu "đang trong geofence"
-4. Gọi `SpeakPoiAsync()` → GET `/api/thuyet-minh/{poiId}?lang={ngonNgu}`
-5. Phát audio file; nếu không có audio → TTS văn bản
-6. Ghi log: `POST /api/log` với `Nguon="GPS"`
-7. Dedup: không phát lại trong vòng 10 phút/POI
+**Phân lớp triển khai:**
+
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `MainPage.xaml` (GPS status, map WebView, now-playing banner, POI highlight) |
+| Page/Control | `EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync` |
+| Domain/helper | `Location.CalculateDistance`, `_lastSpokenTime`, `_speakQueue`, `_queuedSpeakPoiIds`, `_speakLock`, `AppText.LanguageCode`, `TextToSpeech.Default` |
+| Controller (control) | `HeartbeatController.SendHeartbeat` (`POST /api/heartbeat`), `RecordVisit` (`POST /api/heartbeat/visit`), `ThuyetMinhController.GetByPoi`, `LogController.Post` (`POST /api/log`) |
+| Persistence | `Preferences` (visited ids) + `AppDbContext` → PostgreSQL bảng `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich` |
+
+**Luồng geofence:**
+1. `EnsureGpsTrackingAsync()` xin `Permissions.LocationWhenInUse`, sau đó gọi `StartGpsTracking()`.
+2. `StartGpsTracking()` lấy GPS mỗi 5 giây bằng `Geolocation.Default.GetLocationAsync()`.
+3. `CheckGeofence()` gọi `SelectPoiForLocation()` để chọn candidate trong bán kính, ưu tiên `MucUuTien`, sau đó khoảng cách và tên.
+4. POI phải dwell đủ `DwellSecondsToConfirm` trước khi được commit thành `_currentPoi`.
+5. Nếu là POI mới và qua cooldown, app ghi visited local, gọi `RecordPoiVisitAsync()`, cập nhật UI và `QueuePoiPlayback()`.
+6. `ProcessSpeakQueueAsync()` gọi `SpeakPoiAsync()` tuần tự; `SpeakPoiAsync()` lấy nội dung qua `/api/thuyet-minh/{poiId}?lang=...`, đọc TTS và gọi `LogPlaybackAsync()`.
 
 **Heartbeat GPS:**
-- Mỗi 15 giây: `POST /api/heartbeat` với `{Lat, Lng, PoiIdHienTai}`
-- Khi vào geofence: `POST /api/heartbeat/visit` (dedup 5 phút)
+- `SendHeartbeatAsync()` gửi `POST /api/heartbeat` với `{MaThietBi, Lat, Lng, PoiIdHienTai, TenPoiHienTai}` theo chu kỳ tick của GPS.
+- Server `VerifyCurrentPoiAsync()` re-check tọa độ nằm trong `BanKinh + 5m` trước khi tin POI app báo.
+- `RecordVisit` dedup server trong 10 phút cho cùng thiết bị/POI.
+
+**Quy tắc nghiệp vụ chính:**
+- Cooldown audio 10 phút/POI trên app bằng `_lastSpokenTime`.
+- Hysteresis giữ POI hiện tại khi hai POI sát nhau, cùng `MucUuTien` và chênh khoảng cách nhỏ, tránh nháy do GPS jitter.
+- Hàng đợi audio chống trùng bằng 3 lớp: `_playingPoi`, `_queuedSpeakPoiIds`, `_speakLock`.
 
 ---
 
 ### F04 – Chi tiết POI
 
-**Mô tả:** Xem thông tin đầy đủ một quán: thuyết minh, thực đơn, nút nghe audio, chỉ đường.
+**Mô tả:** Xem thông tin đầy đủ một quán: ảnh bìa, thuyết minh, thực đơn, audio guide, audio controls và chỉ đường.
+**Diagrams:** `docs/diagrams/04-poi-detail-activity.puml`, `04-poi-detail-sequence.puml`.
 
-**API:** `GET /api/poi/{id}`  
-**Dữ liệu trả về:** Thông tin POI + `MonAns` + `ThuyetMinhs` với `BanDichs` theo ngôn ngữ hiện tại
+**Phân lớp triển khai:**
 
-**Tính năng:**
-- Chọn ngôn ngữ (vi/en/zh) → tải lại thuyết minh
-- Nút "Nghe" → phát audio hoặc TTS
-- Nút "Chỉ đường" → mở Google Maps với tọa độ POI
-- Ghi log: `POST /api/heartbeat/view` khi mở trang (`Nguon="VIEW"`)
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `DetailPage.xaml` (cover, info, menu, audio WebView, play/pause/stop/slider, nút chỉ đường) |
+| Page/Control | `DetailPage.LoadDetail`, `ConfigureAudioPlayer`, `RenderMenu`, `UseFallback`, `OnNgheClicked`, `OnAudioWebViewNavigated`, `OnAudioWebViewNavigating`, `OnPlayPauseClicked`, `OnStopAudioClicked`, `OnAudioSliderDragCompleted`, `OnMapClicked` |
+| Domain/helper | `FoodImageCatalog.GetPoiImageSource`, `TextToSpeech.Default`, `Browser.Default.OpenAsync`, `AppText.LanguageCode` |
+| Controller (control) | `PoiController.GetById` (`GET /api/poi/{id}?lang={lang}`), `HeartbeatController.RecordView` được gọi từ luồng mở chi tiết ở `MainPage.RecordPoiViewAsync` |
+| Persistence | `AppDbContext` → PostgreSQL bảng `poi`, `monan`, `thuyetminh`, `bandich`, `lichsuphat` |
 
----
+**Dữ liệu trả về:** `PoiController.GetById()` trả thông tin POI + `MonAns` còn `TinhTrang` + `ThuyetMinhs` đang `TrangThai` với bản dịch theo `lang`, fallback về `vi`.
 
-### F05 – Thanh toán QR & Phê duyệt
+**Luồng chính:**
+1. `OpenPoiDetailAsync()` ở `MainPage` ghi viewed local, gọi `RecordPoiViewAsync()` và mở `DetailPage`.
+2. `DetailPage.LoadDetail()` gọi `GET /api/poi/{id}?lang={_lang}`.
+3. Nếu thành công: set ảnh bìa, tên, địa chỉ, số điện thoại, nội dung thuyết minh; sau đó `ConfigureAudioPlayer()` và `RenderMenu()`.
+4. Nếu API lỗi/null: `UseFallback(tenPoi)` hiển thị dữ liệu cơ bản, ảnh fallback và ẩn menu/audio controls không đủ dữ liệu.
+5. `OnNgheClicked()` ưu tiên phát `FileAudio` qua WebView; nếu không có audio file thì dùng TTS đọc `NoiDungThuyetMinh`.
+6. `OnMapClicked()` mở Google Maps bằng tọa độ POI.
 
-**Mô tả:** Luồng thanh toán gói trả phí qua QR VietQR MBBank, admin duyệt thủ công.
-
-**Luồng khách:**
-1. `SubscriptionPage` → chọn gói → gọi `POST /api/subscription/request`
-2. API tạo `YeuCauThanhToan` (status=`cho_duyet`) → trả về `{YeuCauId, NoiDungChuyen}`
-3. `PaymentPage` → hiển thị QR (VietQR) + nội dung CK (VD: `VKT THANG A1B2C3`)
-4. Khách chuyển khoản → nhấn "Đã chuyển" → `PaymentStatusPage`
-5. Polling `GET /api/subscription/request/{id}` mỗi 10 giây
-6. Khi status=`da_duyet` → lưu `NgayHetHan` vào Preferences → đóng luồng
-
-**Luồng Admin CMS (`/DuyetThanhToan`):**
-- Tab 3 trạng thái: Chờ duyệt / Đã duyệt / Từ chối
-- Nút "Duyệt" → `POST /api/subscription/approve/{id}` → tạo `DangKyApp` + cập nhật status
-- Nút "Từ chối" → modal nhập lý do → `POST /api/subscription/reject/{id}`
+**Quy tắc nghiệp vụ chính:**
+- Menu nhóm theo `PhanLoai`; không có món thì ẩn section menu.
+- Audio file có các control `playAudio`, `pauseAudio`, `stopAudio`, `seekAudio`; trạng thái trả về qua URL scheme `audiostate://`.
+- `POST /api/heartbeat/view` dedup server 5 phút cho cùng thiết bị/POI.
 
 ---
 
-### F06 – Bản đồ Live & Theo dõi khách
+### F05 – Thanh toán gói trả phí (App side)
 
-**Mô tả:** CMS hiển thị bản đồ Leaflet với vị trí khách đang online và các POI.
+**Mô tả:** Luồng đặt yêu cầu thanh toán gói trả phí qua QR VietQR MBBank, app polling chờ admin duyệt.
+**Diagrams:** `docs/diagrams/05-paid-plan-activity.puml`, `05-paid-plan-sequence.puml`.
 
-**API:** `GET /api/heartbeat/active` → thiết bị heartbeat trong 2 phút qua
+**Phân lớp triển khai:**
 
-**Dữ liệu hiển thị:**
-- POI: icon camera màu theo trạng thái duy trì
-- Khách online: dot xanh tại tọa độ GPS
-- Tooltip: Device ID (rút gọn), POI hiện tại, số quán đã ghé/xem, thời gian còn lại
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `SubscriptionPage.xaml`, `PaymentPage.xaml`, `PaymentStatusPage.xaml` |
+| Page/Control | `SubscriptionPage.OnMuaGoiClicked`, `PaymentPage.SetupUi`, `OnCopyNoiDungClicked`, `OnDaChuyenKhoanClicked`, `OnConfigureApiClicked`, `PaymentStatusPage.OnAppearing`, `StartPollingAsync`, `PollStatusAsync`, `ShowSuccess`, `ShowRejected`, `ClosePaymentFlowAsync` |
+| Domain/helper | `DeviceIdentity.GetDeviceId`, `ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync`, `SubscriptionState.CalculateRemainingDays`, `AppConfig.EnsureApiBaseUrlAsync` |
+| Controller (control) | `SubscriptionController.CreateRequest` (`POST /api/subscription/request`), `GetRequestStatus` (`GET /api/subscription/request/{yeuCauId}`) |
+| Persistence | `Preferences["sub_ngay_het_han"]` + `AppDbContext` → PostgreSQL bảng `yeucauthanhtoan`, `dangkyapp` |
 
-**Lịch sử hành trình:**
-- Click vào thiết bị → `GET /api/heartbeat/history/{deviceShort}`
-- Popup hiển thị danh sách POI đã ghé (4 giờ gần nhất), thời điểm, nguồn (GPS/VIEW)
+**Luồng khách (App):**
+1. `SubscriptionPage.OnMuaGoiClicked()` nhận `CommandParameter` gói trả phí và mở `PaymentPage(loaiGoi)`.
+2. `PaymentPage.SetupUi()` lấy `DeviceIdentity.GetDeviceId()`, tạo nội dung chuyển khoản `VKT <GOI> <SHORTID>` và URL QR VietQR MBBank.
+3. Khách chuyển khoản rồi bấm "Đã chuyển" → `OnDaChuyenKhoanClicked()` đảm bảo API kết nối được, sau đó gọi `POST /api/subscription/request`.
+4. API `CreateRequest` chuẩn hóa `MaThietBi`, tạo `YeuCauThanhToan` (`TrangThai=cho_duyet`) và trả `{YeuCauId, SoTien, Ten, NoiDungChuyen, TrangThai}`.
+5. App mở `PaymentStatusPage(yeuCauId, loaiGoi, noiDung)` và `StartPollingAsync()` gọi `PollStatusAsync()` mỗi 10 giây.
+6. Khi `TrangThai=da_duyet`, `ShowSuccess()` lưu `NgayHetHan` vào `Preferences`, hiển thị số ngày còn lại và `ClosePaymentFlowAsync(closeSubscriptionPage:true)` đưa khách vào `MainPage`.
+7. Khi `TrangThai=tu_choi`, `ShowRejected()` hiển thị `GhiChuAdmin`, cho phép thử lại hoặc đóng luồng.
 
-**Auto-refresh:** 30 giây
+**Quy tắc nghiệp vụ chính:**
+- Gói hợp lệ phía app: `ngay`, `tuan`, `thang`, `nam`; gói `thu` đi qua F01 (`/purchase`), không tạo yêu cầu duyệt.
+- Nội dung chuyển khoản được sinh từ device id đã normalize, ví dụ `VKT THANG A1B2C3`.
+- Polling bỏ qua lỗi mạng tạm thời và tiếp tục chờ chu kỳ sau.
+
+**State machine `YeuCauThanhToan`:** xem `docs/diagrams/11-yeucauthanhtoan-state.puml` (`cho_duyet → da_duyet | tu_choi`).
+
+> Phía Admin duyệt/từ chối được tách thành **F08** để khớp với diagram F08.
 
 ---
 
-### F07 – Quản lý POI (CMS)
+### F06 – Quản lý POI, ảnh, geofence, thuyết minh và menu (CMS)
 
-**Mô tả:** CRUD quán ăn, thực đơn, thuyết minh qua CMS.
+**Mô tả:** CRUD quán ăn, ảnh, vùng geofence, thuyết minh đa ngôn ngữ và thực đơn qua CMS.
+**Diagrams:** `docs/diagrams/06-cms-poi-management-activity.puml`, `06-cms-poi-management-sequence.puml`.
 
-| Chức năng | URL CMS | API sử dụng |
-|---|---|---|
-| Danh sách POI | `/Poi` | EF Core trực tiếp |
-| Tạo POI mới | `/Poi/Create` | `POST /api/upload` cho ảnh |
-| Chỉnh sửa POI | `/Poi/Edit/{id}` | EF Core trực tiếp |
-| Quản lý thuyết minh | `/ThuyetMinh/Edit/{id}` | EF Core trực tiếp |
-| Xem dashboard | `/` | EF Core: TongPOI, SoQuanQuaHan |
+**Phân lớp triển khai:**
+
+| Lớp | Thành phần |
+|---|---|
+| UI (boundary) | `Pages/Poi/Index.cshtml`, `Create.cshtml`, `Edit.cshtml`, `Pages/ThuyetMinh/Edit.cshtml` |
+| PageModel (control) | `IndexModel.OnGetAsync / OnPostToggleAsync`, `CreateModel.OnPostAsync`, `EditModel.OnPostAsync`, helper `ImageUrlHelper.ResolvePoi/ResolveDish` |
+| Controller (control) | `UploadController.Upload` (`POST /api/upload`) |
+| Persistence | `AppDbContext` (EF Core) → PostgreSQL; collection `wwwroot/uploads` |
+
+**Quy tắc nghiệp vụ chính:**
+- POI tạo mới mặc định được **free trial 30 ngày**: nếu `NgayHetHanDuyTri` null thì gán `UtcNow + 30 ngày`.
+- `MonAns`: lọc bỏ dòng trống (không có `TenMonAn`); `DonGia` null → 0.
+- Khi sửa POI: load lại entity graph (`POI.Include(MonAns).Include(ThuyetMinhs)`), upsert `BanDich`, deactivate những `MonAn` đã bị xoá khỏi form.
+- Bật/tắt hiển thị POI: `IndexModel.OnPostToggleAsync` đảo `POI.TrangThai`.
 
 **Upload ảnh:**
-- `POST /api/upload` — giới hạn 5MB, định dạng: .jpg, .jpeg, .png, .webp, .gif
-- Lưu tại `wwwroot/uploads/`
+- `POST /api/upload` — giới hạn **5MB**, định dạng: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`.
+- Lưu tại `VinhKhanhTour.API/wwwroot/uploads/`; URL trả về dạng `/uploads/{filename}`.
+
+**Xử lý lỗi:**
+- `DbUpdateConcurrencyException` khi sửa: log warning, set `TempData["Error"]`, redirect reload trang Edit.
+- Lỗi DB khác: log error, hiển thị `TempData["Error"]`, render lại form.
 
 ---
 
-### F08 – Quản lý Phí Duy Trì POI
+### F07 – Ghi nhận phí duy trì và lịch sử hóa đơn POI (CMS)
 
-**Mô tả:** Admin ghi nhận thanh toán phí hàng tháng của chủ quán.
+**Mô tả:** Admin ghi nhận thanh toán phí duy trì hàng tháng của chủ quán và xem lịch sử hóa đơn.
+**Diagrams:** `docs/diagrams/07-maintenance-payment-activity.puml`, `07-maintenance-payment-sequence.puml`.
 
-**Luồng:**
-1. `/ThanhToan` → danh sách POI với trạng thái hạn
-2. `/ThanhToan/GhiNhan/{poiId}` → chọn số tháng → `POST /api/payment/maintenance`
-3. API tạo `HoaDon` (mỗi tháng một dòng) + gia hạn `NgayHetHanDuyTri`
-4. `/ThanhToan/LichSu/{poiId}` → xem lịch sử hóa đơn
+**Phân lớp triển khai:**
 
-**Cảnh báo quá hạn:** Dashboard hiển thị số quán quá hạn; POI quá hạn bị ẩn khỏi app.
+| Lớp | Thành phần |
+|---|---|
+| UI | `Pages/ThanhToan/Index.cshtml`, `GhiNhan.cshtml`, `LichSu.cshtml` |
+| PageModel | `ThanhToan/IndexModel.OnGetAsync`, `GhiNhanModel.OnGetAsync / OnPostAsync / LoadPoiAsync`, `LichSuModel.OnGetAsync` |
+| Persistence | `AppDbContext` → PostgreSQL (bảng `poi`, `dangkydichvu`, `hoadon`) |
+
+**Luồng ghi nhận thanh toán (`GhiNhanModel.OnPostAsync`):**
+1. `LoadPoiAsync(poiId)` → đọc POI + gói `DangKyDichVu` + 5 hóa đơn gần nhất.
+2. Tính **mốc gia hạn**: nếu POI còn hạn → `mocGiaHan = NgayHetHanDuyTri hiện tại`; nếu đã quá hạn → `mocGiaHan = now`.
+3. Cập nhật `POI.NgayHetHanDuyTri = mocGiaHan + soThangGiaHan tháng`, upsert `DangKyDichVu` (phí, ghi chú).
+4. Tạo dòng `HoaDon` cho **từng kỳ `yyyy-MM`** trong khoảng gia hạn (mỗi tháng một dòng).
+5. `SaveChangesAsync()` → redirect `/ThanhToan?msg=...`.
+
+**Lịch sử (`LichSuModel.OnGetAsync(poiId)`):** đọc `HoaDons` theo POI, sắp xếp giảm dần `NgayThanhToan`, render bảng.
+
+**Cảnh báo quá hạn:** Dashboard (F10) hiển thị `SoQuanQuaHan`; POI quá hạn bị **ẩn khỏi app** (xem F02 điều kiện lọc).
 
 ---
 
-### F09 – Xác thực CMS
+### F08 – Duyệt hoặc từ chối thanh toán gói app (CMS)
 
-**Mô tả:** Đăng nhập quản trị viên vào CMS.
+**Mô tả:** Admin xem và xử lý yêu cầu thanh toán gói app do khách gửi từ F05.
+**Diagrams:** `docs/diagrams/08-app-payment-approval-activity.puml`, `08-app-payment-approval-sequence.puml`.
 
-**API:** `POST /api/auth/login` → kiểm tra `TenDangNhap` + `MatKhau`
+**Phân lớp triển khai:**
 
-> **Lưu ý:** Phiên bản demo dùng plain-text password. Sản phẩm thực tế cần BCrypt + JWT.
+| Lớp | Thành phần |
+|---|---|
+| UI | `Pages/DuyetThanhToan/Index.cshtml` (3 tab: `cho_duyet`, `da_duyet`, `tu_choi`) + JS polling |
+| PageModel | `DuyetThanhToan.IndexModel.OnGetAsync(tab)`, `OnGetPendingSnapshotAsync`, `OnPostApproveAsync(yeuCauId)`, `OnPostRejectAsync(yeuCauId, lyDo)` |
+| Persistence | `AppDbContext` → PostgreSQL (bảng `yeucauthanhtoan`, `dangkyapp`) |
+
+**Polling snapshot (JS → `OnGetPendingSnapshotAsync`):**
+- Trả về `{ Count, LatestId, LatestTransferContent }` để cập nhật badge và toast khi có yêu cầu mới mà không cần reload.
+
+**Duyệt (`OnPostApproveAsync`):**
+1. Đọc `YeuCauThanhToan` + `DangKyApp` còn hạn của `MaThietBi`.
+2. Tính `mocBatDau`: nếu còn hạn → `NgayHetHan` hiện tại; nếu hết hạn → `now`.
+3. Tính `NgayHetHan` mới = `mocBatDau + thời hạn của LoaiGoi`.
+4. Tạo `DangKyApp` mới + đổi `YeuCauThanhToan.TrangThai = da_duyet`, set `NgayDuyet`.
+5. Redirect `?tab=cho_duyet`.
+
+**Từ chối (`OnPostRejectAsync`):**
+1. Đọc `YeuCauThanhToan`.
+2. Cập nhật `TrangThai = tu_choi`, `NgayDuyet = now`, `GhiChuAdmin = lyDo`.
+3. Redirect `?tab=tu_choi`.
+
+---
+
+### F09 – Bản đồ Live & Theo dõi khách hàng (CMS)
+
+**Mô tả:** CMS render server-side trang theo dõi khách hàng — bảng danh sách + summary tiles tổng hợp từ `dangkyapp`, `vitrikhach`, `lichsuphat`.
+**Diagrams:** `docs/diagrams/09-live-map-activity.puml`, `09-live-map-sequence.puml`.
+
+**Phân lớp triển khai:**
+
+| Lớp | Thành phần |
+|---|---|
+| UI | `Pages/BanDo/Index.cshtml` — tham số `search`, `filter`, `sort`, `dir` |
+| PageModel | `BanDo.IndexModel.OnGetAsync`, `LoadSubscriptionsAsync`, `LoadLocationsAsync`, `LoadPoiActivityCountsAsync`, `BuildCustomerRows`, `ApplySearch`, `ApplyFilter`, `ApplySort`, helper `DescribeRemaining`, `SubscriptionBadgeClass`, `ActivityBadgeClass`, `ActivityBadgeText` |
+| Persistence helper | `ExecuteRawReadAsync` (raw read helper trên `Database.GetConnectionString()`) → PostgreSQL |
+
+**Mốc thời gian tính toán trong `OnGetAsync`:**
+- `now` = `DateTime.UtcNow`.
+- `onlineCutoff = now - 2 phút` → tiêu chí khách đang online.
+- `expiringSoonCutoff = now + 7 ngày` → tiêu chí gói sắp hết hạn.
+
+**4 nguồn dữ liệu (đọc qua `ExecuteRawReadAsync`):**
+
+| Helper | Tổng hợp |
+|---|---|
+| `LoadSubscriptionsAsync()` | Theo `MaThietBi`: `max(NgayHetHan)`, số gói `paid`, tổng tiền đã chi |
+| `LoadLocationsAsync()` | Snapshot vị trí từ `vitrikhach` — **chỉ lấy `lat/lng` trong vùng phục vụ và khác (0,0)** |
+| `LoadPoiActivityCountsAsync(VisitedSourceValues)` | `count DISTINCT POIId` theo `Nguon ∈ {GPS, APP-GEOFENCE, APP_GEOFENCE, GEOFENCE}` |
+| `LoadPoiActivityCountsAsync(ViewedSourceValues)` | `count DISTINCT POIId` theo `Nguon ∈ {VIEW}` |
+
+**`BuildCustomerRows()`:** hợp nhất `MaThietBi` từ 4 nguồn, tính `expiresAt`, `remainingDays/Hours`, `currentPoi`, `isOnline`, `viewedCount`, `visitedCount`, `paidPackagesCount`, `totalSpent`, `experiencePoints`, `level`.
+
+**Summary tiles:** `TotalCustomers`, `OnlineCustomers`, `ActiveSubscriptionCustomers`, `ExpiringSoonCustomers`.
+
+**Tìm kiếm / Lọc / Sắp xếp:** `ApplySearch` (theo `MaThietBi` rút gọn / POI hiện tại), `ApplyFilter` (online, paid, expiring_soon...), `ApplySort` (theo last activity / XP / spent).
+
+> **Lưu ý cập nhật v1.1:** Trang BanDo trong v1.0 là Leaflet map + JS fetch `HeartbeatController`. Phiên bản hiện tại đã chuyển hoàn toàn sang **server-side rendering** + bảng + summary tiles, **không còn** JS polling `/api/heartbeat/active`. Các API heartbeat (mục 8.3) vẫn phục vụ mobile app.
+
+---
+
+### F10 – Dashboard tổng quan và monitoring CMS
+
+**Mô tả:** Trang chủ CMS (`/`) hiển thị tổng quan POI, monitoring hoạt động khách, doanh thu theo nhiều phạm vi thời gian.
+**Diagrams:** `docs/diagrams/10-dashboard-activity.puml`, `10-dashboard-sequence.puml`.
+
+**Phân lớp triển khai:**
+
+| Lớp | Thành phần |
+|---|---|
+| UI | `Pages/Index.cshtml` — tham số `mode`, `date`, `week`, `month`, `year`, `from`, `to` |
+| PageModel | `CMS.IndexModel.OnGetAsync`, `ResolveRange`, `LoadPoiSectionAsync`, `LoadAnalyticsWithRetryAsync`, `FillMissingBuckets`, helper `ImageUrlHelper.ResolvePoi` |
+| Analytics read helper | `LoadAnalyticsAsync`, `LoadActivityAsync`, `LoadGeoAsync`, `LoadTopPoiAsync`, `LoadRevenueAsync`, `LoadSummaryAsync` (chia sẻ chung 1 `DbConnection` từ `AppDbContext.Database.GetDbConnection()`) |
+| Persistence | `AppDbContext` → PostgreSQL |
+
+**`ResolveRange()` — 11 chế độ phạm vi thời gian:** `today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `this_year`, `day`, `week`, `month`, `year`, `custom` (trong đó `day/week/month/year` ghép cặp với `date/week/month/year`; `custom` dùng `from/to`).
+
+**2 pha tải dữ liệu:**
+1. **POI section (`LoadPoiSectionAsync`):** đọc `POIs.Include(MonAns)` theo `MucUuTien` → tính `TongPOI`, `POIDangHoatDong`, `SoQuanQuaHan`.
+2. **Analytics (`LoadAnalyticsWithRetryAsync`):** mở `DbConnection` chia sẻ → gọi 5 nhóm helper bên dưới. Khi lỗi pool, `ClearNpgsqlPoolsQuietly` rồi retry một lần.
+
+**5 nhóm analytics (mỗi nhóm 1 helper):**
+
+| Helper | Đầu ra | Mô tả |
+|---|---|---|
+| `LoadActivityAsync` | `ActivityBuckets[]` | Chuỗi thời gian: active users / views / visits theo bucket (`granularity`) |
+| `LoadGeoAsync` | `GeoPoints[]` | Toạ độ POI để vẽ heatmap, **chỉ lấy điểm nằm trong vùng phục vụ** |
+| `LoadTopPoiAsync` | `TopPoi[]` | Top POI theo `views` / `visits` |
+| `LoadRevenueAsync` | `RevenueBuckets[]` | Doanh thu app (`dangkyapp`) + duy trì (`hoadon`) theo bucket |
+| `LoadSummaryAsync` | `summary` | `TotalActiveDevices`, `TotalViews`, `TotalVisits`, `TotalRevenue` |
+
+**`FillMissingBuckets`:** chèn bucket trống để chart hiển thị liên tục. Sau cùng, IndexModel serialize `ActivityJson`, `GeoJson`, `RevenueJson` cho client render.
+
+**Stats grid (3 thẻ thống kê chính):**
+
+| Thẻ | Công thức |
+|---|---|
+| `TongPOI` | `POIs.Count()` — tất cả POI, **kể cả POI chưa gia hạn** |
+| `POIDangHoatDong` | `POIs.Count(p => p.TrangThai && p.NgayHetHanDuyTri >= now)` |
+| `Ngôn ngữ` | Hard-code = **3** (vi/en/zh) |
+
+Ngoài ra còn `SoQuanQuaHan = POIs.Count(p => p.TrangThai && (p.NgayHetHanDuyTri == null || p.NgayHetHanDuyTri < now))` để cảnh báo cho F07.
 
 ---
 
@@ -311,9 +504,10 @@ taikhoan ── hoadon
 
 ### 7.4 Bảo mật
 
-- CMS chạy nội bộ (không public internet) — không cần auth phức tạp cho demo
-- App không lưu thông tin cá nhân — chỉ Device UUID (tự sinh)
-- Supabase connection string không commit vào repository công khai
+- **Xác thực CMS:** đăng nhập admin qua `POST /api/auth/login` (kiểm tra `TenDangNhap` + `MatKhau` trong bảng `taikhoan`); đăng ký qua `POST /api/auth/register`. *Phiên bản demo dùng plain-text password — sản phẩm thực tế cần BCrypt + JWT.* (Tính năng phụ trợ, không có sequence diagram riêng.)
+- CMS chạy nội bộ (không public internet) — không cần auth phức tạp cho demo.
+- App không lưu thông tin cá nhân — chỉ Device UUID (tự sinh).
+- Supabase connection string không commit vào repository công khai.
 
 ---
 
@@ -397,12 +591,12 @@ VinhKhanhTour.API/
 
 VinhKhanhTour.CMS/
 └── Pages/
-    ├── Index.cshtml(.cs)           ← Dashboard
-    ├── Poi/                        ← CRUD quán ăn
-    ├── ThuyetMinh/                 ← Quản lý thuyết minh
-    ├── ThanhToan/                  ← Phí duy trì POI
-    ├── DuyetThanhToan/             ← Duyệt thanh toán app
-    └── BanDo/                      ← Bản đồ live
+    ├── Index.cshtml(.cs)           ← Dashboard tổng quan + monitoring (F10)
+    ├── Poi/                        ← CRUD quán ăn (F06)
+    ├── ThuyetMinh/                 ← Quản lý thuyết minh (F06)
+    ├── ThanhToan/                  ← Phí duy trì POI (F07)
+    ├── DuyetThanhToan/             ← Duyệt thanh toán app (F08)
+    └── BanDo/                      ← Theo dõi khách hàng / live customer tracking (F09)
 ```
 
 ---
@@ -417,12 +611,12 @@ Khách du lịch:
   - Thanh toán gia hạn gói qua QR
 
 Quản trị viên:
-  - Quản lý quán ăn (CRUD, upload ảnh)
-  - Quản lý nội dung thuyết minh + bản dịch đa ngôn ngữ
-  - Xem bản đồ live + lịch sử hành trình khách
-  - Duyệt/từ chối yêu cầu thanh toán app
-  - Ghi nhận phí duy trì quán hàng tháng
-  - Xem dashboard tổng quan
+  - Quản lý quán ăn (CRUD, upload ảnh) — F06
+  - Quản lý nội dung thuyết minh + bản dịch đa ngôn ngữ — F06
+  - Ghi nhận phí duy trì quán hàng tháng + xem lịch sử hóa đơn — F07
+  - Duyệt/từ chối yêu cầu thanh toán app — F08
+  - Theo dõi khách hàng & trạng thái sử dụng (online, gói, XP, POI đã ghé/xem) — F09
+  - Xem dashboard tổng quan + monitoring (POI, hoạt động, geo, top POI, doanh thu) — F10
 ```
 
 ---
@@ -434,11 +628,12 @@ Quản trị viên:
 | Hướng dẫn du lịch tự động (audio guide) | ✅ Hoàn thành |
 | Đa ngôn ngữ (vi/en/zh) | ✅ Hoàn thành |
 | Geofence tự động phát thuyết minh | ✅ Hoàn thành |
-| Subscription & QR payment | ✅ Hoàn thành |
-| CMS quản lý nội dung | ✅ Hoàn thành |
-| Bản đồ live tracking | ✅ Hoàn thành |
-| Duyệt thanh toán CMS | ✅ Hoàn thành |
-| Phí duy trì POI | ✅ Hoàn thành |
+| Subscription & QR payment (App, F05) | ✅ Hoàn thành |
+| CMS quản lý POI / thuyết minh / menu (F06) | ✅ Hoàn thành |
+| Phí duy trì POI (F07) | ✅ Hoàn thành |
+| Duyệt thanh toán app từ CMS (F08) | ✅ Hoàn thành |
+| Theo dõi khách hàng & trạng thái sử dụng (F09) | ✅ Hoàn thành |
+| Dashboard tổng quan & monitoring CMS (F10) | ✅ Hoàn thành |
 | Xác thực JWT cho API | ❌ Ngoài phạm vi (demo plain text) |
 | Push notification | ❌ Ngoài phạm vi |
 | iOS | ❌ Ngoài phạm vi |

@@ -1,21 +1,22 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan va monitoring CMS (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
-' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, shared EF connection, va serialize JSON cho chart/heatmap/revenue.
+' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, shared connection, va serialize JSON cho chart/heatmap/revenue.
+' Note: Sequence chi the hien method/step cua IndexModel va persistence helper, khong liet ke cau SQL.
 ' Note: 3 the thong ke o stats-grid: TongPOI (tat ca POI ke ca chua gia han), POIDangHoatDong (TrangThai=true va con han duy tri), Ngon ngu (3).
 title F10 - Dashboard tong quan va monitoring CMS
 
 actor Admin
-participant "CMS IndexModel" as IndexModel
-participant AppDbContext
-participant "DbConnection/NpgsqlCommand" as Npgsql
-database DB
+control "CMS IndexModel" as IndexModel
+participant "AppDbContext\n<<persistence>>" as DbContext
+participant "Analytics read helper" as AnalyticsRead
+database "PostgreSQL" as DB
 
-Admin -> IndexModel: mo /?mode&date&week&month&year&from&to
+Admin -> IndexModel: OnGetAsync(mode, date, week, month, year, from, to)
 IndexModel -> IndexModel: ResolveRange()
 note right of IndexModel
   Mode:
@@ -24,33 +25,43 @@ note right of IndexModel
   day, week, month, year, custom
 end note
 
-IndexModel -> AppDbContext: LoadPoiSectionAsync()\nPOIs.Include(MonAns)
-AppDbContext -> DB: SELECT poi + monan ORDER BY MucUuTien
-DB --> AppDbContext: POIs
-IndexModel -> IndexModel: TongPOI = POIs.Count\nPOIDangHoatDong = POIs.Count(p =>\n  p.TrangThai && NgayHetHanDuyTri >= now)\nSoQuanQuaHan = POIs.Count(p =>\n  p.TrangThai && (null || NgayHetHanDuyTri < now))
+IndexModel -> DbContext: LoadPoiSectionAsync()
+DbContext -> DB: read POI and MonAn rows
+DB --> DbContext: POIs
+DbContext --> IndexModel: POIs
+note right of IndexModel
+  LoadPoiSectionAsync() computes:
+  TongPOI, POIDangHoatDong,
+  and SoQuanQuaHan.
+end note
 
 IndexModel -> IndexModel: LoadAnalyticsWithRetryAsync()
-IndexModel -> AppDbContext: Database.GetDbConnection()
-AppDbContext --> IndexModel: DbConnection
-IndexModel -> Npgsql: LoadActivityAsync(conn, since, until, granularity)
-Npgsql -> DB: SELECT date_trunc, active_users,\nviews, visits FROM lichsuphat
-DB --> Npgsql: ActivityBuckets
+IndexModel -> DbContext: Database.GetDbConnection()
+DbContext --> IndexModel: connection
+IndexModel -> AnalyticsRead: LoadActivityAsync(conn, since, until, granularity)
+AnalyticsRead -> DB: read activity buckets
+DB --> AnalyticsRead: ActivityBuckets
+AnalyticsRead --> IndexModel: ActivityBuckets
 
-IndexModel -> Npgsql: LoadGeoAsync(conn, since, until)
-Npgsql -> DB: SELECT poi lat/lng/name,\nCOUNT(*) FROM lichsuphat JOIN poi\nWHERE toa do trong vung phuc vu
-DB --> Npgsql: GeoPoints
+IndexModel -> AnalyticsRead: LoadGeoAsync(conn, since, until)
+AnalyticsRead -> DB: read geo points
+DB --> AnalyticsRead: GeoPoints
+AnalyticsRead --> IndexModel: GeoPoints
 
-IndexModel -> Npgsql: LoadTopPoiAsync(conn, since, until)
-Npgsql -> DB: SELECT top POI views/visits
-DB --> Npgsql: TopPoi
+IndexModel -> AnalyticsRead: LoadTopPoiAsync(conn, since, until)
+AnalyticsRead -> DB: read top POI metrics
+DB --> AnalyticsRead: TopPoi
+AnalyticsRead --> IndexModel: TopPoi
 
-IndexModel -> Npgsql: LoadRevenueAsync(conn, since, until, granularity)
-Npgsql -> DB: SELECT revenue tu dangkyapp va hoadon
-DB --> Npgsql: RevenueBuckets
+IndexModel -> AnalyticsRead: LoadRevenueAsync(conn, since, until, granularity)
+AnalyticsRead -> DB: read revenue buckets
+DB --> AnalyticsRead: RevenueBuckets
+AnalyticsRead --> IndexModel: RevenueBuckets
 
-IndexModel -> Npgsql: LoadSummaryAsync(conn, since, until)
-Npgsql -> DB: SELECT active devices, views, visits
-DB --> Npgsql: summary
+IndexModel -> AnalyticsRead: LoadSummaryAsync(conn, since, until)
+AnalyticsRead -> DB: read summary metrics
+DB --> AnalyticsRead: summary
+AnalyticsRead --> IndexModel: summary
 
 IndexModel -> IndexModel: FillMissingBuckets()\nSerialize ActivityJson/GeoJson/RevenueJson
 IndexModel --> Admin: render dashboard + monitoring section

@@ -1,7 +1,7 @@
 @startuml
 ' Diagram: F05 - Thanh toan goi tra phi va cho duyet (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTourDemo/SubscriptionPage.xaml.cs: OnMuaGoiClicked()
 ' - VinhKhanhTourDemo/PaymentPage.xaml.cs: SetupUi(), OnDaChuyenKhoanClicked()
@@ -25,7 +25,8 @@ participant ApiConnectionPrompt
 participant AppConfig
 participant "SubscriptionController" as SubscriptionController
 participant "VietQR / Ngan hang" as Bank
-database DB
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
 Guest -> SubscriptionPage: chon goi tra phi
 SubscriptionPage -> PaymentPage: PushModalAsync(loaiGoi)
@@ -47,16 +48,25 @@ AppConfig --> ApiConnectionPrompt: apiBaseUrl?
 alt ket noi API thanh cong
   ApiConnectionPrompt --> PaymentPage: apiBaseUrl
   PaymentPage -> SubscriptionController: POST /api/subscription/request
-  SubscriptionController -> DB: insert YeuCauThanhToan(TrangThai="cho_duyet")
-  DB --> SubscriptionController: YeuCauId
+  SubscriptionController -> DbContext: YeuCauThanhToans.Add()
+  SubscriptionController -> DbContext: SaveChangesAsync()
+  DbContext -> DB: persist YeuCauThanhToan row
+  DB --> DbContext: saved
+  DbContext --> SubscriptionController: YeuCauId
   SubscriptionController --> PaymentPage: 200 OK (YeuCauId)
   PaymentPage -> PaymentStatusPage: PushModalAsync(yeuCauId,...)
 
 loop moi 10 giay cho den khi co ket qua
   PaymentStatusPage -> AppConfig: EnsureApiBaseUrlAsync()
   PaymentStatusPage -> SubscriptionController: GET /api/subscription/request/{yeuCauId}
-  SubscriptionController -> DB: doc YeuCauThanhToan\nneu da_duyet thi tim DangKyApp con han
-  DB --> SubscriptionController: trangThai + ngayHetHan?
+  SubscriptionController -> DbContext: YeuCauThanhToans.AsNoTracking().FirstOrDefaultAsync()
+  DbContext -> DB: read YeuCauThanhToan row
+  DB --> DbContext: YeuCauThanhToan row
+  DbContext --> SubscriptionController: yc
+  SubscriptionController -> DbContext: DangKyApps.AsNoTracking().Where(...).FirstOrDefaultAsync()
+  DbContext -> DB: read active DangKyApp rows when approved
+  DB --> DbContext: DangKyApp rows
+  DbContext --> SubscriptionController: existing
   SubscriptionController --> PaymentStatusPage: JSON trang thai
 
   alt da_duyet

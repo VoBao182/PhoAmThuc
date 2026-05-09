@@ -30,7 +30,7 @@ DIAGRAM_PNG_DIR = BASE_DIR / "diagrams" / "png"
 OUT_DOCX = BASE_DIR / "PRD_VinhKhanhTour.docx"
 
 PRODUCT_VERSION = "1.5.2"
-DOC_VERSION = "2.0"
+DOC_VERSION = "2.1"
 DOC_DATE = datetime.now().strftime("%d/%m/%Y")
 
 
@@ -42,7 +42,8 @@ VERSION_HISTORY = [
     ["1.0", "17/04/2026", "Bản PRD ban đầu, phủ F01–F10."],
     ["1.5", "01/05/2026", "Đồng bộ sơ đồ với code; bổ sung dashboard."],
     ["1.5.1", "07/05/2026", "Refactor 3 thẻ dashboard (Tổng POI, POI hoạt động, Ngôn ngữ)."],
-    [DOC_VERSION, DOC_DATE, "Tái cấu trúc PRD đầy đủ chuẩn: tóm tắt điều hành, KPI, personas, NFR, API ref, rủi ro, glossary. Đồng bộ với code v1.5.2 (helper CalculateRemainingDays)."],
+    ["2.0", "08/05/2026", "Tái cấu trúc PRD đầy đủ chuẩn: tóm tắt điều hành, KPI, personas, NFR, API ref, rủi ro, glossary. Đồng bộ với code v1.5.2 (helper CalculateRemainingDays)."],
+    [DOC_VERSION, DOC_DATE, "Bổ sung bảng phân lớp triển khai và method names cho F01-F05; đồng bộ DOCX với PRD Markdown."],
 ]
 
 
@@ -410,6 +411,13 @@ FEATURES = [
             "Cho phép dùng gói dùng thử hoặc chuyển sang luồng thanh toán gói trả phí.",
             "Hiển thị recovery payload và QR để người dùng sao chép, nhập tay, dán từ clipboard hoặc quét mã QR để khôi phục thiết bị cũ.",
         ],
+        "implementation": [
+            ["UI (boundary)", "`LaunchPage.xaml`, `SubscriptionPage.xaml`, `QrScannerPage.xaml`."],
+            ["Page/Control", "`LaunchPage.OnAppearing / RouteAsync`, `MainPage.OnAppearing / EnsureSubscriptionGateAsync`, `SubscriptionPage.UpdateRecoveryCard`, `OnMuaGoiClicked`, `OnPasteRecoveryCodeClicked`, `OnEnterRecoveryCodeClicked`, `OnScanRecoveryQrClicked`, `RestoreFromRecoveryCodeAsync`, `RestoreSubscriptionStateAsync`, `ActivateFreeTrialAsync`."],
+            ["Domain/helper", "`SubscriptionState.IsSubscriptionActive`, `HasStoredSubscriptionRecord`, `CalculateRemainingDays`; `DeviceIdentity.GetDeviceId`, `BuildRecoveryPayload`, `BuildQrCodeUrl`, `TrySetDeviceIdOverride`; `ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync`."],
+            ["Controller", "`SubscriptionController.GetStatus` (`GET /api/subscription/status/{maThietBi}`), `Purchase` (`POST /api/subscription/purchase`)."],
+            ["Persistence", "`Preferences` (`sub_ngay_het_han`, `da_dung_thu`, `device_id`, `device_id_override`) + `AppDbContext` -> PostgreSQL bảng `dangkyapp`."],
+        ],
         "operation": [
             "Khi app mở, LaunchPage chờ ngắn rồi gọi RouteAsync để kiểm tra SubscriptionState.",
             "Nếu local subscription còn hạn, app đi thẳng vào MainPage; nếu không thì mở SubscriptionPage.",
@@ -435,6 +443,13 @@ FEATURES = [
             "Đồng bộ hồ sơ trải nghiệm, XP, viewed/visited POI từ /api/heartbeat/profile và /api/heartbeat/sync-history.",
             "Hỗ trợ tìm kiếm trực tiếp và render lại card/map theo từ khóa.",
             "Cho phép sao chép hoặc khôi phục mã thiết bị bằng nhập tay, clipboard hoặc quét QR trong tab cài đặt.",
+        ],
+        "implementation": [
+            ["UI (boundary)", "`MainPage.xaml` (tab Khám phá/Bản đồ/Cài đặt, search box, POI cards), `QrScannerPage.xaml`."],
+            ["Page/Control", "`MainPage.OnAppearing`, `LoadPoisFromApi`, `RefreshPoisInBackgroundAsync`, `RenderPoiCards`, `OnSearchTextChanged`, `OpenPoiDetailAsync`, `RestorePoiHistoryAsync`, `SyncPoiHistoryAsync`, `UpdateCaiDatUI`, `RecordPoiViewAsync`."],
+            ["Domain/helper", "`DeviceIdentity.GetDeviceId`, `GetSavedPoiIds`, `MergeSavedPoiIds`, `FoodImageCatalog.GetPoiImageSource`, `AppConfig.EnsureApiBaseUrlAsync`."],
+            ["Controller", "`PoiController.GetAll` (`GET /api/poi`), `HeartbeatController.GetExperienceProfile`, `SyncHistory`, `RecordView`."],
+            ["Persistence", "`Preferences` (viewed/visited POI ids, device id) + `AppDbContext` -> PostgreSQL bảng `poi`, `lichsuphat`."],
         ],
         "operation": [
             "Khi MainPage xuất hiện lần đầu, app chạy LoadPoisFromApi() rồi gọi GET /api/poi.",
@@ -464,6 +479,13 @@ FEATURES = [
             "Hysteresis 5m + dwell 5s tránh nháy POI khi GPS jitter giữa 2 quán liền kề.",
             "Tự động đọc nội dung thuyết minh và ghi log phát audio.",
         ],
+        "implementation": [
+            ["UI (boundary)", "`MainPage.xaml` (GPS status, map WebView, now-playing banner, POI highlight)."],
+            ["Page/Control", "`EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync`."],
+            ["Domain/helper", "`Location.CalculateDistance`, `_lastSpokenTime`, `_speakQueue`, `_queuedSpeakPoiIds`, `_speakLock`, `AppText.LanguageCode`, `TextToSpeech.Default`."],
+            ["Controller", "`HeartbeatController.SendHeartbeat`, `RecordVisit`, `ThuyetMinhController.GetByPoi`, `LogController.Post`."],
+            ["Persistence", "`Preferences` (visited ids) + `AppDbContext` -> PostgreSQL bảng `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich`."],
+        ],
         "operation": [
             "MainPage gọi EnsureGpsTrackingAsync(), xin quyền vị trí và bắt đầu vòng lặp GPS.",
             "App lấy vị trí mỗi 5 giây bằng Geolocation.Default.GetLocationAsync().",
@@ -490,6 +512,13 @@ FEATURES = [
             "Phát audio file bằng AudioWebView khi có file, hoặc đọc text bằng TextToSpeech khi chỉ có nội dung chữ.",
             "Mở Google Maps / browser để chỉ đường đến quán.",
         ],
+        "implementation": [
+            ["UI (boundary)", "`DetailPage.xaml` (cover, info, menu, audio WebView, play/pause/stop/slider, nút chỉ đường)."],
+            ["Page/Control", "`DetailPage.LoadDetail`, `ConfigureAudioPlayer`, `RenderMenu`, `UseFallback`, `OnNgheClicked`, `OnAudioWebViewNavigated`, `OnAudioWebViewNavigating`, `OnPlayPauseClicked`, `OnStopAudioClicked`, `OnAudioSliderDragCompleted`, `OnMapClicked`."],
+            ["Domain/helper", "`FoodImageCatalog.GetPoiImageSource`, `TextToSpeech.Default`, `Browser.Default.OpenAsync`, `AppText.LanguageCode`."],
+            ["Controller", "`PoiController.GetById` (`GET /api/poi/{id}?lang={lang}`), `HeartbeatController.RecordView` từ luồng mở chi tiết ở `MainPage.RecordPoiViewAsync`."],
+            ["Persistence", "`AppDbContext` -> PostgreSQL bảng `poi`, `monan`, `thuyetminh`, `bandich`, `lichsuphat`."],
+        ],
         "operation": [
             "DetailPage khởi tạo audio bridge, apply label rồi gọi LoadDetail().",
             "Nếu API GET /api/poi/{id}?lang=... thành công, trang render toàn bộ thông tin quán, menu và cấu hình player audio.",
@@ -514,6 +543,13 @@ FEATURES = [
             "Tạo yêu cầu thanh toán trên server qua /api/subscription/request.",
             "Poll trạng thái duyệt của yêu cầu để biết đã duyệt, từ chối hay còn chờ.",
             "Đóng modal stack đúng logic khi bắt đầu dùng hoặc quay lại thử thanh toán tiếp.",
+        ],
+        "implementation": [
+            ["UI (boundary)", "`SubscriptionPage.xaml`, `PaymentPage.xaml`, `PaymentStatusPage.xaml`."],
+            ["Page/Control", "`SubscriptionPage.OnMuaGoiClicked`, `PaymentPage.SetupUi`, `OnCopyNoiDungClicked`, `OnDaChuyenKhoanClicked`, `OnConfigureApiClicked`, `PaymentStatusPage.OnAppearing`, `StartPollingAsync`, `PollStatusAsync`, `ShowSuccess`, `ShowRejected`, `ClosePaymentFlowAsync`."],
+            ["Domain/helper", "`DeviceIdentity.GetDeviceId`, `ApiConnectionPrompt.EnsureConnectedApiBaseUrlAsync`, `SubscriptionState.CalculateRemainingDays`, `AppConfig.EnsureApiBaseUrlAsync`."],
+            ["Controller", "`SubscriptionController.CreateRequest` (`POST /api/subscription/request`), `GetRequestStatus` (`GET /api/subscription/request/{yeuCauId}`)."],
+            ["Persistence", "`Preferences[\"sub_ngay_het_han\"]` + `AppDbContext` -> PostgreSQL bảng `yeucauthanhtoan`, `dangkyapp`."],
         ],
         "operation": [
             "Từ SubscriptionPage, người dùng chọn gói trả phí và mở PaymentPage.",
@@ -1122,6 +1158,13 @@ def build_part_d(doc):
         add_heading(doc, "Tính năng cốt lõi", level=3)
         for item in feature["capabilities"]:
             add_bullet(doc, item)
+        if feature.get("implementation"):
+            add_heading(doc, "Phân lớp triển khai", level=3)
+            add_table(
+                doc,
+                ["Lớp", "Thành phần / method names"],
+                feature["implementation"],
+                widths_cm=[3.4, 11.6])
         add_heading(doc, "Cách hoạt động theo code", level=3)
         for item in feature["operation"]:
             add_bullet(doc, item)

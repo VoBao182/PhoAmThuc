@@ -1,53 +1,61 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: branch master, current worktree @ HEAD 0121e4f
 ' Source:
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: polling PendingSnapshot
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
 ' Note: Sequence khop voi PageModel hien tai, gom snapshot polling, approve, reject, va redirect theo tab.
+' Note: Sequence chi mo ta handler/PageModel/AppDbContext/PostgreSQL o cap hanh vi; khong liet ke cau SQL.
 title F08 - Duyet hoac tu choi thanh toan goi app
 
 actor Admin
-participant "DuyetThanhToan.cshtml JS" as JS
-participant "DuyetThanhToan IndexModel" as IndexModel
-participant AppDbContext
-database DB
+boundary "DuyetThanhToan.cshtml JS" as JS
+control "DuyetThanhToan IndexModel" as IndexModel
+participant "AppDbContext\n<<persistence>>" as DbContext
+database "PostgreSQL" as DB
 
-Admin -> IndexModel: mo /DuyetThanhToan?tab=cho_duyet
-IndexModel -> AppDbContext: query YeuCauThanhToans + Count(cho_duyet)
-AppDbContext -> DB: SELECT yeu cau
-DB --> AppDbContext: danh sach
-IndexModel --> Admin: bang yeu cau
+Admin -> IndexModel: OnGetAsync(tab)
+IndexModel -> DbContext: YeuCauThanhToans.AsNoTracking().ToListAsync()
+DbContext -> DB: read payment request rows
+DB --> DbContext: rows
+DbContext --> IndexModel: danh sach
+IndexModel --> Admin: render request table
 
 loop JS polling snapshot
-  JS -> IndexModel: GET ?handler=PendingSnapshot
-  IndexModel -> AppDbContext: Count(cho_duyet)\nOrderByDescending(NgayTao).First()
-  AppDbContext -> DB: SELECT pending summary
-  DB --> AppDbContext: count + latest
+  JS -> IndexModel: OnGetPendingSnapshotAsync()
+  IndexModel -> DbContext: YeuCauThanhToans.CountAsync()/FirstOrDefaultAsync()
+  DbContext -> DB: read pending snapshot
+  DB --> DbContext: count + latest row
+  DbContext --> IndexModel: count + latest
   IndexModel --> JS: JSON Count, LatestId, LatestTransferContent
 end
 
 alt admin duyet
-  Admin -> IndexModel: POST Approve(yeuCauId)
-  IndexModel -> AppDbContext: load YeuCauThanhToan + DangKyApp con han
-  AppDbContext -> DB: SELECT current request/subscription
-  DB --> AppDbContext: data
-  IndexModel -> IndexModel: tinh mocBatDau + hetHan moi
-  IndexModel -> AppDbContext: add DangKyApp\nupdate YeuCauThanhToan(da_duyet)
-  AppDbContext -> DB: INSERT dangkyapp + UPDATE yeucauthanhtoan
-  DB --> AppDbContext: saved
-  IndexModel --> Admin: redirect tab cho_duyet
+  Admin -> IndexModel: OnPostApproveAsync(yeuCauId)
+  IndexModel -> DbContext: YeuCauThanhToans.FirstOrDefaultAsync()\nDangKyApps.FirstOrDefaultAsync()
+  DbContext -> DB: read request and current subscription rows
+  DB --> DbContext: rows
+  DbContext --> IndexModel: data
+  note right of IndexModel
+    OnPostApproveAsync() computes
+    mocBatDau and NgayHetHan.
+  end note
+  IndexModel -> DbContext: SaveChangesAsync()
+  DbContext -> DB: persist approval result
+  DB --> DbContext: saved
+  IndexModel --> Admin: Redirect ?tab=cho_duyet
 else admin tu choi
-  Admin -> IndexModel: POST Reject(yeuCauId, lyDo)
-  IndexModel -> AppDbContext: load YeuCauThanhToan
-  AppDbContext -> DB: SELECT request
-  DB --> AppDbContext: request
-  IndexModel -> AppDbContext: update TrangThai="tu_choi"\nNgayDuyet\nGhiChuAdmin
-  AppDbContext -> DB: UPDATE yeucauthanhtoan
-  DB --> AppDbContext: saved
-  IndexModel --> Admin: redirect tab tu_choi
+  Admin -> IndexModel: OnPostRejectAsync(yeuCauId, lyDo)
+  IndexModel -> DbContext: YeuCauThanhToans.FirstOrDefaultAsync()
+  DbContext -> DB: read target request row
+  DB --> DbContext: request row
+  DbContext --> IndexModel: request
+  IndexModel -> DbContext: SaveChangesAsync()
+  DbContext -> DB: persist reject result
+  DB --> DbContext: saved
+  IndexModel --> Admin: Redirect ?tab=tu_choi
 end
 @enduml
