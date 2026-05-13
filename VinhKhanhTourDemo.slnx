@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj" />
+    <Project Path="tests/VinhKhanhTour.CMS.E2ETests/VinhKhanhTour.CMS.E2ETests.csproj" />
+    <Project Path="tests/VinhKhanhTour.MAUI.AppiumTests/VinhKhanhTour.MAUI.AppiumTests.csproj" />
+  </Folder>
   <Project Path="VinhKhanhTour.API/VinhKhanhTour.API.csproj" Id="f2503d31-7860-4a74-8424-b573536aaa7c" />
   <Project Path="VinhKhanhTour.CMS/VinhKhanhTour.CMS.csproj" Id="f543234f-51f5-40ff-b26b-7f490ffd0afd" />
   <Project Path="VinhKhanhTourDemo/VinhKhanhTourDemo.csproj">

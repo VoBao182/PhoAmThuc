@@ -29,8 +29,8 @@ BASE_DIR = Path(__file__).resolve().parent
 DIAGRAM_PNG_DIR = BASE_DIR / "diagrams" / "png"
 OUT_DOCX = BASE_DIR / "PRD_VinhKhanhTour.docx"
 
-PRODUCT_VERSION = "1.5.2"
-DOC_VERSION = "2.1"
+PRODUCT_VERSION = "1.5.3"
+DOC_VERSION = "2.2"
 DOC_DATE = datetime.now().strftime("%d/%m/%Y")
 
 
@@ -43,7 +43,8 @@ VERSION_HISTORY = [
     ["1.5", "01/05/2026", "Đồng bộ sơ đồ với code; bổ sung dashboard."],
     ["1.5.1", "07/05/2026", "Refactor 3 thẻ dashboard (Tổng POI, POI hoạt động, Ngôn ngữ)."],
     ["2.0", "08/05/2026", "Tái cấu trúc PRD đầy đủ chuẩn: tóm tắt điều hành, KPI, personas, NFR, API ref, rủi ro, glossary. Đồng bộ với code v1.5.2 (helper CalculateRemainingDays)."],
-    [DOC_VERSION, DOC_DATE, "Bổ sung bảng phân lớp triển khai và method names cho F01-F05; đồng bộ DOCX với PRD Markdown."],
+    ["2.1", "09/05/2026", "Bổ sung bảng phân lớp triển khai và method names cho F01-F05; đồng bộ DOCX với PRD Markdown."],
+    [DOC_VERSION, DOC_DATE, "Đồng bộ baseline kiểm thử: tests folder, API/CMS WebApplicationFactory, Playwright CMS smoke, Appium opt-in smoke và script run-all-tests."],
 ]
 
 
@@ -267,6 +268,20 @@ I18N_NOTES = [
     "Mở rộng ngôn ngữ mới: chỉ cần chèn thêm BanDich.NgonNgu, không phải đổi schema.",
 ]
 
+TEST_AUTOMATION = [
+    ["API smoke/integration", "xUnit + Microsoft.AspNetCore.Mvc.Testing", "ApiHealthTests kiểm tra GET /health trả OK và có nội dung ok."],
+    ["CMS smoke/E2E", "xUnit + Playwright Chromium", "CmsSmokeTests kiểm tra /health, mở /Privacy trong Chromium headless và đọc nội dung trang."],
+    ["MAUI Appium smoke", "NUnit + Appium", "AppiumSmokeTests kiểm tra Appium /status khi RUN_APPIUM_TESTS=1; mặc định skip để không phụ thuộc emulator."],
+    ["Script tổng hợp", "PowerShell/CMD", "scripts/run-all-tests.ps1 restore, build, cài Playwright Chromium, chạy API/CMS/Appium smoke; run-all-tests.cmd là wrapper Windows."],
+]
+
+TESTABILITY_NOTES = [
+    "API và CMS khai báo `public partial class Program` để test project tạo host nội bộ bằng `WebApplicationFactory<Program>`.",
+    "Test host dùng `ASPNETCORE_ENVIRONMENT=Testing` và connection string local `vinhkhanhtour_test`, không dùng production database.",
+    "CMS E2E có thể tự start CMS tại `CMS_BASE_URL` (mặc định http://127.0.0.1:5199) nếu health check chưa sẵn sàng.",
+    "Appium test là opt-in: chạy thật khi truyền `-WithAppium` cho script hoặc set `RUN_APPIUM_TESTS=1` sau khi bật emulator/device và Appium server.",
+]
+
 
 API_ENDPOINTS = {
     "POI": [
@@ -303,6 +318,8 @@ API_ENDPOINTS = {
         ["POST", "/api/upload", "Upload ảnh ≤ 5MB (jpg/png/webp/gif)."],
         ["POST", "/api/auth/login", "Đăng nhập CMS (TenDangNhap + MatKhau BCrypt)."],
         ["POST", "/api/auth/register", "Đăng ký tài khoản admin/quản lý."],
+        ["GET", "/health", "Health check nhanh cho API/CMS; dùng bởi smoke tests và probes."],
+        ["GET", "/health/db", "Kiểm tra kết nối database cho API/CMS."],
     ],
 }
 
@@ -326,6 +343,7 @@ ACCEPTANCE_CRITERIA = [
     "Heartbeat liên tục thành công 95% trong điều kiện 4G ổn định; CMS hiện thiết bị 'online' trong 2 phút sau heartbeat cuối.",
     "Audio queue per-device không chồng chéo: TTS chỉ phát 1 POI tại 1 thời điểm; trùng POI bị skip.",
     "CMS Dashboard 3 thẻ: Tổng POI (đếm tất cả), POI đang hoạt động (TrangThai+còn hạn), Ngôn ngữ (3).",
+    "Bộ smoke test tự động chạy được qua scripts/run-all-tests.ps1; Appium smoke được skip mặc định nếu chưa bật RUN_APPIUM_TESTS=1.",
 ]
 
 ASSUMPTIONS = [
@@ -350,7 +368,8 @@ ROADMAP = [
     ["v1.4.5", "03/2026", "Tích hợp GPS heartbeat, CMS BanDo, duyệt thanh toán."],
     ["v1.5.0", "04/2026", "Subscription gate hoàn chỉnh, recovery code/QR, dashboard CMS."],
     ["v1.5.1", "05/2026", "Refactor 3 thẻ dashboard; sub-flow F03b queue audio."],
-    ["v1.5.2", DOC_DATE, "PRD bản đầy đủ chuẩn (bản hiện tại)."],
+    ["v1.5.2", "08/05/2026", "PRD bản đầy đủ chuẩn, đồng bộ feature F01-F10."],
+    ["v1.5.3", DOC_DATE, "Bổ sung baseline kiểm thử tự động: API health, CMS Playwright smoke, Appium opt-in smoke, script run-all-tests."],
     ["v1.6 (kế hoạch)", "Q3/2026", "Thêm JWT auth cho API; iOS preview build; push notification."],
     ["v2.0 (định hướng)", "2027", "Đa khu vực phố ẩm thực; đặt bàn online; tích hợp Momo/ZaloPay."],
 ]
@@ -959,11 +978,12 @@ def build_toc(doc):
         ("PHẦN G — VẬN HÀNH", None),
         ("17. Rủi ro & Giảm thiểu", "7 rủi ro chính + đề xuất xử lý."),
         ("18. Tiêu chí chấp nhận (DoD)", "Tiêu chí pass khi release."),
-        ("19. Giả định & Ràng buộc", "Tiền đề và giới hạn kỹ thuật."),
-        ("20. Lịch trình & Cột mốc", "Roadmap từ v1.0 đến v2.0."),
+        ("19. Kiểm thử tự động & Testability", "API, CMS, Appium smoke tests và script tổng hợp."),
+        ("20. Giả định & Ràng buộc", "Tiền đề và giới hạn kỹ thuật."),
+        ("21. Lịch trình & Cột mốc", "Roadmap từ v1.0 đến v2.0."),
         ("PHẦN H — PHỤ LỤC", None),
-        ("21. Thuật ngữ (Glossary)", "Định nghĩa các khái niệm chuyên ngành."),
-        ("22. Tham chiếu tài liệu", "Sơ đồ PlantUML, file mã nguồn liên quan."),
+        ("22. Thuật ngữ (Glossary)", "Định nghĩa các khái niệm chuyên ngành."),
+        ("23. Tham chiếu tài liệu", "Sơ đồ PlantUML, file mã nguồn liên quan."),
     ]
 
     for title, desc in sections:
@@ -1249,15 +1269,28 @@ def build_part_g(doc):
     for item in ACCEPTANCE_CRITERIA:
         add_bullet(doc, item)
 
-    add_heading(doc, "19. Giả định & Ràng buộc", level=1)
-    add_heading(doc, "19.1 Giả định", level=3)
+    add_heading(doc, "19. Kiểm thử tự động & Testability", level=1)
+    add_paragraph(doc,
+                  "Baseline kiểm thử hiện tại tập trung vào smoke/integration tests để xác nhận API, CMS và môi trường mobile automation "
+                  "sẵn sàng trước khi demo hoặc phát hành nội bộ.",
+                  size=11.5)
+    add_table(doc,
+              ["Hạng mục", "Công nghệ", "Phạm vi kiểm tra"],
+              TEST_AUTOMATION,
+              widths_cm=[4.0, 4.5, 6.5])
+    add_heading(doc, "Ghi chú vận hành test", level=3)
+    for item in TESTABILITY_NOTES:
+        add_bullet(doc, item)
+
+    add_heading(doc, "20. Giả định & Ràng buộc", level=1)
+    add_heading(doc, "20.1 Giả định", level=3)
     for item in ASSUMPTIONS:
         add_bullet(doc, item)
-    add_heading(doc, "19.2 Ràng buộc", level=3)
+    add_heading(doc, "20.2 Ràng buộc", level=3)
     for item in CONSTRAINTS:
         add_bullet(doc, item)
 
-    add_heading(doc, "20. Lịch trình & Cột mốc", level=1)
+    add_heading(doc, "21. Lịch trình & Cột mốc", level=1)
     add_table(doc, ["Phiên bản", "Mốc thời gian", "Nội dung"], ROADMAP,
               widths_cm=[3.5, 3.0, 8.5])
     doc.add_page_break()
@@ -1268,12 +1301,12 @@ def build_part_h(doc):
                   align=WD_ALIGN_PARAGRAPH.CENTER, color=(31, 73, 125),
                   space_before=10, space_after=14)
 
-    add_heading(doc, "21. Thuật ngữ (Glossary)", level=1)
+    add_heading(doc, "22. Thuật ngữ (Glossary)", level=1)
     add_table(doc, ["Thuật ngữ", "Định nghĩa"], GLOSSARY,
               widths_cm=[4.0, 11.0])
 
-    add_heading(doc, "22. Tham chiếu tài liệu", level=1)
-    add_heading(doc, "22.1 Sơ đồ PlantUML", level=3)
+    add_heading(doc, "23. Tham chiếu tài liệu", level=1)
+    add_heading(doc, "23.1 Sơ đồ PlantUML", level=3)
     diagram_refs = [
         ["00", "Use case tổng thể", "00-overall-usecase.puml"],
         ["F01", "Subscription gate", "01-subscription-gate-{activity,sequence}.puml"],
@@ -1293,7 +1326,7 @@ def build_part_h(doc):
     add_table(doc, ["ID", "Tên sơ đồ", "File nguồn"], diagram_refs,
               widths_cm=[1.5, 5.5, 8.0])
 
-    add_heading(doc, "22.2 Mã nguồn liên quan", level=3)
+    add_heading(doc, "23.2 Mã nguồn liên quan", level=3)
     code_refs = [
         ["VinhKhanhTourDemo/MainPage.xaml.cs", "Vòng lặp GPS, geofence, queue audio."],
         ["VinhKhanhTourDemo/SubscriptionPage.xaml.cs", "Gate gói + recovery code/QR."],
@@ -1303,6 +1336,10 @@ def build_part_h(doc):
         ["VinhKhanhTour.CMS/Pages/Index.cshtml(.cs)", "Dashboard 3 thẻ + analytics."],
         ["VinhKhanhTour.CMS/Pages/DuyetThanhToan/", "Approve/Reject + snapshot polling."],
         ["VinhKhanhTour.CMS/Pages/BanDo/", "Live map + customer tracking."],
+        ["tests/VinhKhanhTour.API.Tests/", "xUnit smoke/integration test cho API health endpoint."],
+        ["tests/VinhKhanhTour.CMS.E2ETests/", "Playwright smoke/E2E test cho CMS health + Privacy page."],
+        ["tests/VinhKhanhTour.MAUI.AppiumTests/", "NUnit/Appium opt-in smoke test cho mobile automation server."],
+        ["scripts/run-all-tests.ps1", "Script restore/build/install Playwright/run automated smoke tests."],
     ]
     add_table(doc, ["File / Thư mục", "Vai trò"], code_refs,
               widths_cm=[7.5, 7.5])

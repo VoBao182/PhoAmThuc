@@ -1,6 +1,8 @@
 # PRD – VinhKhanhTour: Hệ thống hướng dẫn du lịch phố ẩm thực Vĩnh Khánh
 
-> **Phiên bản:** 1.3 | **Ngày:** 09/05/2026
+> **Phiên bản:** 1.4 | **Ngày:** 14/05/2026
+>
+> **Lưu ý phiên bản 1.4:** Đồng bộ PRD với baseline kiểm thử mới: solution có thư mục `tests/`, API/CMS hỗ trợ `WebApplicationFactory<Program>` qua `public partial class Program`, bổ sung smoke test cho API/CMS/MAUI Appium và script `scripts/run-all-tests.ps1`.
 >
 > **Lưu ý phiên bản 1.3:** Bổ sung chi tiết kỹ thuật cho F01–F05 theo cùng format F06–F10: sơ đồ liên quan, phân lớp triển khai, method names và quy tắc nghiệp vụ chính. Đồng bộ cả bản Markdown và DOCX.
 >
@@ -509,6 +511,21 @@ Ngoài ra còn `SoQuanQuaHan = POIs.Count(p => p.TrangThai && (p.NgayHetHanDuyTr
 - App không lưu thông tin cá nhân — chỉ Device UUID (tự sinh).
 - Supabase connection string không commit vào repository công khai.
 
+### 7.5 Kiểm thử tự động & testability
+
+| Hạng mục | Công nghệ | Phạm vi |
+|---|---|---|
+| API smoke test | xUnit + `Microsoft.AspNetCore.Mvc.Testing` | `ApiHealthTests.Health_ReturnsOkStatus()` kiểm tra `GET /health` trả OK và nội dung `ok`. |
+| CMS smoke/E2E test | xUnit + Playwright Chromium | `CmsSmokeTests.CmsHome_OpensInChromium()` kiểm tra `/health`, mở `/Privacy`, đọc nội dung trang trong Chromium headless. |
+| MAUI Appium smoke test | NUnit + Appium | `AppiumSmokeTests.AppiumServer_IsReachable_WhenEnabled()` kiểm tra Appium server `/status` khi bật `RUN_APPIUM_TESTS=1`. |
+| Script tổng hợp | PowerShell/CMD | `scripts/run-all-tests.ps1` restore, build API/CMS/test projects, cài Chromium cho Playwright, chạy API/CMS/Appium smoke tests; `scripts/run-all-tests.cmd` là wrapper cho Windows. |
+
+**Quy tắc chạy test:**
+- API và CMS có `public partial class Program` để test project tạo host nội bộ qua `WebApplicationFactory<Program>`.
+- Môi trường test dùng `ASPNETCORE_ENVIRONMENT=Testing` và connection string local `vinhkhanhtour_test`; không dùng production database.
+- CMS E2E có thể tự start CMS tại `CMS_BASE_URL` (mặc định `http://127.0.0.1:5199`) nếu chưa có server khỏe.
+- Appium test là opt-in: mặc định skip; chỉ chạy thật khi truyền `-WithAppium` cho script hoặc set `RUN_APPIUM_TESTS=1` sau khi đã bật emulator/device và Appium server.
+
 ---
 
 ## 8. API REFERENCE
@@ -563,6 +580,8 @@ Ngoài ra còn `SoQuanQuaHan = POIs.Count(p => p.TrangThai && (p.NgayHetHanDuyTr
 | POST | `/api/upload` | Upload ảnh (5MB, jpg/png/webp/gif) |
 | POST | `/api/auth/login` | Đăng nhập CMS |
 | POST | `/api/auth/register` | Đăng ký tài khoản |
+| GET | `/health` | Health check nhanh cho API/CMS |
+| GET | `/health/db` | Kiểm tra kết nối database cho API/CMS |
 
 ---
 
@@ -597,6 +616,15 @@ VinhKhanhTour.CMS/
     ├── ThanhToan/                  ← Phí duy trì POI (F07)
     ├── DuyetThanhToan/             ← Duyệt thanh toán app (F08)
     └── BanDo/                      ← Theo dõi khách hàng / live customer tracking (F09)
+
+tests/
+├── VinhKhanhTour.API.Tests/        ← xUnit smoke/integration tests cho API
+├── VinhKhanhTour.CMS.E2ETests/     ← xUnit + Playwright smoke/E2E tests cho CMS
+└── VinhKhanhTour.MAUI.AppiumTests/ ← NUnit + Appium smoke tests cho mobile
+
+scripts/
+├── run-all-tests.ps1               ← Restore/build/test API + CMS + Appium smoke
+└── run-all-tests.cmd               ← Windows wrapper cho PowerShell script
 ```
 
 ---
@@ -634,6 +662,7 @@ Quản trị viên:
 | Duyệt thanh toán app từ CMS (F08) | ✅ Hoàn thành |
 | Theo dõi khách hàng & trạng thái sử dụng (F09) | ✅ Hoàn thành |
 | Dashboard tổng quan & monitoring CMS (F10) | ✅ Hoàn thành |
+| Bộ kiểm thử tự động API/CMS/MAUI smoke | ✅ Hoàn thành |
 | Xác thực JWT cho API | ❌ Ngoài phạm vi (demo plain text) |
 | Push notification | ❌ Ngoài phạm vi |
 | iOS | ❌ Ngoài phạm vi |
@@ -668,4 +697,4 @@ App                          API                         Admin CMS
 
 ---
 
-*Tài liệu này mô tả toàn bộ phạm vi và yêu cầu của đồ án VinhKhanhTour phiên bản 1.0.*
+*Tài liệu này mô tả toàn bộ phạm vi và yêu cầu của đồ án VinhKhanhTour phiên bản 1.4.*

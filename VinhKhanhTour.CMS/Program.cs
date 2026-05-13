@@ -140,3 +140,7 @@ static bool LooksLikePlaceholder(string connectionString)
         || connectionString.Contains("PROJECT_REF", StringComparison.OrdinalIgnoreCase)
         || connectionString.Contains("YOUR_NEW_PASSWORD", StringComparison.OrdinalIgnoreCase);
 }
+
+public partial class Program
+{
+}
