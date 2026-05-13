@@ -25,6 +25,7 @@ jobs:
         run: |
           dotnet restore .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj
           dotnet restore .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj
+          dotnet restore .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj
 
       - name: Build API and CMS projects
         run: |
@@ -32,6 +33,7 @@ jobs:
           dotnet build .\VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj --no-restore
           dotnet build .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-restore
           dotnet build .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-restore
+          dotnet build .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-restore
 
       - name: Install Playwright Chromium
         run: .\tests\VinhKhanhTour.CMS.E2ETests\bin\Debug\net10.0\playwright.ps1 install chromium
@@ -41,3 +43,6 @@ jobs:
 
       - name: Run CMS Playwright tests
         run: dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build --logger trx
+
+      - name: Run MAUI Appium contract tests
+        run: dotnet test .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-build --logger trx

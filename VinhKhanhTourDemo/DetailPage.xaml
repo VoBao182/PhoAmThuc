@@ -2,10 +2,12 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="VinhKhanhTourDemo.DetailPage"
+             AutomationId="detail-page"
              BackgroundColor="#F5F6F8">
 
     <Shell.TitleView>
         <Label x:Name="LblTitle"
+               AutomationId="detail-title"
                TextColor="White" FontSize="18" FontAttributes="Bold"
                VerticalOptions="Center"/>
     </Shell.TitleView>
@@ -16,6 +18,7 @@
             <!-- ===== ẢNH BÌA + LOADING INDICATOR ===== -->
             <Grid HeightRequest="240">
                 <Image x:Name="ImgCover"
+                       AutomationId="detail-cover-image"
                        Aspect="AspectFill"
                        HeightRequest="240"/>
                 <!-- Gradient overlay phía dưới ảnh -->
@@ -31,6 +34,7 @@
                 </BoxView>
                 <!-- Loading spinner -->
                 <ActivityIndicator x:Name="LoadingIndicator"
+                                   AutomationId="detail-loading"
                                    IsRunning="True" IsVisible="True"
                                    Color="#e67e22"
                                    HorizontalOptions="Center"
@@ -40,24 +44,24 @@
             <!-- ===== THÔNG TIN CƠ BẢN ===== -->
             <VerticalStackLayout Padding="20,16" Spacing="6"
                                  BackgroundColor="White">
-                <Label x:Name="LblTen" FontSize="22"
+                <Label x:Name="LblTen" AutomationId="detail-name" FontSize="22"
                        FontAttributes="Bold" TextColor="#222"/>
-                <Label x:Name="LblDiaChi" FontSize="14"
+                <Label x:Name="LblDiaChi" AutomationId="detail-address" FontSize="14"
                        TextColor="#666"/>
-                <Label x:Name="LblSDT" FontSize="14"
+                <Label x:Name="LblSDT" AutomationId="detail-phone" FontSize="14"
                        TextColor="#e67e22"/>
             </VerticalStackLayout>
 
             <!-- ===== NÚT HÀNH ĐỘNG ===== -->
             <Grid ColumnDefinitions="*,*" Padding="16,12"
                   ColumnSpacing="12" BackgroundColor="White">
-                <Button x:Name="BtnNghe" Grid.Column="0"
+                <Button x:Name="BtnNghe" AutomationId="detail-listen-button" Grid.Column="0"
                         Text="🎧 Nghe thuyết minh"
                         BackgroundColor="#4CAF50" TextColor="White"
                         CornerRadius="10" FontAttributes="Bold"
                         FontSize="13"
                         Clicked="OnNgheClicked"/>
-                <Button x:Name="BtnMap" Grid.Column="1"
+                <Button x:Name="BtnMap" AutomationId="detail-directions-button" Grid.Column="1"
                         Text="📍 Chỉ đường"
                         BackgroundColor="#2196F3" TextColor="White"
                         CornerRadius="10" FontAttributes="Bold"
@@ -66,6 +70,7 @@
             </Grid>
 
             <VerticalStackLayout x:Name="AudioControls"
+                                 AutomationId="detail-audio-controls"
                                  Padding="16,0,16,12"
                                  Spacing="10"
                                  BackgroundColor="White"
@@ -77,6 +82,7 @@
                            TextColor="#666"
                            VerticalOptions="Center"/>
                     <Slider x:Name="AudioProgressSlider"
+                            AutomationId="detail-audio-progress-slider"
                             Grid.Column="1"
                             Minimum="0"
                             Maximum="1"
@@ -92,6 +98,7 @@
                 </Grid>
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <Button x:Name="BtnPlayPauseAudio"
+                            AutomationId="detail-audio-play-pause-button"
                             Grid.Column="0"
                             Text="Play audio"
                             BackgroundColor="#FF8A65"
@@ -101,6 +108,7 @@
                             FontSize="13"
                             Clicked="OnPlayPauseClicked"/>
                     <Button x:Name="BtnStopAudio"
+                            AutomationId="detail-audio-stop-button"
                             Grid.Column="1"
                             Text="Stop"
                             BackgroundColor="#EEEEEE"
@@ -128,12 +136,13 @@
                        FontAttributes="Bold" TextColor="#333"/>
                 <BoxView HeightRequest="2" Color="#e67e22"
                          HorizontalOptions="Start" WidthRequest="40"/>
-                <Label x:Name="LblThuyetMinh" FontSize="15"
+                <Label x:Name="LblThuyetMinh" AutomationId="detail-narration" FontSize="15"
                        TextColor="#444" LineHeight="1.6"/>
             </VerticalStackLayout>
 
             <!-- ===== THỰC ĐƠN ===== -->
             <VerticalStackLayout x:Name="SectionMenu"
+                                 AutomationId="detail-menu-section"
                                  Padding="20,16" Spacing="12"
                                  BackgroundColor="White" Margin="0,8,0,16"
                                  IsVisible="False">
@@ -142,7 +151,7 @@
                        FontAttributes="Bold" TextColor="#333"/>
                 <BoxView HeightRequest="2" Color="#e67e22"
                          HorizontalOptions="Start" WidthRequest="40"/>
-                <VerticalStackLayout x:Name="MenuContainer" Spacing="10"/>
+                <VerticalStackLayout x:Name="MenuContainer" AutomationId="detail-menu-list" Spacing="10"/>
             </VerticalStackLayout>
 
             <BoxView HeightRequest="20" Color="Transparent"/>

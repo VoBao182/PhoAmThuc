@@ -3,6 +3,7 @@
     x:Class="VinhKhanhTourDemo.PaymentStatusPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    AutomationId="payment-status-page"
     BackgroundColor="#F7F2EB"
     Shell.NavBarIsVisible="False">
 
@@ -10,11 +11,12 @@
                          VerticalOptions="Center">
 
         <!-- Trạng thái đang chờ -->
-        <VerticalStackLayout x:Name="ViewChoDuyet" Spacing="16" HorizontalOptions="Center">
+        <VerticalStackLayout x:Name="ViewChoDuyet" AutomationId="payment-status-pending-view" Spacing="16" HorizontalOptions="Center">
             <ActivityIndicator IsRunning="True" Color="#E36A11"
                                HeightRequest="60" WidthRequest="60"
                                HorizontalOptions="Center"/>
             <Label x:Name="LblPendingTitle"
+                   AutomationId="payment-status-pending-title"
                    Text="Chờ admin xác nhận..."
                    FontSize="20" FontAttributes="Bold"
                    TextColor="#1F2933" HorizontalOptions="Center"/>
@@ -30,20 +32,23 @@
                            Text="Nội dung chuyển khoản đã gửi:"
                            FontSize="12" TextColor="#92400E"/>
                     <Label x:Name="LblNoiDungRef"
+                           AutomationId="payment-status-transfer-content"
                            FontSize="15" FontAttributes="Bold"
                            TextColor="#C2410C"/>
                 </VerticalStackLayout>
             </Border>
 
             <Label x:Name="LblDemGiay"
+                   AutomationId="payment-status-countdown"
                    FontSize="12" TextColor="#9CA3AF"
                    HorizontalOptions="Center" Margin="0,8,0,0"/>
         </VerticalStackLayout>
 
         <!-- Trạng thái đã duyệt -->
-        <VerticalStackLayout x:Name="ViewDaDuyet" IsVisible="False" Spacing="16" HorizontalOptions="Center">
+        <VerticalStackLayout x:Name="ViewDaDuyet" AutomationId="payment-status-approved-view" IsVisible="False" Spacing="16" HorizontalOptions="Center">
             <Label Text="OK" FontSize="48" FontAttributes="Bold" TextColor="#16A34A" HorizontalOptions="Center"/>
             <Label x:Name="LblApprovedTitle"
+                   AutomationId="payment-status-approved-title"
                    Text="Thanh toán được duyệt!"
                    FontSize="22" FontAttributes="Bold"
                    TextColor="#16A34A" HorizontalOptions="Center"/>
@@ -51,6 +56,7 @@
                    FontSize="14" TextColor="#6B7280"
                    HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
             <Button x:Name="BtnStartExploring"
+                    AutomationId="payment-status-start-exploring-button"
                     Text="Bắt đầu khám phá"
                     BackgroundColor="#E36A11" TextColor="White"
                     CornerRadius="14" FontSize="15" FontAttributes="Bold"
@@ -59,22 +65,26 @@
         </VerticalStackLayout>
 
         <!-- Trạng thái bị từ chối -->
-        <VerticalStackLayout x:Name="ViewTuChoi" IsVisible="False" Spacing="16" HorizontalOptions="Center">
+        <VerticalStackLayout x:Name="ViewTuChoi" AutomationId="payment-status-rejected-view" IsVisible="False" Spacing="16" HorizontalOptions="Center">
             <Label Text="!" FontSize="54" FontAttributes="Bold" TextColor="#DC2626" HorizontalOptions="Center"/>
             <Label x:Name="LblRejectedTitle"
+                   AutomationId="payment-status-rejected-title"
                    Text="Yêu cầu bị từ chối"
                    FontSize="22" FontAttributes="Bold"
                    TextColor="#DC2626" HorizontalOptions="Center"/>
             <Label x:Name="LblLyDo"
+                   AutomationId="payment-status-rejected-reason"
                    FontSize="14" TextColor="#6B7280"
                    HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
             <Button x:Name="BtnTryAgain"
+                    AutomationId="payment-status-try-again-button"
                     Text="Thử lại"
                     BackgroundColor="#E36A11" TextColor="White"
                     CornerRadius="14" FontSize="15" FontAttributes="Bold"
                     HeightRequest="52" Margin="0,8,0,0"
                     Clicked="OnThuLaiClicked"/>
             <Button x:Name="BtnClose"
+                    AutomationId="payment-status-close-button"
                     Text="Đóng"
                     BackgroundColor="Transparent" TextColor="#6B7280"
                     FontSize="14" HeightRequest="44"

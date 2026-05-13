@@ -3,6 +3,7 @@
     x:Class="VinhKhanhTourDemo.SubscriptionPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    AutomationId="subscription-page"
     BackgroundColor="#F7F2EB"
     Shell.NavBarIsVisible="False">
 
@@ -10,6 +11,7 @@
         <VerticalStackLayout Padding="24,52,24,36" Spacing="0">
 
             <Label x:Name="LblPlanHeader"
+                   AutomationId="subscription-plan-header"
                    Text="GÓI"
                    FontSize="34"
                    FontAttributes="Bold"
@@ -29,6 +31,7 @@
                    Margin="0,4,0,28"/>
 
             <Border x:Name="BannerHetHan"
+                    AutomationId="subscription-expired-banner"
                     IsVisible="False"
                     BackgroundColor="#FEF3C7"
                     Stroke="#F59E0B"
@@ -45,6 +48,7 @@
             </Border>
 
             <Border x:Name="ApiGuideCard"
+                    AutomationId="subscription-api-guide-card"
                     IsVisible="False"
                     BackgroundColor="White"
                     Stroke="#F59E0B"
@@ -66,6 +70,7 @@
                            FontSize="12"
                            TextColor="#E36A11"/>
                     <Button x:Name="BtnConfigureApi"
+                            AutomationId="subscription-configure-api-button"
                             Text="Nhập API URL"
                             FontSize="13"
                             FontAttributes="Bold"
@@ -110,6 +115,7 @@
                     </VerticalStackLayout>
                     <Button Grid.Column="1"
                             x:Name="BtnDungThu"
+                            AutomationId="subscription-trial-button"
                             Text="Thử ngay"
                             FontSize="13"
                             FontAttributes="Bold"
@@ -164,6 +170,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNgay"
+                                AutomationId="subscription-day-button"
                                  Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
@@ -210,6 +217,7 @@
                                TextColor="#E36A11"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaTuan"
+                                AutomationId="subscription-week-button"
                                  Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
@@ -269,6 +277,7 @@
                                VerticalOptions="Center"/>
                         <Button Grid.Column="1"
                                 x:Name="BtnMuaThang"
+                                AutomationId="subscription-month-button"
                                 Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
@@ -327,6 +336,7 @@
                                TextColor="#F59E0B"
                                HorizontalOptions="End"/>
                         <Button x:Name="BtnMuaNam"
+                                AutomationId="subscription-year-button"
                                 Text="Mua ngay"
                                 FontSize="13"
                                 FontAttributes="Bold"
@@ -379,6 +389,7 @@
                             <RoundRectangle CornerRadius="12"/>
                         </Border.StrokeShape>
                         <Label x:Name="LblRecoveryCode"
+                               AutomationId="subscription-recovery-code"
                                Text="VKT-DEVICE:"
                                FontSize="11"
                                TextColor="#7C2D12"
@@ -387,6 +398,7 @@
 
                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                         <Button x:Name="BtnScanRecoveryQr"
+                                AutomationId="subscription-scan-recovery-qr-button"
                                 Grid.Column="0"
                                 Text="Quét QR"
                                 BackgroundColor="#F97316"
@@ -396,6 +408,7 @@
                                 FontAttributes="Bold"
                                 Clicked="OnScanRecoveryQrClicked"/>
                         <Button x:Name="BtnEnterRecoveryCode"
+                                AutomationId="subscription-enter-recovery-code-button"
                                 Grid.Column="1"
                                 Text="Nhập mã"
                                 BackgroundColor="#1F2937"
@@ -408,6 +421,7 @@
 
                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                         <Button x:Name="BtnPasteRecoveryCode"
+                                AutomationId="subscription-paste-recovery-code-button"
                                 Grid.Column="0"
                                 Text="Dán mã"
                                 BackgroundColor="#FFEDD5"
@@ -417,6 +431,7 @@
                                 FontAttributes="Bold"
                                 Clicked="OnPasteRecoveryCodeClicked"/>
                         <Button x:Name="BtnCopyRecoveryCode"
+                                AutomationId="subscription-copy-recovery-code-button"
                                 Grid.Column="1"
                                 Text="Copy mã hiện tại"
                                 BackgroundColor="#F3F4F6"
@@ -428,6 +443,7 @@
                     </Grid>
 
                     <Label x:Name="LblRecoveryStatus"
+                           AutomationId="subscription-recovery-status"
                            Text=""
                            FontSize="12"
                            TextColor="#C2410C"
@@ -436,6 +452,7 @@
             </Border>
 
             <ActivityIndicator x:Name="LoadingIndicator"
+                               AutomationId="subscription-loading"
                                IsRunning="False"
                                IsVisible="False"
                                Color="#E36A11"
@@ -443,6 +460,7 @@
                                Margin="0,0,0,12"/>
 
             <Label x:Name="LblError"
+                   AutomationId="subscription-error"
                    IsVisible="False"
                    TextColor="#DC2626"
                    FontSize="13"

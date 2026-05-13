@@ -1444,6 +1444,7 @@ public partial class MainPage : ContentPage
 
             PoiListContainer.Children.Add(new Label
             {
+                AutomationId = "main-poi-empty-message",
                 Text = GetText(
                     "Không có địa điểm phù hợp với từ khóa tìm kiếm.",
                     "No places match your search.",
@@ -1481,6 +1482,7 @@ public partial class MainPage : ContentPage
 
             var card = new Border
             {
+                AutomationId = $"main-poi-card-{poi.Id:N}",
                 Stroke = isNear ? visualMeta.Accent : Color.FromArgb("#ECE7E1"),
                 StrokeThickness = isNear ? 2 : 1,
                 BackgroundColor = Colors.White,
@@ -1618,6 +1620,7 @@ public partial class MainPage : ContentPage
 
             var btn = new Button
             {
+                AutomationId = $"main-poi-detail-button-{poi.Id:N}",
                 Text = GetText("Xem chi tiết", "View details", "查看详情"),
                 BackgroundColor = isNear ? visualMeta.Accent : Color.FromArgb("#1F2937"),
                 TextColor = Colors.White,

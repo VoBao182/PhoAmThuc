@@ -341,11 +341,13 @@ player.addEventListener('ended', emitState);
         SectionMenu.IsVisible = true;
         var groups = monAns.GroupBy(m => m.PhanLoai ?? AppStrings.NoMenu);
 
+        var menuItemIndex = 0;
         foreach (var group in groups)
         {
             // Header nhóm
             MenuContainer.Children.Add(new Label
             {
+                AutomationId = $"detail-menu-group-{menuItemIndex}",
                 Text           = group.Key,
                 FontSize       = 14,
                 FontAttributes = FontAttributes.Bold,
@@ -357,6 +359,7 @@ player.addEventListener('ended', emitState);
             {
                 var card = new Border
                 {
+                    AutomationId = $"detail-menu-card-{menuItemIndex++}",
                     BackgroundColor = Colors.White,
                     Stroke          = Color.FromArgb("#F1E6DA"),
                     StrokeShape     = new Microsoft.Maui.Controls.Shapes.RoundRectangle

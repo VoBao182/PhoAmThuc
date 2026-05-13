@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+    AutomationId="qr-scanner-page"
     BackgroundColor="#111827"
     Shell.NavBarIsVisible="False">
 
@@ -19,6 +20,7 @@
                        TextColor="#D1D5DB"/>
             </VerticalStackLayout>
             <Button Grid.Column="1"
+                    AutomationId="qr-scanner-close-button"
                     Text="Dong"
                     BackgroundColor="#374151"
                     TextColor="White"
@@ -36,23 +38,27 @@
             </Border.StrokeShape>
             <zxing:CameraBarcodeReaderView
                 x:Name="CameraBarcodeReader"
+                AutomationId="qr-scanner-camera"
                 BarcodesDetected="OnBarcodesDetected"/>
         </Border>
 
         <VerticalStackLayout Grid.Row="2" Padding="20,12,20,28" Spacing="10">
             <Label x:Name="LblStatus"
+                   AutomationId="qr-scanner-status"
                    Text="Dang cho ma QR..."
                    TextColor="#F9FAFB"
                    FontSize="13"
                    HorizontalTextAlignment="Center"/>
             <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                 <Button Grid.Column="0"
+                        AutomationId="qr-scanner-torch-button"
                         Text="Bat/tat den"
                         BackgroundColor="#F97316"
                         TextColor="White"
                         CornerRadius="12"
                         Clicked="OnTorchClicked"/>
                 <Button Grid.Column="1"
+                        AutomationId="qr-scanner-flip-camera-button"
                         Text="Doi camera"
                         BackgroundColor="#374151"
                         TextColor="White"

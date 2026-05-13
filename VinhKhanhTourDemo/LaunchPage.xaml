@@ -3,6 +3,7 @@
     x:Class="VinhKhanhTourDemo.LaunchPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    AutomationId="launch-page"
     BackgroundColor="#F7F2EB"
     Shell.NavBarIsVisible="False">
 
@@ -16,17 +17,20 @@
                    HorizontalOptions="Center"
                    TextColor="#C2410C"/>
             <Label x:Name="LblStatus"
+                   AutomationId="launch-status"
                    Text="Đang khởi động ứng dụng..."
                    FontSize="15"
                    HorizontalTextAlignment="Center"
                    HorizontalOptions="Center"
                    TextColor="#4B5563"/>
             <ActivityIndicator x:Name="BootIndicator"
+                               AutomationId="launch-loading"
                                IsRunning="True"
                                IsVisible="True"
                                Color="#FF5722"
                                HorizontalOptions="Center"/>
             <Button x:Name="BtnRetry"
+                    AutomationId="launch-retry-button"
                     IsVisible="False"
                     Text="Thử lại"
                     BackgroundColor="#FF5722"

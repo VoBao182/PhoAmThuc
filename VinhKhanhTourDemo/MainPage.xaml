@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="VinhKhanhTourDemo.MainPage"
+             AutomationId="main-page"
              BackgroundColor="#F5F6F8"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False">
@@ -67,6 +68,7 @@
         </Border>
 
         <Border x:Name="NowPlayingBanner"
+                AutomationId="main-now-playing-banner"
                 Grid.Row="1"
                 IsVisible="False"
                 Stroke="Transparent"
@@ -101,6 +103,7 @@
                 </VerticalStackLayout>
                 <Button Grid.Column="2"
                         x:Name="BtnNowPlayingDetail"
+                        AutomationId="main-now-playing-detail-button"
                         Text="Chi tiết"
                         BackgroundColor="White"
                         TextColor="#E65100"
@@ -113,6 +116,7 @@
         </Border>
 
         <Border x:Name="SearchBarRow"
+                AutomationId="main-search-row"
                 Grid.Row="2"
                 Stroke="#E8E8E8"
                 BackgroundColor="White"
@@ -139,6 +143,7 @@
                            VerticalOptions="Center"/>
                 </Border>
                 <Entry x:Name="SearchEntry"
+                       AutomationId="main-search-entry"
                        Grid.Column="1"
                        Placeholder="Tìm quán ăn, địa chỉ..."
                        FontSize="15"
@@ -150,6 +155,7 @@
         </Border>
 
         <ScrollView x:Name="ViewKhamPha"
+                    AutomationId="main-explore-view"
                     Grid.Row="3"
                     VerticalScrollBarVisibility="Never"
                     IsVisible="True">
@@ -168,12 +174,13 @@
                            TextColor="#FF5722"
                            VerticalOptions="Center"/>
                 </Grid>
-                <VerticalStackLayout x:Name="PoiListContainer" Spacing="14"/>
+                <VerticalStackLayout x:Name="PoiListContainer" AutomationId="main-poi-list" Spacing="14"/>
             </VerticalStackLayout>
         </ScrollView>
 
-        <Grid x:Name="ViewBanDo" Grid.Row="3" IsVisible="False">
+        <Grid x:Name="ViewBanDo" AutomationId="main-map-view" Grid.Row="3" IsVisible="False">
             <Grid x:Name="MapHost"
+                  AutomationId="main-map-host"
                   HorizontalOptions="Fill"
                   VerticalOptions="Fill">
                 <VerticalStackLayout HorizontalOptions="Center"
@@ -191,6 +198,7 @@
             </Grid>
 
             <Border x:Name="MapPoiSheet"
+                    AutomationId="main-map-poi-sheet"
                     IsVisible="False"
                     VerticalOptions="End"
                     HorizontalOptions="Fill"
@@ -255,6 +263,7 @@
                           Margin="0,4,0,0">
                         <Button Grid.Column="0"
                                 x:Name="SheetBtnDetail"
+                                AutomationId="main-map-sheet-detail-button"
                                 Text="Xem chi tiết"
                                 BackgroundColor="#FF5722"
                                 TextColor="White"
@@ -265,6 +274,7 @@
                                 Clicked="OnSheetDetailClicked"/>
                         <Button Grid.Column="1"
                                 x:Name="SheetBtnMap"
+                                AutomationId="main-map-sheet-directions-button"
                                 Text="Chỉ đường"
                                 BackgroundColor="#2196F3"
                                 TextColor="White"
@@ -275,6 +285,7 @@
                                 Clicked="OnSheetMapClicked"/>
                     </Grid>
                     <Button x:Name="BtnSheetClose"
+                            AutomationId="main-map-sheet-close-button"
                             Text="Đóng"
                             BackgroundColor="Transparent"
                             TextColor="#AAAAAA"
@@ -287,6 +298,7 @@
         </Grid>
 
         <ScrollView x:Name="ViewCaiDat"
+                    AutomationId="main-settings-view"
                     Grid.Row="3"
                     IsVisible="False"
                     VerticalScrollBarVisibility="Never">
@@ -464,6 +476,7 @@
                                        Text="Ngôn ngữ thuyết minh"
                                        FontSize="12" TextColor="#999"/>
                                 <Label x:Name="LblUserLang"
+                                       AutomationId="main-settings-language"
                                        Text="Tiếng Việt"
                                        FontSize="14" FontAttributes="Bold" TextColor="#1a1a1a"/>
                             </VerticalStackLayout>
@@ -481,6 +494,7 @@
                                        Text="Gói đăng ký"
                                        FontSize="12" TextColor="#999"/>
                                 <Label x:Name="LblSubStatus"
+                                       AutomationId="main-settings-subscription-status"
                                        Text="—"
                                        FontSize="14" FontAttributes="Bold" TextColor="#1a1a1a"/>
                             </VerticalStackLayout>
@@ -498,6 +512,7 @@
                                        Text="Mã thiết bị"
                                        FontSize="12" TextColor="#999"/>
                                 <Label x:Name="LblUserPhone"
+                                       AutomationId="main-settings-device-id"
                                        Text="—"
                                        FontSize="13" TextColor="#555"/>
                             </VerticalStackLayout>
@@ -518,6 +533,7 @@
                                            TextColor="#C2410C"
                                            FontAttributes="Bold"/>
                                     <Label x:Name="LblRecoveryCode"
+                                           AutomationId="main-settings-recovery-code"
                                            Text="VKT-DEVICE:"
                                            FontSize="11"
                                            TextColor="#7C2D12"
@@ -529,6 +545,7 @@
                                            Aspect="AspectFit"/>
                                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                                         <Button x:Name="BtnScanDeviceQr"
+                                                AutomationId="main-settings-scan-device-qr-button"
                                                 Grid.Column="0"
                                                 Text="Quét QR"
                                                 BackgroundColor="#F97316"
@@ -538,6 +555,7 @@
                                                 FontAttributes="Bold"
                                                 Clicked="OnScanDeviceQrClicked"/>
                                         <Button x:Name="BtnRestoreDeviceCode"
+                                                AutomationId="main-settings-restore-device-code-button"
                                                 Grid.Column="1"
                                                 Text="Nhập mã"
                                                 BackgroundColor="#1F2937"
@@ -549,6 +567,7 @@
                                     </Grid>
                                     <Grid ColumnDefinitions="*, *" ColumnSpacing="10">
                                         <Button x:Name="BtnPasteDeviceCode"
+                                                AutomationId="main-settings-paste-device-code-button"
                                                 Grid.Column="0"
                                                 Text="Dán mã"
                                                 BackgroundColor="#FFEDD5"
@@ -558,6 +577,7 @@
                                                 FontAttributes="Bold"
                                                 Clicked="OnPasteDeviceCodeClicked"/>
                                         <Button x:Name="BtnCopyDeviceCode"
+                                                AutomationId="main-settings-copy-device-code-button"
                                                 Grid.Column="1"
                                                 Text="Copy mã"
                                                 BackgroundColor="#F3F4F6"
@@ -568,6 +588,7 @@
                                                 Clicked="OnCopyDeviceCodeClicked"/>
                                     </Grid>
                                     <Label x:Name="LblSettingsRecoveryStatus"
+                                           AutomationId="main-settings-recovery-status"
                                            Text=""
                                            FontSize="11"
                                            TextColor="#C2410C"
@@ -600,6 +621,7 @@
 
                 <!-- ── BUTTONS ── -->
                 <Button x:Name="BtnGiaHan"
+                        AutomationId="main-renew-subscription-button"
                         Text="Gia hạn gói"
                         BackgroundColor="#FF5722"
                         TextColor="White"
@@ -611,6 +633,7 @@
                         Clicked="OnGiaHanClicked"/>
 
                 <Button x:Name="BtnReloadData"
+                        AutomationId="main-reload-data-button"
                         Text="Tải lại dữ liệu"
                         BackgroundColor="#FFF3E0"
                         TextColor="#E65100"
@@ -633,6 +656,7 @@
             </Border.Shadow>
             <Grid ColumnDefinitions="*, *, *">
                 <VerticalStackLayout x:Name="BtnKhamPha"
+                                     AutomationId="main-tab-explore"
                                      Grid.Column="0"
                                      Spacing="4"
                                      Padding="0,2"
@@ -656,6 +680,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout x:Name="BtnBanDo"
+                                     AutomationId="main-tab-map"
                                      Grid.Column="1"
                                      Spacing="4"
                                      Padding="0,2"
@@ -679,6 +704,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout x:Name="BtnCaiDat"
+                                     AutomationId="main-tab-settings"
                                      Grid.Column="2"
                                      Spacing="4"
                                      Padding="0,2"

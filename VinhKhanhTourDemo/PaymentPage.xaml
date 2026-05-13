@@ -3,6 +3,7 @@
     x:Class="VinhKhanhTourDemo.PaymentPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    AutomationId="payment-page"
     BackgroundColor="#F7F2EB"
     Shell.NavBarIsVisible="False">
 
@@ -16,6 +17,7 @@
                    Margin="0,0,0,8"
                    TextColor="#E36A11"/>
             <Label x:Name="LblPaymentTitle"
+                   AutomationId="payment-title"
                    Text="Thanh toán chuyển khoản"
                    FontSize="22"
                    FontAttributes="Bold"
@@ -23,6 +25,7 @@
                    TextColor="#1F2933"
                    Margin="0,0,0,4"/>
             <Label x:Name="LblTenGoi"
+                   AutomationId="payment-plan-name"
                    FontSize="14"
                    HorizontalOptions="Center"
                    TextColor="#6B7280"
@@ -45,6 +48,7 @@
                            TextColor="#1F2933"/>
 
                     <Image x:Name="ImgQR"
+                           AutomationId="payment-qr-image"
                            HeightRequest="220"
                            WidthRequest="220"
                            HorizontalOptions="Center"
@@ -77,6 +81,7 @@
                                        FontSize="12"
                                        TextColor="#6B7280"/>
                                 <Label x:Name="LblSoTK"
+                                       AutomationId="payment-account-number"
                                        Grid.Column="1"
                                        FontSize="12"
                                        FontAttributes="Bold"
@@ -90,6 +95,7 @@
                                        FontSize="12"
                                        TextColor="#6B7280"/>
                                 <Label x:Name="LblSoTien"
+                                       AutomationId="payment-amount"
                                        Grid.Column="1"
                                        FontSize="13"
                                        FontAttributes="Bold"
@@ -105,10 +111,12 @@
                                        VerticalOptions="Center"/>
                                 <HorizontalStackLayout Grid.Column="1" Spacing="8" HorizontalOptions="End">
                                     <Label x:Name="LblNoiDung"
+                                           AutomationId="payment-transfer-content"
                                            FontSize="12"
                                            FontAttributes="Bold"
                                            TextColor="#E36A11"/>
                                     <Button x:Name="BtnCopyNoiDung"
+                                            AutomationId="payment-copy-transfer-content-button"
                                             Text="Copy"
                                             FontSize="12"
                                             BackgroundColor="Transparent"
@@ -132,6 +140,7 @@
             </Border>
 
             <Label x:Name="LblError"
+                   AutomationId="payment-error"
                    IsVisible="False"
                    TextColor="#DC2626"
                    FontSize="13"
@@ -140,6 +149,7 @@
                    Margin="0,0,0,8"/>
 
             <Border x:Name="ApiGuideCard"
+                    AutomationId="payment-api-guide-card"
                     IsVisible="False"
                     BackgroundColor="White"
                     Stroke="#F59E0B"
@@ -161,6 +171,7 @@
                            FontSize="12"
                            TextColor="#E36A11"/>
                     <Button x:Name="BtnConfigureApi"
+                            AutomationId="payment-configure-api-button"
                             Text="Nhập API URL"
                             BackgroundColor="#FFF7ED"
                             TextColor="#C2410C"
@@ -173,6 +184,7 @@
             </Border>
 
             <ActivityIndicator x:Name="LoadingIndicator"
+                               AutomationId="payment-loading"
                                IsRunning="False"
                                IsVisible="False"
                                Color="#E36A11"
@@ -180,6 +192,7 @@
                                Margin="0,0,0,12"/>
 
             <Button x:Name="BtnDaChuyenKhoan"
+                    AutomationId="payment-confirm-transfer-button"
                     Text="Tôi đã chuyển khoản"
                     BackgroundColor="#16A34A"
                     TextColor="White"
@@ -191,6 +204,7 @@
                     Clicked="OnDaChuyenKhoanClicked"/>
 
             <Button x:Name="BtnCancel"
+                    AutomationId="payment-cancel-button"
                     Text="Hủy"
                     BackgroundColor="Transparent"
                     TextColor="#6B7280"
