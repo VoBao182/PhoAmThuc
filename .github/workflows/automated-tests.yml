@@ -39,7 +39,24 @@ jobs:
         run: .\tests\VinhKhanhTour.CMS.E2ETests\bin\Debug\net10.0\playwright.ps1 install chromium
 
       - name: Run API tests
-        run: dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-tests.trx" --results-directory .\TestResults
+        run: |
+          dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-tests.trx" --results-directory .\TestResults
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0 -and (Test-Path .\TestResults\api-tests.trx)) {
+            [xml]$trx = Get-Content .\TestResults\api-tests.trx
+            $ns = New-Object System.Xml.XmlNamespaceManager($trx.NameTable)
+            $ns.AddNamespace("trx", "http://microsoft.com/schemas/VisualStudio/TeamTest/2010")
+            $results = $trx.SelectNodes("//trx:UnitTestResult[@outcome!='Passed']", $ns)
+            foreach ($result in $results) {
+              $message = $result.Output.ErrorInfo.Message
+              if ([string]::IsNullOrWhiteSpace($message)) {
+                $message = $result.outcome
+              }
+              $encodedMessage = $message.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+              Write-Host "::error title=API test failed::$($result.testName): $encodedMessage"
+            }
+          }
+          exit $exitCode
 
       - name: Run CMS Playwright tests
         run: dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build --logger "trx;LogFileName=cms-e2e-tests.trx" --results-directory .\TestResults
