@@ -500,11 +500,15 @@ public sealed class ApiIntegrationTests
 public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
 {
     public const string AdminApiToken = "integration-test-admin-token";
+    private const string ProgramStartupConnectionString =
+        "Host=localhost;Port=5432;Database=vinhkhanhtour_test;Username=postgres;Password=postgres;Timeout=1;Command Timeout=1;Pooling=false";
 
     private readonly bool _usePostgres = string.Equals(
         Environment.GetEnvironmentVariable("API_TEST_DATABASE"),
         "postgres",
         StringComparison.OrdinalIgnoreCase);
+    private readonly string? _originalSupabaseConnectionString;
+    private readonly bool _changedSupabaseConnectionString;
     private readonly SqliteConnection? _sqliteConnection;
     private readonly string? _postgresAdminConnectionString;
     private readonly string? _postgresConnectionString;
@@ -512,6 +516,8 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
 
     public ApiTestApplicationFactory()
     {
+        _originalSupabaseConnectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
+
         if (_usePostgres)
         {
             var baseConnectionString = Environment.GetEnvironmentVariable("API_TEST_CONNECTION_STRING")
@@ -534,8 +540,12 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
                 Pooling = false
             };
             _postgresAdminConnectionString = adminBuilder.ConnectionString;
+            _changedSupabaseConnectionString = SetProgramStartupConnectionString(_postgresConnectionString);
             return;
         }
+
+        if (string.IsNullOrWhiteSpace(_originalSupabaseConnectionString))
+            _changedSupabaseConnectionString = SetProgramStartupConnectionString(ProgramStartupConnectionString);
 
         _sqliteConnection = new SqliteConnection("Data Source=:memory:");
         _sqliteConnection.Open();
@@ -626,38 +636,45 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
 
         _sqliteConnection?.Dispose();
 
-        if (!_usePostgres
-            || string.IsNullOrWhiteSpace(_postgresAdminConnectionString)
-            || string.IsNullOrWhiteSpace(_postgresDatabaseName))
+        if (_usePostgres
+            && !string.IsNullOrWhiteSpace(_postgresAdminConnectionString)
+            && !string.IsNullOrWhiteSpace(_postgresDatabaseName))
         {
-            return;
+            try
+            {
+                NpgsqlConnection.ClearAllPools();
+                using var connection = new NpgsqlConnection(_postgresAdminConnectionString);
+                connection.Open();
+
+                using var terminate = connection.CreateCommand();
+                terminate.CommandText = """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = @databaseName AND pid <> pg_backend_pid();
+                    """;
+                terminate.Parameters.AddWithValue("databaseName", _postgresDatabaseName);
+                terminate.ExecuteNonQuery();
+
+                using var drop = connection.CreateCommand();
+                drop.CommandText = $"DROP DATABASE IF EXISTS {QuoteIdentifier(_postgresDatabaseName)}";
+                drop.ExecuteNonQuery();
+            }
+            catch
+            {
+                // Test database cleanup is best-effort; CI Postgres services are ephemeral.
+            }
         }
 
-        try
-        {
-            NpgsqlConnection.ClearAllPools();
-            using var connection = new NpgsqlConnection(_postgresAdminConnectionString);
-            connection.Open();
-
-            using var terminate = connection.CreateCommand();
-            terminate.CommandText = """
-                SELECT pg_terminate_backend(pid)
-                FROM pg_stat_activity
-                WHERE datname = @databaseName AND pid <> pg_backend_pid();
-                """;
-            terminate.Parameters.AddWithValue("databaseName", _postgresDatabaseName);
-            terminate.ExecuteNonQuery();
-
-            using var drop = connection.CreateCommand();
-            drop.CommandText = $"DROP DATABASE IF EXISTS {QuoteIdentifier(_postgresDatabaseName)}";
-            drop.ExecuteNonQuery();
-        }
-        catch
-        {
-            // Test database cleanup is best-effort; CI Postgres services are ephemeral.
-        }
+        if (_changedSupabaseConnectionString)
+            Environment.SetEnvironmentVariable("SUPABASE_CONNECTION_STRING", _originalSupabaseConnectionString);
     }
 
     private static string QuoteIdentifier(string identifier)
         => "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+
+    private static bool SetProgramStartupConnectionString(string connectionString)
+    {
+        Environment.SetEnvironmentVariable("SUPABASE_CONNECTION_STRING", connectionString);
+        return true;
+    }
 }
