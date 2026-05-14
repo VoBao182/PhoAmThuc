@@ -76,7 +76,7 @@ jobs:
 
   api-postgres-nightly:
     name: API tests on Postgres
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     services:
@@ -113,7 +113,28 @@ jobs:
         env:
           API_TEST_DATABASE: postgres
           API_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false;Include Error Detail=true
-        run: dotnet test tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-postgres-tests.trx" --results-directory ./TestResults
+        run: |
+          dotnet test tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-postgres-tests.trx" --results-directory ./TestResults
+          exitCode=$?
+          if [ $exitCode -ne 0 ] && [ -f ./TestResults/api-postgres-tests.trx ]; then
+            python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          ns = {"trx": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+          tree = ET.parse("./TestResults/api-postgres-tests.trx")
+          for result in tree.findall(".//trx:UnitTestResult", ns):
+              if result.attrib.get("outcome") == "Passed":
+                  continue
+              name = result.attrib.get("testName", "Unknown test")
+              message = result.attrib.get("outcome", "Failed")
+              error = result.find(".//trx:Message", ns)
+              if error is not None and error.text:
+                  message = error.text
+              message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Postgres API test failed::{name}: {message}")
+          PY
+          fi
+          exit $exitCode
 
       - name: Upload Postgres test report
         if: always()
