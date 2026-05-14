@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
+using VinhKhanhTour.API.Security;
 
 namespace VinhKhanhTour.API.Controllers;
 
@@ -87,6 +88,7 @@ public class PaymentController : ControllerBase
     // Body: { PoiId, TaiKhoanId, SoThangGiaHan, GhiChu? }
     // -----------------------------------------------------------------------
     [HttpPost("maintenance")]
+    [AdminApiKey]
     public async Task<IActionResult> RecordMaintenance([FromBody] MaintenanceRequest req)
     {
         if (req.SoThangGiaHan <= 0)

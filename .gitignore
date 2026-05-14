@@ -65,6 +65,7 @@ artifacts/
 .codex-temp/
 **/appsettings.Local.json
 **/appsettings.*.Local.json
+VinhKhanhTour.API/wwwroot/uploads/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

@@ -14,7 +14,7 @@ public class TaiKhoan
     public string TenDangNhap { get; set; } = "";
 
     [Column("matkhau")]
-    public string MatKhau { get; set; } = "";   // BCrypt hash
+    public string MatKhau { get; set; } = "";   // Demo stores plain text; production should hash.
 
     [Column("tentaikhoan")]
     public string? TenTaiKhoan { get; set; }

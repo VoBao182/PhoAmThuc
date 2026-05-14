@@ -232,7 +232,7 @@ Kiểm tra các luồng backend chính:
 - Đăng ký dùng thử 3 ngày, mỗi thiết bị chỉ dùng thử một lần.
 - Tạo yêu cầu thanh toán gói trả phí.
 - Admin duyệt/từ chối yêu cầu thanh toán.
-- Chặn duyệt/từ chối nếu thiếu admin token.
+- Chặn duyệt/từ chối và ghi nhận phí duy trì nếu thiếu admin token.
 - Gia hạn gói đang còn hạn.
 - Danh sách POI chỉ trả quán đang hoạt động và còn hạn duy trì.
 - POI do CMS/admin tạo có thể xuất hiện trong API danh sách/chi tiết để app đọc.
@@ -242,6 +242,12 @@ Kiểm tra các luồng backend chính:
 - Ghi nhận phí duy trì và tạo hóa đơn.
 - Chặn số tháng gia hạn không hợp lệ hoặc POI không tồn tại.
 - Ghi nhận phí convert TTS khi POI còn hạn duy trì.
+
+- Heartbeat API xac minh POI hien tai theo toa do, ghi nhan visit/view, dong bo lich su, tinh XP, danh sach active va history.
+- Auth API dang ky/dang nhap, chan mat khau yeu, trung tai khoan va user inactive.
+- Upload API chap nhan anh hop le, chan file rong/sai dinh dang/qua lon va phuc vu lai URL upload.
+- API thuyet minh rieng `/api/thuyet-minh/{poiId}` tra dung ngon ngu, fallback tieng Viet va an POI het han.
+- API phu cua payment/subscription: plans, requests, request status, payment status/history/overdue.
 
 ### CMS Playwright E2E tests
 
@@ -263,6 +269,11 @@ Kiểm tra CMS bằng trình duyệt Chromium headless:
 - Loc/tim kiem yeu cau thanh toan va chan tu choi khi thieu ly do.
 - Loc khach hang tren BanDo theo online/offline/dang o POI.
 
+- Dashboard analytics theo range mac dinh va custom date range.
+- Pending payment snapshot cho polling thong bao yeu cau moi.
+- Loc bang phi duy tri phia client.
+- Validation khong cho tao POI khi thieu ten quan.
+
 ### MAUI logic/contract/Appium tests
 
 Mặc định kiểm tra logic app và contract UI:
@@ -281,6 +292,9 @@ Mặc định kiểm tra logic app và contract UI:
 - Quay lại cùng POI trong 10 phút thì không phát lại.
 - Hết cooldown 10 phút thì POI được phát lại.
 - Người dùng đi qua 3 POI liên tiếp thì queue theo đúng thứ tự di chuyển.
+- Chuẩn hóa API URL: bỏ slash/path thừa, nâng public HTTP lên HTTPS, giữ localhost HTTP.
+- Resolve URL ảnh upload từ đường dẫn tương đối và rewrite localhost sang API host đang dùng.
+- Tính số ngày còn lại của subscription, không trả số âm.
 - Các page quan trọng có `AutomationId`.
 - Không bị trùng `AutomationId`.
 

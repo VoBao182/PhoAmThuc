@@ -168,6 +168,12 @@ public class IndexModel : PageModel
 
     private async Task LoadAnalyticsAsync()
     {
+        if (!(_db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true))
+        {
+            await LoadAnalyticsPortableAsync();
+            return;
+        }
+
         var since = SinceUtc;
         var until = UntilUtc;
         var bucketUnit = Granularity;
@@ -195,6 +201,141 @@ public class IndexModel : PageModel
         }
 
         FillMissingBuckets(since, until, bucketUnit);
+    }
+
+    private async Task LoadAnalyticsPortableAsync()
+    {
+        var since = SinceUtc;
+        var until = UntilUtc;
+        var bucketUnit = Granularity;
+
+        var logs = await _db.LichSuPhats
+            .AsNoTracking()
+            .Where(l => l.ThoiGian >= since && l.ThoiGian < until)
+            .Select(l => new
+            {
+                l.MaThietBi,
+                l.POIId,
+                l.Nguon,
+                l.ThoiGian
+            })
+            .ToListAsync();
+
+        TotalActiveDevices = logs
+            .Where(l => !string.IsNullOrWhiteSpace(l.MaThietBi))
+            .Select(l => l.MaThietBi!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        TotalViews = logs.Count(l => string.Equals(l.Nguon, "VIEW", StringComparison.OrdinalIgnoreCase));
+        TotalVisits = logs.Count(l => IsVisitedSource(l.Nguon));
+
+        ActivityBuckets = logs
+            .Where(l => !string.IsNullOrWhiteSpace(l.MaThietBi))
+            .GroupBy(l => TruncateBucket(l.ThoiGian, bucketUnit))
+            .Select(g => new TimeBucket
+            {
+                BucketUtc = g.Key,
+                ActiveUsers = g.Select(l => l.MaThietBi!).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                Views = g.Count(l => string.Equals(l.Nguon, "VIEW", StringComparison.OrdinalIgnoreCase)),
+                Visits = g.Count(l => IsVisitedSource(l.Nguon))
+            })
+            .OrderBy(b => b.BucketUtc)
+            .ToList();
+
+        var pois = await _db.POIs
+            .AsNoTracking()
+            .Select(p => new { p.Id, p.TenPOI, p.ViDo, p.KinhDo })
+            .ToListAsync();
+        var poiMap = pois.ToDictionary(p => p.Id);
+
+        TopPoi = logs
+            .Where(l => l.POIId.HasValue && poiMap.ContainsKey(l.POIId.Value))
+            .GroupBy(l => l.POIId!.Value)
+            .Select(g => new PoiStat
+            {
+                PoiId = g.Key,
+                Name = poiMap[g.Key].TenPOI,
+                Views = g.Count(l => string.Equals(l.Nguon, "VIEW", StringComparison.OrdinalIgnoreCase)),
+                Visits = g.Count(l => IsVisitedSource(l.Nguon))
+            })
+            .OrderByDescending(p => p.Total)
+            .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        GeoPoints = logs
+            .Where(l => l.POIId.HasValue && poiMap.TryGetValue(l.POIId.Value, out var poi) && IsValidServiceCoordinate(poi.ViDo, poi.KinhDo))
+            .GroupBy(l => l.POIId!.Value)
+            .Select(g =>
+            {
+                var poi = poiMap[g.Key];
+                return new GeoHeatPoint
+                {
+                    Lat = poi.ViDo,
+                    Lng = poi.KinhDo,
+                    Name = poi.TenPOI,
+                    Weight = g.Count()
+                };
+            })
+            .OrderByDescending(p => p.Weight)
+            .Take(500)
+            .ToList();
+
+        var revenueMap = new Dictionary<DateTime, RevenueBucket>();
+        var appRevenue = await _db.DangKyApps
+            .AsNoTracking()
+            .Where(d => d.NgayBatDau >= since && d.NgayBatDau < until)
+            .Select(d => new { d.NgayBatDau, d.SoTien })
+            .ToListAsync();
+        foreach (var row in appRevenue)
+        {
+            var bucket = TruncateBucket(row.NgayBatDau, bucketUnit);
+            if (!revenueMap.TryGetValue(bucket, out var revenue))
+            {
+                revenue = new RevenueBucket { BucketUtc = bucket };
+                revenueMap[bucket] = revenue;
+            }
+            revenue.AppRevenue += row.SoTien;
+        }
+
+        var poiRevenue = await _db.HoaDons
+            .AsNoTracking()
+            .Where(h => h.NgayThanhToan >= since && h.NgayThanhToan < until)
+            .Select(h => new { h.NgayThanhToan, h.SoTien })
+            .ToListAsync();
+        foreach (var row in poiRevenue)
+        {
+            var bucket = TruncateBucket(row.NgayThanhToan, bucketUnit);
+            if (!revenueMap.TryGetValue(bucket, out var revenue))
+            {
+                revenue = new RevenueBucket { BucketUtc = bucket };
+                revenueMap[bucket] = revenue;
+            }
+            revenue.PoiRevenue += row.SoTien;
+        }
+
+        RevenueBuckets = revenueMap.Values.OrderBy(r => r.BucketUtc).ToList();
+        TotalRevenue = RevenueBuckets.Sum(r => r.Total);
+
+        FillMissingBuckets(since, until, bucketUnit);
+    }
+
+    private static bool IsVisitedSource(string? source)
+        => source != null
+        && (source.Equals("GPS", StringComparison.OrdinalIgnoreCase)
+            || source.Equals("APP-GEOFENCE", StringComparison.OrdinalIgnoreCase)
+            || source.Equals("APP_GEOFENCE", StringComparison.OrdinalIgnoreCase)
+            || source.Equals("GEOFENCE", StringComparison.OrdinalIgnoreCase));
+
+    private static DateTime TruncateBucket(DateTime value, string bucketUnit)
+    {
+        var utc = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        return bucketUnit switch
+        {
+            "hour" => new DateTime(utc.Year, utc.Month, utc.Day, utc.Hour, 0, 0, DateTimeKind.Utc),
+            "month" => new DateTime(utc.Year, utc.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => new DateTime(utc.Year, utc.Month, utc.Day, 0, 0, 0, DateTimeKind.Utc)
+        };
     }
 
     private async Task LoadActivityAsync(System.Data.Common.DbConnection conn, DateTime since, DateTime until, string bucketUnit)

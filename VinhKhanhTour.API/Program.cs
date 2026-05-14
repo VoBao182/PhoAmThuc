@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -55,8 +56,12 @@ if (app.Environment.IsDevelopment())
 }
 
 // Phục vụ ảnh tải lên từ wwwroot/uploads
-var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
+var webRootPath = app.Environment.WebRootPath
+    ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var uploadsPath = Path.Combine(webRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
+app.Environment.WebRootPath = webRootPath;
+app.Environment.WebRootFileProvider = new PhysicalFileProvider(webRootPath);
 app.UseStaticFiles();
 
 app.UseCors("AllowAll");

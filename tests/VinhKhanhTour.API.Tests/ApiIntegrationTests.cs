@@ -327,11 +327,12 @@ public sealed class ApiIntegrationTests
         });
 
         using var client = factory.CreateClient();
+        using var adminClient = CreateAdminClient(factory);
 
         var beforeRenewal = await client.GetFromJsonAsync<JsonElement[]>("/api/poi");
         Assert.DoesNotContain(beforeRenewal ?? [], poi => Property(poi, "Id").GetGuid() == poiId);
 
-        var renewal = await client.PostAsJsonAsync(
+        var renewal = await adminClient.PostAsJsonAsync(
             "/api/payment/maintenance",
             new { PoiId = poiId, TaiKhoanId = (Guid?)null, SoThangGiaHan = 1, GhiChu = "CMS ghi nhan gia han" });
         Assert.Equal(HttpStatusCode.OK, renewal.StatusCode);
@@ -451,8 +452,9 @@ public sealed class ApiIntegrationTests
         });
 
         using var client = factory.CreateClient();
+        using var adminClient = CreateAdminClient(factory);
 
-        var response = await client.PostAsJsonAsync(
+        var response = await adminClient.PostAsJsonAsync(
             "/api/payment/maintenance",
             new { PoiId = poiId, TaiKhoanId = (Guid?)null, SoThangGiaHan = 2, GhiChu = "Thu tien mat" });
 
@@ -483,13 +485,19 @@ public sealed class ApiIntegrationTests
         using var factory = new ApiTestApplicationFactory();
         await factory.ResetDatabaseAsync();
         using var client = factory.CreateClient();
+        using var adminClient = CreateAdminClient(factory);
 
-        var invalidMonthCount = await client.PostAsJsonAsync(
+        var withoutToken = await client.PostAsJsonAsync(
+            "/api/payment/maintenance",
+            new { PoiId = Guid.NewGuid(), TaiKhoanId = (Guid?)null, SoThangGiaHan = 1, GhiChu = "No token" });
+        Assert.Equal(HttpStatusCode.Unauthorized, withoutToken.StatusCode);
+
+        var invalidMonthCount = await adminClient.PostAsJsonAsync(
             "/api/payment/maintenance",
             new { PoiId = Guid.NewGuid(), TaiKhoanId = (Guid?)null, SoThangGiaHan = 0, GhiChu = "Invalid" });
         Assert.Equal(HttpStatusCode.BadRequest, invalidMonthCount.StatusCode);
 
-        var missingPoi = await client.PostAsJsonAsync(
+        var missingPoi = await adminClient.PostAsJsonAsync(
             "/api/payment/maintenance",
             new { PoiId = Guid.NewGuid(), TaiKhoanId = (Guid?)null, SoThangGiaHan = 1, GhiChu = "Missing" });
         Assert.Equal(HttpStatusCode.NotFound, missingPoi.StatusCode);
@@ -548,6 +556,360 @@ public sealed class ApiIntegrationTests
             Assert.Null(invoice.KyThanhToan);
             Assert.Equal("Convert now", invoice.GhiChu);
         });
+    }
+
+    [Fact]
+    public async Task Auth_RegisterAndLogin_RejectInvalidDuplicateAndInactiveUsers()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var weakPassword = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new { TenDangNhap = "guest01", MatKhau = "123" });
+        Assert.Equal(HttpStatusCode.BadRequest, weakPassword.StatusCode);
+
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new
+            {
+                TenDangNhap = "guest01",
+                MatKhau = "secret1",
+                TenTaiKhoan = "Guest One",
+                Email = "guest01@example.test",
+                SoDienThoai = "0909000001"
+            });
+        Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        var registerBody = await ReadJsonAsync(register);
+        Assert.Equal("guest01", Property(registerBody.RootElement, "TenDangNhap").GetString());
+        Assert.Equal("khach", Property(registerBody.RootElement, "VaiTro").GetString());
+
+        var duplicate = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new { TenDangNhap = "guest01", MatKhau = "secret1" });
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+
+        var wrongPassword = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new { TenDangNhap = "guest01", MatKhau = "wrong-password" });
+        Assert.Equal(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
+
+        var login = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new { TenDangNhap = "guest01", MatKhau = "secret1" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        await factory.AssertAsync(async db =>
+        {
+            var user = await db.TaiKhoans.SingleAsync(t => t.TenDangNhap == "guest01");
+            user.TrangThai = false;
+            await db.SaveChangesAsync();
+        });
+
+        var inactiveLogin = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new { TenDangNhap = "guest01", MatKhau = "secret1" });
+        Assert.Equal(HttpStatusCode.Unauthorized, inactiveLogin.StatusCode);
+    }
+
+    [Fact]
+    public async Task Upload_AcceptsImageAndRejectsInvalidEmptyOrLargeFiles()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        using var client = factory.CreateClient();
+
+        using var missingFileContent = new MultipartFormDataContent();
+        var missingFile = await client.PostAsync("/api/upload", missingFileContent);
+        Assert.Equal(HttpStatusCode.BadRequest, missingFile.StatusCode);
+
+        using var invalidFileContent = new MultipartFormDataContent();
+        invalidFileContent.Add(new ByteArrayContent("not-an-image"u8.ToArray()), "file", "note.txt");
+        var invalidFile = await client.PostAsync("/api/upload", invalidFileContent);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidFile.StatusCode);
+
+        using var largeFileContent = new MultipartFormDataContent();
+        largeFileContent.Add(new ByteArrayContent(new byte[(5 * 1024 * 1024) + 1]), "file", "big.png");
+        var largeFile = await client.PostAsync("/api/upload", largeFileContent);
+        Assert.Equal(HttpStatusCode.BadRequest, largeFile.StatusCode);
+
+        using var imageContent = new MultipartFormDataContent();
+        imageContent.Add(new ByteArrayContent([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A]), "file", "cover.png");
+        var imageUpload = await client.PostAsync("/api/upload", imageContent);
+        Assert.Equal(HttpStatusCode.OK, imageUpload.StatusCode);
+        var uploadBody = await ReadJsonAsync(imageUpload);
+        var url = Property(uploadBody.RootElement, "url").GetString();
+        Assert.NotNull(url);
+        Assert.StartsWith("/uploads/", url);
+        Assert.EndsWith(".png", url);
+
+        var uploadedFile = await client.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, uploadedFile.StatusCode);
+    }
+
+    [Fact]
+    public async Task ThuyetMinhEndpoint_ReturnsRequestedLanguageFallbackAndVisibilityRules()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        var visiblePoiId = Guid.NewGuid();
+        var expiredPoiId = Guid.NewGuid();
+        await factory.SeedAsync(db =>
+        {
+            var visiblePoi = CreatePoi("Narration visible", priority: 1, expiresAtUtc: DateTime.UtcNow.AddDays(10), active: true, id: visiblePoiId);
+            visiblePoi.ThuyetMinhs.Add(new ThuyetMinh
+            {
+                Id = Guid.NewGuid(),
+                POIId = visiblePoiId,
+                TrangThai = true,
+                ThuTu = 1,
+                BanDichs =
+                [
+                    new BanDich { Id = Guid.NewGuid(), NgonNgu = "vi", NoiDung = "Noi dung mac dinh", FileAudio = "vi.mp3" },
+                    new BanDich { Id = Guid.NewGuid(), NgonNgu = "en", NoiDung = "English guide", FileAudio = "en.mp3" }
+                ]
+            });
+
+            db.POIs.AddRange(
+                visiblePoi,
+                CreatePoi("Narration expired", priority: 2, expiresAtUtc: DateTime.UtcNow.AddDays(-1), active: true, id: expiredPoiId));
+
+            return db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateClient();
+
+        var english = await client.GetFromJsonAsync<JsonDocument>($"/api/thuyet-minh/{visiblePoiId}?lang=en-US");
+        Assert.NotNull(english);
+        Assert.Equal("English guide", Property(english!.RootElement, "NoiDung").GetString());
+        Assert.Equal("en", Property(english.RootElement, "NgonNgu").GetString());
+
+        var fallback = await client.GetFromJsonAsync<JsonDocument>($"/api/thuyet-minh/{visiblePoiId}?lang=fr");
+        Assert.NotNull(fallback);
+        Assert.Equal("Noi dung mac dinh", Property(fallback!.RootElement, "NoiDung").GetString());
+        Assert.Equal("vi", Property(fallback.RootElement, "NgonNgu").GetString());
+
+        var expired = await client.GetAsync($"/api/thuyet-minh/{expiredPoiId}?lang=vi");
+        Assert.Equal(HttpStatusCode.NotFound, expired.StatusCode);
+    }
+
+    [Fact]
+    public async Task PaymentStatusHistoryAndOverdue_ReturnExpectedPoiPaymentData()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        var activePoiId = Guid.NewGuid();
+        var overduePoiId = Guid.NewGuid();
+        await factory.SeedAsync(db =>
+        {
+            db.POIs.AddRange(
+                CreatePoi("Payment active", priority: 1, expiresAtUtc: DateTime.UtcNow.AddDays(8), active: true, id: activePoiId),
+                CreatePoi("Payment overdue", priority: 2, expiresAtUtc: DateTime.UtcNow.AddDays(-4), active: true, id: overduePoiId));
+            db.DangKyDichVus.Add(new DangKyDichVu
+            {
+                Id = Guid.NewGuid(),
+                POIId = activePoiId,
+                PhiDuyTriThang = 88_000m,
+                PhiConvert = 33_000m,
+                NgayBatDau = DateTime.UtcNow.AddMonths(-1),
+                NgayHetHan = DateTime.UtcNow.AddDays(8),
+                TrangThai = true
+            });
+            db.HoaDons.AddRange(
+                new HoaDon { Id = Guid.NewGuid(), POIId = activePoiId, LoaiPhi = "duytri", SoTien = 88_000m, KyThanhToan = "2026-05", GhiChu = "paid" },
+                new HoaDon { Id = Guid.NewGuid(), POIId = activePoiId, LoaiPhi = "convert", SoTien = 33_000m, GhiChu = "tts" });
+
+            return db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateClient();
+
+        var status = await client.GetFromJsonAsync<JsonDocument>($"/api/payment/status/{activePoiId}");
+        Assert.NotNull(status);
+        Assert.Equal("Payment active", Property(status!.RootElement, "TenPOI").GetString());
+        Assert.False(Property(status.RootElement, "HetHanDuyTri").GetBoolean());
+        Assert.Equal(88_000m, Property(status.RootElement, "PhiDuyTriThang").GetDecimal());
+        Assert.Equal(33_000m, Property(status.RootElement, "PhiConvert").GetDecimal());
+
+        var history = await client.GetFromJsonAsync<JsonElement[]>($"/api/payment/history/{activePoiId}");
+        Assert.NotNull(history);
+        Assert.Equal(2, history!.Length);
+        Assert.Contains(history, invoice => Property(invoice, "LoaiPhi").GetString() == "convert");
+
+        var overdue = await client.GetFromJsonAsync<JsonElement[]>("/api/payment/overdue");
+        Assert.NotNull(overdue);
+        Assert.Contains(overdue!, poi => Property(poi, "Id").GetGuid() == overduePoiId);
+        Assert.DoesNotContain(overdue!, poi => Property(poi, "Id").GetGuid() == activePoiId);
+
+        var missingStatus = await client.GetAsync($"/api/payment/status/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, missingStatus.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubscriptionPlansRequestsAndRequestStatus_FilterAndExposePaymentState()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var plans = await client.GetFromJsonAsync<JsonElement[]>("/api/subscription/plans");
+        Assert.NotNull(plans);
+        Assert.Contains(plans!, plan => Property(plan, "LoaiGoi").GetString() == "thu" && Property(plan, "MienPhi").GetBoolean());
+        Assert.Contains(plans!, plan => Property(plan, "LoaiGoi").GetString() == "nam" && Property(plan, "Gia").GetDecimal() == 999_000m);
+
+        var createPending = await client.PostAsJsonAsync(
+            "/api/subscription/request",
+            new { MaThietBi = "device-filter-pending", LoaiGoi = "thang" });
+        Assert.Equal(HttpStatusCode.OK, createPending.StatusCode);
+        var pendingBody = await ReadJsonAsync(createPending);
+        var pendingId = Property(pendingBody.RootElement, "YeuCauId").GetGuid();
+
+        var createRejected = await client.PostAsJsonAsync(
+            "/api/subscription/request",
+            new { MaThietBi = "device-filter-rejected", LoaiGoi = "ngay" });
+        Assert.Equal(HttpStatusCode.OK, createRejected.StatusCode);
+        var rejectedBody = await ReadJsonAsync(createRejected);
+        var rejectedId = Property(rejectedBody.RootElement, "YeuCauId").GetGuid();
+
+        using var adminClient = CreateAdminClient(factory);
+        var reject = await adminClient.PostAsJsonAsync(
+            $"/api/subscription/reject/{rejectedId}",
+            new { GhiChu = "Khong tim thay giao dich" });
+        Assert.Equal(HttpStatusCode.OK, reject.StatusCode);
+
+        var allRequests = await client.GetFromJsonAsync<JsonElement[]>("/api/subscription/requests");
+        Assert.NotNull(allRequests);
+        Assert.Equal(2, allRequests!.Length);
+
+        var pendingRequests = await client.GetFromJsonAsync<JsonElement[]>("/api/subscription/requests?trangthai=cho_duyet");
+        Assert.NotNull(pendingRequests);
+        Assert.Single(pendingRequests!);
+        Assert.Equal(pendingId, Property(pendingRequests![0], "Id").GetGuid());
+
+        var rejectedStatus = await client.GetFromJsonAsync<JsonDocument>($"/api/subscription/request/{rejectedId}");
+        Assert.NotNull(rejectedStatus);
+        Assert.Equal("tu_choi", Property(rejectedStatus!.RootElement, "TrangThai").GetString());
+        Assert.Equal("Khong tim thay giao dich", Property(rejectedStatus.RootElement, "GhiChuAdmin").GetString());
+
+        var missing = await client.GetAsync($"/api/subscription/request/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task Heartbeat_TracksVerifiedPoiVisitsViewsProfileActiveAndHistory()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        var activePoiId = Guid.NewGuid();
+        var farPoiId = Guid.NewGuid();
+        var secondPoiId = Guid.NewGuid();
+        await factory.SeedAsync(db =>
+        {
+            var activePoi = CreatePoi("Heartbeat Active POI", priority: 1, expiresAtUtc: DateTime.UtcNow.AddDays(30), active: true, id: activePoiId);
+            activePoi.ViDo = 10.7589;
+            activePoi.KinhDo = 106.7018;
+            activePoi.BanKinh = 50;
+
+            var farPoi = CreatePoi("Heartbeat Far Claim", priority: 2, expiresAtUtc: DateTime.UtcNow.AddDays(30), active: true, id: farPoiId);
+            farPoi.ViDo = 10.8000;
+            farPoi.KinhDo = 106.8000;
+            farPoi.BanKinh = 10;
+
+            var secondPoi = CreatePoi("Heartbeat Second POI", priority: 3, expiresAtUtc: DateTime.UtcNow.AddDays(30), active: true, id: secondPoiId);
+            secondPoi.ViDo = 10.7592;
+            secondPoi.KinhDo = 106.7020;
+            secondPoi.BanKinh = 50;
+
+            db.POIs.AddRange(
+                activePoi,
+                farPoi,
+                secondPoi);
+            db.DangKyApps.Add(new DangKyApp
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = "heartbeat-device-01",
+                LoaiGoi = "thang",
+                NgayBatDau = DateTime.UtcNow.AddDays(-1),
+                NgayHetHan = DateTime.UtcNow.AddDays(20),
+                SoTien = 199_000m
+            });
+
+            return db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateClient();
+
+        var outsideArea = await client.PostAsJsonAsync(
+            "/api/heartbeat",
+            new { MaThietBi = "heartbeat-device-01", Lat = 0, Lng = 0, PoiIdHienTai = activePoiId });
+        Assert.Equal(HttpStatusCode.OK, outsideArea.StatusCode);
+        var outsideBody = await ReadJsonAsync(outsideArea);
+        Assert.True(Property(outsideBody.RootElement, "skipped").GetBoolean());
+
+        var unverifiedHeartbeat = await client.PostAsJsonAsync(
+            "/api/heartbeat",
+            new { MaThietBi = "heartbeat-device-01", Lat = 10.7589, Lng = 106.7018, PoiIdHienTai = farPoiId });
+        Assert.Equal(HttpStatusCode.OK, unverifiedHeartbeat.StatusCode);
+
+        await factory.AssertAsync(async db =>
+        {
+            var location = await db.VitriKhachs.SingleAsync(v => v.MaThietBi == "heartbeat-device-01");
+            Assert.Null(location.PoiIdHienTai);
+            Assert.Null(location.TenPoiHienTai);
+        });
+
+        var verifiedHeartbeat = await client.PostAsJsonAsync(
+            "/api/heartbeat",
+            new { MaThietBi = "heartbeat-device-01", Lat = 10.7589, Lng = 106.7018, PoiIdHienTai = activePoiId });
+        Assert.Equal(HttpStatusCode.OK, verifiedHeartbeat.StatusCode);
+
+        var firstVisit = await client.PostAsJsonAsync(
+            "/api/heartbeat/visit",
+            new { MaThietBi = "heartbeat-device-01", PoiId = activePoiId, NgonNgu = "vi-VN" });
+        var duplicateVisit = await client.PostAsJsonAsync(
+            "/api/heartbeat/visit",
+            new { MaThietBi = "heartbeat-device-01", PoiId = activePoiId, NgonNgu = "vi" });
+        var firstView = await client.PostAsJsonAsync(
+            "/api/heartbeat/view",
+            new { MaThietBi = "heartbeat-device-01", PoiId = activePoiId, NgonNgu = "en-US" });
+        var duplicateView = await client.PostAsJsonAsync(
+            "/api/heartbeat/view",
+            new { MaThietBi = "heartbeat-device-01", PoiId = activePoiId, NgonNgu = "en" });
+
+        Assert.True(Property((await ReadJsonAsync(firstVisit)).RootElement, "recorded").GetBoolean());
+        Assert.False(Property((await ReadJsonAsync(duplicateVisit)).RootElement, "recorded").GetBoolean());
+        Assert.True(Property((await ReadJsonAsync(firstView)).RootElement, "recorded").GetBoolean());
+        Assert.False(Property((await ReadJsonAsync(duplicateView)).RootElement, "recorded").GetBoolean());
+
+        var sync = await client.PostAsJsonAsync(
+            "/api/heartbeat/sync-history",
+            new
+            {
+                MaThietBi = "heartbeat-device-01",
+                ViewedPoiIds = new[] { activePoiId, secondPoiId },
+                VisitedPoiIds = new[] { activePoiId, secondPoiId },
+                NgonNgu = "vi"
+            });
+        Assert.Equal(HttpStatusCode.OK, sync.StatusCode);
+        var syncBody = await ReadJsonAsync(sync);
+        Assert.Equal(1, Property(syncBody.RootElement, "insertedViews").GetInt32());
+        Assert.Equal(1, Property(syncBody.RootElement, "insertedVisits").GetInt32());
+
+        var profile = await client.GetFromJsonAsync<JsonDocument>("/api/heartbeat/profile/heartbeat-device-01");
+        Assert.NotNull(profile);
+        Assert.Equal(2, Property(profile!.RootElement, "ViewedPoiCount").GetInt32());
+        Assert.Equal(2, Property(profile.RootElement, "VisitedPoiCount").GetInt32());
+        Assert.Equal(300, Property(profile.RootElement, "ExperiencePoints").GetInt32());
+
+        var active = await client.GetFromJsonAsync<JsonDocument>("/api/heartbeat/active");
+        Assert.NotNull(active);
+        Assert.Equal(1, Property(active!.RootElement, "Count").GetInt32());
+        var activeItem = Property(active.RootElement, "Items").EnumerateArray().Single();
+        Assert.Equal("Heartbeat Active POI", Property(activeItem, "TenPoiHienTai").GetString());
+        Assert.Equal(2, Property(activeItem, "SoQuanDaGhe").GetInt32());
+        Assert.Equal(2, Property(activeItem, "SoQuanDaXem").GetInt32());
+
+        var history = await client.GetFromJsonAsync<JsonDocument>("/api/heartbeat/history/HEARTBEA");
+        Assert.NotNull(history);
+        Assert.Equal(2, Property(history!.RootElement, "SoDiemDaGhe").GetInt32());
+        Assert.Equal("HEARTBEA", Property(history.RootElement, "DeviceShort").GetString());
     }
 
     private static POI CreatePoi(

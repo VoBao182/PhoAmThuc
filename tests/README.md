@@ -14,11 +14,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-all-tests.ps1
 
 Expected local result without a device:
 
-- API integration tests pass.
+- API integration tests pass, including POI/payment/subscription plus admin-token protection, heartbeat, auth, upload, and narration endpoints.
 - CMS Playwright E2E tests pass.
 - CMS priority E2E coverage includes login failure/logout, POI filters/sort/toggle, POI menu and 3-language narration edits, maintenance payment history, payment approval filters/reject validation, and customer map filters.
+- CMS extended E2E coverage includes dashboard analytics ranges, pending-payment polling snapshot, POI create validation, and payment-table client filtering.
 - MAUI geofence/playback queue logic tests pass.
 - MAUI walking scenario tests for dwell time, cooldown, and multi-POI playback order pass.
+- MAUI app client logic tests pass for API URL normalization, image URL resolution, and subscription remaining-day calculations.
 - MAUI Appium contract tests pass.
 - Real Appium tests are skipped unless `RUN_APPIUM_TESTS=1`.
 

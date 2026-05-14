@@ -5,12 +5,7 @@ internal static class SubscriptionState
     private const string SubscriptionExpiryKey = "sub_ngay_het_han";
 
     public static int CalculateRemainingDays(DateTime expiresAtUtc)
-    {
-        if (expiresAtUtc.Kind == DateTimeKind.Local)
-            expiresAtUtc = expiresAtUtc.ToUniversalTime();
-
-        return Math.Max(0, (int)Math.Floor((expiresAtUtc - DateTime.UtcNow).TotalDays));
-    }
+        => AppClientLogic.CalculateRemainingDays(expiresAtUtc, DateTime.UtcNow);
 
     public static bool HasStoredSubscriptionRecord()
         => Preferences.ContainsKey(SubscriptionExpiryKey);

@@ -1,6 +1,4 @@
-using System.Net;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 
 namespace VinhKhanhTourDemo;
 
@@ -127,28 +125,7 @@ public static class AppConfig
 
     public static string? NormalizeApiBaseUrl(string? rawUrl)
     {
-        if (string.IsNullOrWhiteSpace(rawUrl))
-            return null;
-
-        var normalized = rawUrl.Trim();
-        normalized = Regex.Replace(normalized, "/+$", "");
-
-        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
-            return null;
-
-        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-            return null;
-
-        if (uri.Scheme == Uri.UriSchemeHttp && ShouldPreferHttps(uri))
-        {
-            uri = new UriBuilder(uri)
-            {
-                Scheme = Uri.UriSchemeHttps,
-                Port = -1
-            }.Uri;
-        }
-
-        return uri.GetLeftPart(UriPartial.Authority);
+        return AppClientLogic.NormalizeApiBaseUrl(rawUrl);
     }
 
     public static async Task<bool> CanReachApiBaseUrlAsync(
@@ -305,23 +282,7 @@ public static class AppConfig
 
     public static string ResolveImageUrl(string? url)
     {
-        if (string.IsNullOrWhiteSpace(url))
-            return "";
-
-        if (url.StartsWith('/'))
-            return ApiBaseUrl.TrimEnd('/') + url;
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return url;
-
-        if (uri.Host is "localhost" or "127.0.0.1" &&
-            Uri.TryCreate(ApiBaseUrl, UriKind.Absolute, out var apiUri) &&
-            apiUri.Host != uri.Host)
-        {
-            return new UriBuilder(uri) { Host = apiUri.Host, Port = apiUri.Port }.Uri.ToString();
-        }
-
-        return url;
+        return AppClientLogic.ResolveImageUrl(url, ApiBaseUrl);
     }
 
     private static void RememberResolvedApiBaseUrl(string apiBaseUrl)
@@ -336,15 +297,4 @@ public static class AppConfig
         Preferences.Set(LastGoodApiBaseUrlKey, normalized);
     }
 
-    private static bool ShouldPreferHttps(Uri uri)
-    {
-        if (uri.IsLoopback)
-            return false;
-
-        var host = uri.Host;
-        if (string.IsNullOrWhiteSpace(host))
-            return false;
-
-        return !IPAddress.TryParse(host, out _);
-    }
 }

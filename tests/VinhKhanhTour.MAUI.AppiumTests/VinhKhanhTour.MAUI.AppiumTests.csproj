@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\VinhKhanhTourDemo\AppClientLogic.cs" Link="AppLogic\AppClientLogic.cs" />
     <Compile Include="..\..\VinhKhanhTourDemo\PoiPlaybackLogic.cs" Link="AppLogic\PoiPlaybackLogic.cs" />
   </ItemGroup>
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 using VinhKhanhTour.API.Data;
@@ -105,6 +106,31 @@ public sealed class CmsE2ETests : IAsyncLifetime
 
             await ExpectBodyContainsAsync(page, "CMS Seed Active");
             await ExpectBodyNotContainsAsync(page, "CMS Seed Overdue");
+        });
+    }
+
+    [Fact]
+    public async Task Cms_DashboardAnalyticsRangeFilters_RenderSeededActivityAndRevenue()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_DashboardAnalyticsRangeFilters_RenderSeededActivityAndRevenue), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/?mode=last7",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await ExpectBodyContainsAsync(page, "7 ngày qua");
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyContainsAsync(page, "228,000");
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+
+            var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            await page.GotoAsync(
+                $"{_baseUrl}/?mode=custom&from={today}&to={today}",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await ExpectBodyContainsAsync(page, DateTime.UtcNow.ToString("dd/MM/yyyy"));
+            Assert.Equal(today, await page.Locator("input[name='from']").InputValueAsync());
+            Assert.Equal(today, await page.Locator("input[name='to']").InputValueAsync());
         });
     }
 
@@ -237,6 +263,30 @@ public sealed class CmsE2ETests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cms_PoiCreate_RequiresNameBeforeSubmitting()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_PoiCreate_RequiresNameBeforeSubmitting), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi/Create",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await page.Locator("[name='POI.SDT']").FillAsync("0909000999");
+            await page.Locator("[name='POI.DiaChi']").FillAsync("Missing name street");
+            await page.Locator("[name='POI.ViDo']").FillAsync("10.7589");
+            await page.Locator("[name='POI.KinhDo']").FillAsync("106.7018");
+            await page.Locator("[name='POI.BanKinh']").FillAsync("35");
+
+            Assert.False(await page.Locator("[name='POI.TenPOI']").EvaluateAsync<bool>("el => el.checkValidity()"));
+            await page.Locator("main form button[type='submit']").Last.ClickAsync();
+
+            Assert.Contains("/Poi/Create", page.Url, StringComparison.OrdinalIgnoreCase);
+            await using var db = CreateDbContext();
+            Assert.False(await db.POIs.AnyAsync(p => p.SDT == "0909000999"));
+        });
+    }
+
+    [Fact]
     public async Task Cms_ThuyetMinhList_ShowsTranslationsAndOpensPoiEdit()
     {
         await RunWithPageArtifactsAsync(nameof(Cms_ThuyetMinhList_ShowsTranslationsAndOpensPoiEdit), async page =>
@@ -314,6 +364,33 @@ public sealed class CmsE2ETests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cms_ThanhToanClientFilter_ShowsOnlySelectedPaymentStatusRows()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_ThanhToanClientFilter_ShowsOnlySelectedPaymentStatusRows), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/ThanhToan",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await page.Locator("#filterStatus").SelectOptionAsync("quahan");
+            var overdueRows = await GetVisibleRowTextsAsync(page, "#poiTable tbody tr");
+            Assert.Contains(overdueRows, row => row.Contains("CMS Seed Overdue", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(overdueRows, row => row.Contains("CMS Seed Active", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(overdueRows, row => row.Contains("CMS Seed Expiring", StringComparison.OrdinalIgnoreCase));
+
+            await page.Locator("#filterStatus").SelectOptionAsync("saphan");
+            var expiringRows = await GetVisibleRowTextsAsync(page, "#poiTable tbody tr");
+            Assert.Contains(expiringRows, row => row.Contains("CMS Seed Expiring", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(expiringRows, row => row.Contains("CMS Seed Overdue", StringComparison.OrdinalIgnoreCase));
+
+            await page.Locator("#filterStatus").SelectOptionAsync("ok");
+            var okRows = await GetVisibleRowTextsAsync(page, "#poiTable tbody tr");
+            Assert.Contains(okRows, row => row.Contains("CMS Seed Active", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(okRows, row => row.Contains("CMS Seed Overdue", StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
     public async Task Cms_PaymentApprovalFiltersAndRejectValidation_WorkForAdmin()
     {
         await RunWithPageArtifactsAsync(nameof(Cms_PaymentApprovalFiltersAndRejectValidation_WorkForAdmin), async page =>
@@ -366,6 +443,25 @@ public sealed class CmsE2ETests : IAsyncLifetime
                 Assert.Equal("tuan", subscription.LoaiGoi);
                 Assert.True(subscription.NgayHetHan > DateTime.UtcNow.AddDays(6));
             }
+        });
+    }
+
+    [Fact]
+    public async Task Cms_PendingPaymentSnapshot_ReturnsLatestPendingRequestForPolling()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_PendingPaymentSnapshot_ReturnsLatestPendingRequestForPolling), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/DuyetThanhToan?handler=PendingSnapshot",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            var json = await page.Locator("body").InnerTextAsync();
+            using var snapshot = JsonDocument.Parse(json);
+            Assert.True(Property(snapshot.RootElement, "Ok").GetBoolean());
+            Assert.Equal(2, Property(snapshot.RootElement, "Count").GetInt32());
+            Assert.Equal(_rejectRequestId.ToString("N"), Property(snapshot.RootElement, "LatestId").GetString());
+            Assert.Equal("VKT NGAY E2EREJ", Property(snapshot.RootElement, "LatestTransferContent").GetString());
+            Assert.Equal("E2EREJ-D", Property(snapshot.RootElement, "LatestDeviceShort").GetString());
         });
     }
 
@@ -808,8 +904,24 @@ public sealed class CmsE2ETests : IAsyncLifetime
             value);
     }
 
+    private static async Task<string[]> GetVisibleRowTextsAsync(IPage page, string selector)
+        => await page.Locator(selector).EvaluateAllAsync<string[]>(
+            "rows => rows.filter(row => getComputedStyle(row).display !== 'none').map(row => row.innerText)");
+
     private static async Task<string> GetBodyTextAsync(IPage page)
         => await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 });
+
+    private static JsonElement Property(JsonElement element, string name)
+    {
+        if (element.TryGetProperty(name, out var value))
+            return value;
+
+        var camelName = char.ToLowerInvariant(name[0]) + name[1..];
+        if (element.TryGetProperty(camelName, out value))
+            return value;
+
+        throw new KeyNotFoundException($"JSON property '{name}' was not found.");
+    }
 
     private static async Task ExpectBodyContainsAsync(IPage page, string expected)
     {

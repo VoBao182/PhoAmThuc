@@ -36,11 +36,7 @@ public class UploadController : ControllerBase
         var uploadsDir = Path.Combine(webRoot, "uploads");
 
         // Fallback nếu wwwroot không tồn tại trong output dir
-        if (!Directory.Exists(uploadsDir))
-        {
-            uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-            Directory.CreateDirectory(uploadsDir);
-        }
+        Directory.CreateDirectory(uploadsDir);
 
         var fileName = $"{Guid.NewGuid()}{ext}";
         var fullPath = Path.Combine(uploadsDir, fileName);
