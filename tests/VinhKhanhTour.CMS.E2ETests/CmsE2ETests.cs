@@ -61,7 +61,7 @@ public sealed class CmsE2ETests : IAsyncLifetime
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
-            await ExpectBodyContainsAsync(page, "Tai khoan hoac mat khau khong dung.");
+            await ExpectBodyContainsAsync(page, "Tài khoản hoặc mật khẩu không đúng");
 
             await page.Locator("input[name='Password']").FillAsync(CmsAdminPassword);
             await page.Locator("form button[type='submit']").ClickAsync();

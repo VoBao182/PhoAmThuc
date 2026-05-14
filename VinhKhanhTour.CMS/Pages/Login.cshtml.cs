@@ -55,7 +55,7 @@ public sealed class LoginModel : PageModel
 
         if (!SecureEquals(Username, configuredUsername) || !SecureEquals(Password, configuredPassword))
         {
-            ModelState.AddModelError(string.Empty, "Tai khoan hoac mat khau khong dung.");
+            ModelState.AddModelError(string.Empty, "Tài khoản hoặc mật khẩu không đúng.");
             return Page();
         }
 
