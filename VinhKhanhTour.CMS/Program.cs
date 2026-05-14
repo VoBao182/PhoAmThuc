@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -36,28 +34,7 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-builder.Services
-    .AddDataProtection()
-    .SetApplicationName("VinhKhanhTour.CMS")
-    .PersistKeysToFileSystem(GetDataProtectionKeysDirectory());
-
-builder.Services
-    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.Name = "VinhKhanhTour.CMS.Auth";
-        options.LoginPath = "/Login";
-        options.AccessDeniedPath = "/Login";
-        options.SlidingExpiration = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    });
-builder.Services.AddAuthorization();
-builder.Services.AddRazorPages(options =>
-{
-    options.Conventions.AuthorizeFolder("/");
-    options.Conventions.AllowAnonymousToPage("/Login");
-    options.Conventions.AllowAnonymousToPage("/Error");
-});
+builder.Services.AddRazorPages();
 
 // Kết nối Supabase. In Testing, CMS E2E can opt into a local SQLite database
 // via CMS_TEST_SQLITE_PATH so browser tests are deterministic and offline.
@@ -91,8 +68,6 @@ Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles();
 
 app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/health/db", async (AppDbContext db) =>
 {
@@ -177,34 +152,6 @@ static bool LooksLikePlaceholder(string connectionString)
         || connectionString.Contains("YOUR-", StringComparison.OrdinalIgnoreCase)
         || connectionString.Contains("PROJECT_REF", StringComparison.OrdinalIgnoreCase)
         || connectionString.Contains("YOUR_NEW_PASSWORD", StringComparison.OrdinalIgnoreCase);
-}
-
-static DirectoryInfo GetDataProtectionKeysDirectory()
-{
-    var configuredPath = Environment.GetEnvironmentVariable("CMS_DATA_PROTECTION_KEYS_PATH");
-    var path = !string.IsNullOrWhiteSpace(configuredPath)
-        ? configuredPath
-        : Path.Combine(
-            GetWritableAppDataDirectory(),
-            "VinhKhanhTourDemo",
-            "cms-data-protection-keys");
-
-    var directory = new DirectoryInfo(path);
-    directory.Create();
-    return directory;
-}
-
-static string GetWritableAppDataDirectory()
-{
-    var localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-    if (!string.IsNullOrWhiteSpace(localAppData))
-        return localAppData;
-
-    var home = Environment.GetEnvironmentVariable("HOME");
-    if (!string.IsNullOrWhiteSpace(home))
-        return Path.Combine(home, ".local", "share");
-
-    return Path.GetTempPath();
 }
 
 public partial class Program

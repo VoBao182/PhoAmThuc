@@ -12,9 +12,6 @@ namespace VinhKhanhTour.CMS.E2ETests;
 
 public sealed class CmsE2ETests : IAsyncLifetime
 {
-    private const string CmsAdminUsername = "e2e-admin";
-    private const string CmsAdminPassword = "e2e-password";
-
     private readonly string _baseUrl = $"http://127.0.0.1:{GetAvailablePort()}";
     private readonly string _databasePath = Path.Combine(
         Path.GetTempPath(),
@@ -32,54 +29,33 @@ public sealed class CmsE2ETests : IAsyncLifetime
     private Guid _rejectRequestId;
 
     [Fact]
-    public async Task Cms_AdminPages_RedirectUnauthenticatedUsersToLogin()
+    public async Task Cms_AdminPages_OpenWithoutLogin()
     {
-        await RunWithPageArtifactsAsync(nameof(Cms_AdminPages_RedirectUnauthenticatedUsersToLogin), async page =>
+        await RunWithPageArtifactsAsync(nameof(Cms_AdminPages_OpenWithoutLogin), async page =>
         {
             await page.GotoAsync(
                 $"{_baseUrl}/DuyetThanhToan",
                 new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
 
-            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
-            await ExpectBodyContainsAsync(page, "Vinh Khanh CMS");
-            await ExpectBodyContainsAsync(page, "Dang nhap");
-        }, signIn: false);
+            Assert.DoesNotContain("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
+            await ExpectBodyContainsAsync(page, "VKT TUAN E2EAPP");
+        });
     }
 
     [Fact]
-    public async Task Cms_LoginRejectsInvalidCredentials_AndLogoutEndsSession()
+    public async Task Cms_LoginPath_RedirectsToDashboard()
     {
-        await RunWithPageArtifactsAsync(nameof(Cms_LoginRejectsInvalidCredentials_AndLogoutEndsSession), async page =>
+        await RunWithPageArtifactsAsync(nameof(Cms_LoginPath_RedirectsToDashboard), async page =>
         {
             await page.GotoAsync(
                 $"{_baseUrl}/Login?ReturnUrl=%2FPoi",
                 new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
 
-            await page.Locator("input[name='Username']").FillAsync(CmsAdminUsername);
-            await page.Locator("input[name='Password']").FillAsync("wrong-password");
-            await page.Locator("form button[type='submit']").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-
-            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
-            await ExpectBodyContainsAsync(page, "Tài khoản hoặc mật khẩu không đúng");
-
-            await page.Locator("input[name='Password']").FillAsync(CmsAdminPassword);
-            await page.Locator("form button[type='submit']").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             Assert.Contains("/Poi", page.Url, StringComparison.OrdinalIgnoreCase);
             await ExpectBodyContainsAsync(page, "CMS Seed Active");
 
-            await page.Locator("[data-testid='cms-logout']").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-
-            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
-
-            await page.GotoAsync(
-                $"{_baseUrl}/Poi",
-                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
-            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
-        }, signIn: false);
+        });
     }
 
     [Fact]
@@ -585,7 +561,7 @@ public sealed class CmsE2ETests : IAsyncLifetime
         }
     }
 
-    private async Task RunWithPageArtifactsAsync(string testName, Func<IPage, Task> test, bool signIn = true)
+    private async Task RunWithPageArtifactsAsync(string testName, Func<IPage, Task> test)
     {
         if (_browser is null)
             throw new InvalidOperationException("Browser was not initialized.");
@@ -604,9 +580,6 @@ public sealed class CmsE2ETests : IAsyncLifetime
         var page = await context.NewPageAsync();
         try
         {
-            if (signIn)
-                await SignInAsync(page);
-
             await test(page);
             await context.Tracing.StopAsync();
         }
@@ -615,20 +588,6 @@ public sealed class CmsE2ETests : IAsyncLifetime
             await SavePageArtifactsAsync(page, context, testName);
             throw;
         }
-    }
-
-    private async Task SignInAsync(IPage page)
-    {
-        await page.GotoAsync(
-            $"{_baseUrl}/Login",
-            new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
-
-        await page.Locator("input[name='Username']").FillAsync(CmsAdminUsername);
-        await page.Locator("input[name='Password']").FillAsync(CmsAdminPassword);
-        await page.Locator("form button[type='submit']").ClickAsync();
-        await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-
-        Assert.DoesNotContain("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SavePageArtifactsAsync(IPage page, IBrowserContext context, string testName)
@@ -846,8 +805,6 @@ public sealed class CmsE2ETests : IAsyncLifetime
         startInfo.Environment["ASPNETCORE_URLS"] = _baseUrl;
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Testing";
         startInfo.Environment["CMS_TEST_SQLITE_PATH"] = _databasePath;
-        startInfo.Environment["CMS_ADMIN_USERNAME"] = CmsAdminUsername;
-        startInfo.Environment["CMS_ADMIN_PASSWORD"] = CmsAdminPassword;
         startInfo.Environment["Logging__LogLevel__Default"] = "Warning";
         startInfo.Environment["Logging__LogLevel__Microsoft.AspNetCore"] = "Warning";
         startInfo.Environment["Logging__LogLevel__Microsoft.Hosting.Lifetime"] = "Warning";

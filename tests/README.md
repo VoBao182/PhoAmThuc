@@ -36,6 +36,14 @@ npm install -g appium
 appium driver install uiautomator2
 ```
 
+Fast path:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-appium-smoke.ps1
+```
+
+The script checks `adb devices`, builds the Android APK, starts Appium when needed, sets the required `APPIUM_*` environment variables, and runs only the MAUI Appium smoke tests.
+
 Build the Android APK:
 
 ```powershell
