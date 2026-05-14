@@ -11,6 +11,8 @@ services:
         value: Production
       - key: SUPABASE_CONNECTION_STRING
         sync: false
+      - key: ADMIN_API_TOKEN
+        generateValue: true
   - type: web
     name: phoamthuc-cms
     runtime: docker
@@ -23,5 +25,9 @@ services:
         value: Production
       - key: SUPABASE_CONNECTION_STRING
         sync: false
+      - key: CMS_ADMIN_USERNAME
+        value: admin
+      - key: CMS_ADMIN_PASSWORD
+        generateValue: true
       - key: ApiBaseUrl
         value: https://phoamthuc.onrender.com
