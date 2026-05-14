@@ -1,49 +1,46 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsPortableAsync(), LoadLocationsPortableAsync(), LoadPoiActivityCountsAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Data/AppDbContext.cs
-' Note: Sequence cap nhat theo BanDo hien tai: render server-side, tong hop du lieu dang ky/vi tri/lich su o cap helper method, chi lay toa do hop le trong vung phuc vu.
-' Note: Sequence khong liet ke cau SQL; chi the hien cac ham doc du lieu va xu ly tong hop trong IndexModel.
+' Note: Sequence cap nhat theo BanDo hien tai: render server-side, helper portable EF la luong chinh; raw helper van ton tai trong file nhung khong phai path chinh.
+' Note: Sequence khong liet ke cau SQL; chi the hien owner method cua IndexModel va thao tac persistence chinh.
 title F09 - Theo doi khach hang va trang thai su dung
 
 actor Admin
 control "BanDo IndexModel" as IndexModel
 participant "AppDbContext\n<<persistence>>" as DbContext
-participant "Raw read helper\n(ExecuteRawReadAsync)" as RawRead
 database "PostgreSQL" as DB
 
 Admin -> IndexModel: OnGetAsync(search, filter, sort, dir)
 IndexModel -> IndexModel: NormalizeOption(filter/sort)\nSortDir\nnow, onlineCutoff, expiringSoonCutoff
 
-IndexModel -> IndexModel: LoadSubscriptionsAsync()
-IndexModel -> DbContext: Database.GetConnectionString()
-DbContext --> IndexModel: connection string
-IndexModel -> RawRead: ExecuteRawReadAsync("subscriptions")
-RawRead -> DB: read subscription aggregates
-DB --> RawRead: rows
-RawRead --> IndexModel: DeviceSubscription[]
+IndexModel -> IndexModel: LoadSubscriptionsPortableAsync()
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read grouped DangKyApps
+DB --> DbContext: rows
+DbContext --> IndexModel: DeviceSubscription[]
 
-IndexModel -> IndexModel: LoadLocationsAsync()
-IndexModel -> RawRead: ExecuteRawReadAsync("locations")
-RawRead -> DB: read location snapshots
-DB --> RawRead: rows
-RawRead --> IndexModel: DeviceLocation[]
+IndexModel -> IndexModel: LoadLocationsPortableAsync()
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read valid VitriKhachs
+DB --> DbContext: rows
+DbContext --> IndexModel: DeviceLocation[]
 
 IndexModel -> IndexModel: LoadPoiActivityCountsAsync(VisitedSourceValues)
-IndexModel -> RawRead: ExecuteRawReadAsync("visitedCounts")
-RawRead -> DB: read visited POI counts
-DB --> RawRead: rows
-RawRead --> IndexModel: DevicePoiCount[]
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read grouped visited POI counts
+DB --> DbContext: rows
+DbContext --> IndexModel: DevicePoiCount[]
 
 IndexModel -> IndexModel: LoadPoiActivityCountsAsync(ViewedSourceValues)
-IndexModel -> RawRead: ExecuteRawReadAsync("viewedCounts")
-RawRead -> DB: read viewed POI counts
-DB --> RawRead: rows
-RawRead --> IndexModel: DevicePoiCount[]
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read grouped viewed POI counts
+DB --> DbContext: rows
+DbContext --> IndexModel: DevicePoiCount[]
 
 IndexModel -> IndexModel: BuildCustomerRows()
 note right of IndexModel

@@ -200,7 +200,7 @@ USER_JOURNEY_ADMIN = [
 ARCHITECTURE_NOTES = [
     "Mobile app (MAUI Android) giao tiếp với REST API qua HTTPS; lưu device id trong Preferences.",
     "REST API (ASP.NET Core 10) là điểm trung gian duy nhất giữa app, CMS và database.",
-    "CMS Razor Pages truy cập DB bằng EF Core (đa số) và raw Npgsql (analytics dashboard).",
+    "CMS Razor Pages truy cập DB chủ yếu bằng EF Core; dashboard analytics dùng nhánh raw Npgsql khi provider hỗ trợ, và có nhánh portable EF khi không phải Npgsql.",
     "DB Supabase PostgreSQL (managed cloud), kết nối qua connection string đặt trong appsettings/secrets.",
     "API publish trên Render (https://phoamthuc.onrender.com); CMS chạy nội bộ.",
     "Reverse map render bằng Leaflet (front-end) trên cả app (WebView) và CMS.",
@@ -346,7 +346,7 @@ RISKS = [
     ["RISK-002", "Cao", "Polling thanh toán 404/500 → app im lặng vô hạn.", "Thêm backoff + max retry; UI hiển thị thông báo lỗi sau N lần fail."],
     ["RISK-003", "Trung bình", "Recovery code ghi đè trước khi server xác nhận có gói active.", "Server validate trước khi cho ghi override; rollback nếu sync fail."],
     ["RISK-004", "Trung bình", "GPS jitter giữa 2 POI cùng priority gây nháy POI.", "Đã giảm thiểu bằng hysteresis 5m + dwell 5s; cần test thực địa."],
-    ["RISK-005", "Trung bình", "Render dashboard chậm khi DB nhiều dữ liệu (FillMissingBuckets, raw SQL)", "Tối ưu index trên lichsuphat(poiid, thoigian); thêm cache phía CMS."],
+    ["RISK-005", "Trung bình", "Render dashboard chậm khi DB nhiều dữ liệu (FillMissingBuckets, analytics query)", "Tối ưu index trên lichsuphat(poiid, thoigian); thêm cache phía CMS."],
     ["RISK-006", "Thấp", "OneDrive lock file build artifact gây fail aapt2.", "Build trong path ngắn ngoài OneDrive; hoặc loại trừ thư mục obj/bin khỏi sync."],
     ["RISK-007", "Cao", "API public chưa có JWT — kẻ xấu có thể gọi endpoint nội bộ.", "Thêm middleware xác thực admin cho nhóm /api/subscription/approve, /api/payment/*."],
 ]
@@ -658,13 +658,13 @@ FEATURES = [
             "Tải danh sách yêu cầu theo tab chờ duyệt, đã duyệt và đã từ chối.",
             "Cập nhật badge và cảnh báo bằng AJAX polling qua handler PendingSnapshot.",
             "Duyệt yêu cầu để tạo DangKyApp mới và tính lại hạn sử dụng.",
-            "Từ chối yêu cầu và lưu lý do cho người dùng xem lại ở phía app.",
+            "Từ chối yêu cầu và lưu lý do cho người dùng xem lại ở phía app; lý do từ chối là bắt buộc.",
         ],
         "operation": [
-            "Khi trang /DuyetThanhToan mở, CMS tải thống kê toàn bộ yêu cầu và danh sách yêu cầu theo tab đang chọn.",
+            "Khi trang /DuyetThanhToan mở, OnGetAsync() chuẩn hóa tab/package rồi gọi LoadStatsAsync() và LoadListAsync() để nạp thống kê và danh sách theo tab hiện tại.",
             "JavaScript trên trang gọi ?handler=PendingSnapshot mỗi 5 giây để cập nhật số lượng chờ duyệt và phát hiện yêu cầu mới.",
             "Nếu admin bấm Duyệt, OnPostApproveAsync() tìm gói tương ứng, tính mốc bắt đầu và hết hạn mới, tạo DangKyApp rồi cập nhật YeuCauThanhToan sang da_duyet.",
-            "Nếu admin bấm Từ chối, OnPostRejectAsync() chuyển trạng thái sang tu_choi, lưu NgayDuyet và GhiChuAdmin.",
+            "Nếu admin bấm Từ chối, OnPostRejectAsync() kiểm tra lyDo không được rỗng rồi mới chuyển trạng thái sang tu_choi, lưu NgayDuyet và GhiChuAdmin.",
             "Kết quả xử lý được redirect về đúng tab để admin tiếp tục theo dõi các yêu cầu còn lại.",
         ],
     },
@@ -680,17 +680,17 @@ FEATURES = [
             "mức độ tương tác với POI và chỉ số trải nghiệm."
         ),
         "capabilities": [
-            "Đọc dữ liệu thuê bao, vị trí hiện tại và lịch sử hoạt động bằng raw Npgsql query.",
+            "Đọc dữ liệu thuê bao, vị trí hiện tại và lịch sử hoạt động bằng các helper portable EF trong PageModel.",
             "Tính viewed POI, visited POI, XP, level, progress, total spent và số gói đã mua cho từng thiết bị.",
             "Hỗ trợ search, filter và sort server-side.",
-            "Tạo badge trạng thái online, ở quán, hết hạn và helper mô tả thời gian còn lại.",
+            "Tạo badge trạng thái online, ở quán, hết hạn và helper mô tả thời gian còn lại; helper tải dữ liệu tự bắt lỗi và cộng dồn warning.",
         ],
         "operation": [
-            "BanDo/Index.OnGetAsync() chuẩn hóa filter/sort rồi nạp dữ liệu từ các truy vấn raw Npgsql có timeout và retry.",
-            "Hệ thống đọc max hạn gói từ dangkyapp, vị trí từ vitrikhach, số POI đã ghé và đã xem từ lichsuphat.",
+            "BanDo/Index.OnGetAsync() chuẩn hóa filter/sort rồi gọi LoadSubscriptionsPortableAsync(), LoadLocationsPortableAsync() và LoadPoiActivityCountsAsync() để nạp dữ liệu.",
+            "Hệ thống đọc max hạn gói từ dangkyapp, vị trí hợp lệ từ vitrikhach, số POI đã ghé và đã xem từ lichsuphat.",
             "BuildCustomerRows() hợp nhất các nguồn dữ liệu theo deviceId để tạo ra trạng thái online, current POI, viewedCount, visitedCount và thông tin gói.",
             "XP được tính theo công thức viewed * 50 + visited * 100; level được suy ra với ExperiencePerLevel = 500.",
-            "Trang BanDo hiện tại render server-side, chưa có chu kỳ auto-refresh cố định trong code; admin xem dữ liệu mới bằng lần tải trang kế tiếp.",
+            "Trang BanDo hiện tại render server-side, chưa có chu kỳ auto-refresh cố định trong code; nếu một helper lỗi thì trang vẫn render phần dữ liệu còn lại với warning.",
         ],
     },
     {
@@ -705,16 +705,16 @@ FEATURES = [
             "top POI và doanh thu theo khoảng thời gian."
         ),
         "capabilities": [
-            "Hỗ trợ nhiều chế độ khoảng thời gian: today, last7, last30, last12m, day, week, month, year và custom.",
+            "Hỗ trợ 12 chế độ khoảng thời gian: today, yesterday, thismonth, lastmonth, last7, last30, last12m, day, week, month, year và custom.",
             "Tách riêng phần tải danh sách POI và phần analytics có retry.",
-            "Đọc activity, geo heat, top POI, revenue và summary bằng raw Npgsql trên shared EF connection.",
+            "Đọc activity, geo heat, top POI, revenue và summary theo 2 nhánh: raw Npgsql trên shared connection hoặc portable EF.",
             "Bù bucket thiếu bằng FillMissingBuckets() để biểu đồ không bị thủng mốc thời gian.",
             "3 thẻ thống kê chính: Tổng POI (tất cả), POI đang hoạt động (TrangThai+còn hạn), Ngôn ngữ (3).",
         ],
         "operation": [
             "Index.OnGetAsync() nhận tham số mode/date/week/month/year/from/to rồi ResolveRange() để xác định SinceUtc, UntilUtc, Granularity và RangeLabel.",
             "LoadPoiSectionAsync() tải danh sách POI và tính TongPOI (tất cả POI), POIDangHoatDong (TrangThai=true và còn hạn duy trì), SoQuanQuaHan với cơ chế retry khi gặp lỗi disposed wait handle.",
-            "LoadAnalyticsWithRetryAsync() gọi LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync() và LoadSummaryAsync() trên shared DbConnection.",
+            "LoadAnalyticsWithRetryAsync() gọi LoadAnalyticsAsync(); nếu provider không phải Npgsql thì rẽ sang LoadAnalyticsPortableAsync(), còn nếu là Npgsql thì dùng shared DbConnection và chạy LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync() và LoadSummaryAsync().",
             "Sau khi có dữ liệu, hệ thống chạy FillMissingBuckets() rồi serialize ActivityJson, GeoJson và RevenueJson để giao diện JS dùng trực tiếp.",
             "Dashboard hiện tại không polling tự động; dữ liệu cập nhật theo mỗi lần admin đổi mốc thời gian hoặc tải lại trang.",
         ],
@@ -1137,6 +1137,13 @@ def build_part_c(doc):
     for item in ARCHITECTURE_NOTES:
         add_bullet(doc, item)
 
+    add_heading(doc, "9.1 Class diagram tong quan", level=2)
+    add_paragraph(doc,
+                  "Class diagram tong quan gom cac page MAUI, helper app, queue/geofence helper, controller API, DbContext va cac model nghiep vu. "
+                  "So do nay giup doi chieu nhanh cau truc lop voi cac sequence/activity diagram.",
+                  size=11.5)
+    add_image(doc, "13-class-diagram.png", "Hinh 9.1 — Class diagram tong quan he thong", 16.0)
+
     # 10. ERD
     add_heading(doc, "10. Mô hình dữ liệu (ERD)", level=1)
     add_paragraph(doc,
@@ -1357,6 +1364,7 @@ def build_part_h(doc):
         ["F10", "Dashboard CMS", "10-dashboard-{activity,sequence}.puml"],
         ["F11", "State YeuCauThanhToan", "11-yeucauthanhtoan-state.puml"],
         ["F12", "ERD tổng thể", "12-erd.puml"],
+        ["F13", "Class diagram tổng thể", "13-class-diagram.puml"],
     ]
     add_table(doc, ["ID", "Tên sơ đồ", "File nguồn"], diagram_refs,
               widths_cm=[1.5, 5.5, 8.0])

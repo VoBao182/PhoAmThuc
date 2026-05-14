@@ -379,7 +379,7 @@ taikhoan ── hoadon
 | Lớp | Thành phần |
 |---|---|
 | UI | `Pages/DuyetThanhToan/Index.cshtml` (3 tab: `cho_duyet`, `da_duyet`, `tu_choi`) + JS polling |
-| PageModel | `DuyetThanhToan.IndexModel.OnGetAsync(tab)`, `OnGetPendingSnapshotAsync`, `OnPostApproveAsync(yeuCauId)`, `OnPostRejectAsync(yeuCauId, lyDo)` |
+| PageModel | `DuyetThanhToan.IndexModel.OnGetAsync(tab)`, `LoadStatsAsync`, `LoadListAsync`, `OnGetPendingSnapshotAsync`, `OnPostApproveAsync(yeuCauId)`, `OnPostRejectAsync(yeuCauId, lyDo)` |
 | Persistence | `AppDbContext` → PostgreSQL (bảng `yeucauthanhtoan`, `dangkyapp`) |
 
 **Polling snapshot (JS → `OnGetPendingSnapshotAsync`):**
@@ -393,9 +393,10 @@ taikhoan ── hoadon
 5. Redirect `?tab=cho_duyet`.
 
 **Từ chối (`OnPostRejectAsync`):**
-1. Đọc `YeuCauThanhToan`.
-2. Cập nhật `TrangThai = tu_choi`, `NgayDuyet = now`, `GhiChuAdmin = lyDo`.
-3. Redirect `?tab=tu_choi`.
+1. Kiểm tra `lyDo` không được rỗng.
+2. Đọc `YeuCauThanhToan`.
+3. Cập nhật `TrangThai = tu_choi`, `NgayDuyet = now`, `GhiChuAdmin = lyDo`.
+4. Redirect `?tab=tu_choi`.
 
 ---
 
@@ -409,20 +410,20 @@ taikhoan ── hoadon
 | Lớp | Thành phần |
 |---|---|
 | UI | `Pages/BanDo/Index.cshtml` — tham số `search`, `filter`, `sort`, `dir` |
-| PageModel | `BanDo.IndexModel.OnGetAsync`, `LoadSubscriptionsAsync`, `LoadLocationsAsync`, `LoadPoiActivityCountsAsync`, `BuildCustomerRows`, `ApplySearch`, `ApplyFilter`, `ApplySort`, helper `DescribeRemaining`, `SubscriptionBadgeClass`, `ActivityBadgeClass`, `ActivityBadgeText` |
-| Persistence helper | `ExecuteRawReadAsync` (raw read helper trên `Database.GetConnectionString()`) → PostgreSQL |
+| PageModel | `BanDo.IndexModel.OnGetAsync`, `LoadSubscriptionsPortableAsync`, `LoadLocationsPortableAsync`, `LoadPoiActivityCountsAsync`, `BuildCustomerRows`, `ApplySearch`, `ApplyFilter`, `ApplySort`, helper `DescribeRemaining`, `SubscriptionBadgeClass`, `ActivityBadgeClass`, `ActivityBadgeText` |
+| Persistence | `AppDbContext` → PostgreSQL |
 
 **Mốc thời gian tính toán trong `OnGetAsync`:**
 - `now` = `DateTime.UtcNow`.
 - `onlineCutoff = now - 2 phút` → tiêu chí khách đang online.
 - `expiringSoonCutoff = now + 7 ngày` → tiêu chí gói sắp hết hạn.
 
-**4 nguồn dữ liệu (đọc qua `ExecuteRawReadAsync`):**
+**4 nguồn dữ liệu (đọc qua helper portable EF):**
 
 | Helper | Tổng hợp |
 |---|---|
-| `LoadSubscriptionsAsync()` | Theo `MaThietBi`: `max(NgayHetHan)`, số gói `paid`, tổng tiền đã chi |
-| `LoadLocationsAsync()` | Snapshot vị trí từ `vitrikhach` — **chỉ lấy `lat/lng` trong vùng phục vụ và khác (0,0)** |
+| `LoadSubscriptionsPortableAsync()` | Theo `MaThietBi`: `max(NgayHetHan)`, số gói `paid`, tổng tiền đã chi |
+| `LoadLocationsPortableAsync()` | Snapshot vị trí từ `vitrikhach` — **chỉ lấy `lat/lng` trong vùng phục vụ và khác (0,0)** |
 | `LoadPoiActivityCountsAsync(VisitedSourceValues)` | `count DISTINCT POIId` theo `Nguon ∈ {GPS, APP-GEOFENCE, APP_GEOFENCE, GEOFENCE}` |
 | `LoadPoiActivityCountsAsync(ViewedSourceValues)` | `count DISTINCT POIId` theo `Nguon ∈ {VIEW}` |
 
@@ -432,7 +433,7 @@ taikhoan ── hoadon
 
 **Tìm kiếm / Lọc / Sắp xếp:** `ApplySearch` (theo `MaThietBi` rút gọn / POI hiện tại), `ApplyFilter` (online, paid, expiring_soon...), `ApplySort` (theo last activity / XP / spent).
 
-> **Lưu ý cập nhật v1.1:** Trang BanDo trong v1.0 là Leaflet map + JS fetch `HeartbeatController`. Phiên bản hiện tại đã chuyển hoàn toàn sang **server-side rendering** + bảng + summary tiles, **không còn** JS polling `/api/heartbeat/active`. Các API heartbeat (mục 8.3) vẫn phục vụ mobile app.
+> **Lưu ý hiện tại:** Trang BanDo trong phiên bản này render **server-side** + bảng + summary tiles, **không còn** JS polling `/api/heartbeat/active`. Mỗi helper tải dữ liệu tự bắt lỗi và cộng dồn warning để trang vẫn render được phần còn lại.
 
 ---
 
@@ -447,14 +448,14 @@ taikhoan ── hoadon
 |---|---|
 | UI | `Pages/Index.cshtml` — tham số `mode`, `date`, `week`, `month`, `year`, `from`, `to` |
 | PageModel | `CMS.IndexModel.OnGetAsync`, `ResolveRange`, `LoadPoiSectionAsync`, `LoadAnalyticsWithRetryAsync`, `FillMissingBuckets`, helper `ImageUrlHelper.ResolvePoi` |
-| Analytics read helper | `LoadAnalyticsAsync`, `LoadActivityAsync`, `LoadGeoAsync`, `LoadTopPoiAsync`, `LoadRevenueAsync`, `LoadSummaryAsync` (chia sẻ chung 1 `DbConnection` từ `AppDbContext.Database.GetDbConnection()`) |
+| Analytics | `LoadAnalyticsAsync`, `LoadAnalyticsPortableAsync`, `LoadActivityAsync`, `LoadGeoAsync`, `LoadTopPoiAsync`, `LoadRevenueAsync`, `LoadSummaryAsync` |
 | Persistence | `AppDbContext` → PostgreSQL |
 
-**`ResolveRange()` — 11 chế độ phạm vi thời gian:** `today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `this_year`, `day`, `week`, `month`, `year`, `custom` (trong đó `day/week/month/year` ghép cặp với `date/week/month/year`; `custom` dùng `from/to`).
+**`ResolveRange()` — 12 chế độ phạm vi thời gian:** `today`, `yesterday`, `thismonth`, `lastmonth`, `last7`, `last30`, `last12m`, `day`, `week`, `month`, `year`, `custom` (trong đó `day/week/month/year` ghép cặp với `date/week/month/year`; `custom` dùng `from/to`).
 
 **2 pha tải dữ liệu:**
 1. **POI section (`LoadPoiSectionAsync`):** đọc `POIs.Include(MonAns)` theo `MucUuTien` → tính `TongPOI`, `POIDangHoatDong`, `SoQuanQuaHan`.
-2. **Analytics (`LoadAnalyticsWithRetryAsync`):** mở `DbConnection` chia sẻ → gọi 5 nhóm helper bên dưới. Khi lỗi pool, `ClearNpgsqlPoolsQuietly` rồi retry một lần.
+2. **Analytics (`LoadAnalyticsWithRetryAsync`):** gọi `LoadAnalyticsAsync()`. Nếu provider không phải Npgsql thì rẽ sang `LoadAnalyticsPortableAsync()`; nếu là Npgsql thì mở `DbConnection` chia sẻ rồi gọi 5 nhóm helper bên dưới. Khi lỗi pool, `ClearNpgsqlPoolsQuietly` rồi retry một lần.
 
 **5 nhóm analytics (mỗi nhóm 1 helper):**
 

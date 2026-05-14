@@ -1,18 +1,18 @@
 @startuml
 ' Diagram: F13 - Class diagram tong quan he thong VinhKhanhTour
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTourDemo/AppConfig.cs, DeviceIdentity.cs, SubscriptionState.cs
+' - VinhKhanhTourDemo/AppConfig.cs, AppClientLogic.cs, DeviceIdentity.cs, SubscriptionState.cs
 ' - VinhKhanhTourDemo/LaunchPage.xaml.cs, SubscriptionPage.xaml.cs, MainPage.xaml.cs
-' - VinhKhanhTourDemo/DetailPage.xaml.cs, PaymentPage.xaml.cs, PaymentStatusPage.xaml.cs, QrScannerPage.xaml.cs
+' - VinhKhanhTourDemo/DetailPage.xaml.cs, PaymentPage.xaml.cs, PaymentStatusPage.xaml.cs, QrScannerPage.xaml.cs, PoiPlaybackLogic.cs
 ' - VinhKhanhTour.API/Controllers/PoiController.cs, HeartbeatController.cs, SubscriptionController.cs
 ' - VinhKhanhTour.API/Data/AppDBContext.cs
 ' - VinhKhanhTour.API/Models/POI.cs, ThuyetMinh.cs, BanDich.cs, MonAn.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs, TaiKhoan.cs, DangKyDichVu.cs, HoaDon.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs, YeuCauThanhToan.cs, VitriKhach.cs
 ' Note: So do nay mo ta cau truc lop va quan he van hanh chinh giua MAUI app, API, DbContext va model du lieu.
-'   Day la class diagram muc tong quan de nhin vao co the hieu cach app khoi dong, goi API, phat audio, thanh toan va CMS doc du lieu.
+' Note: Da cap nhat theo refactor hien tai: helper AppClientLogic, queue/geofence helper trong PoiPlaybackLogic, va quan he dieu phoi hien tai cua MainPage.
 title F13 - Class diagram tong quan VinhKhanhTour
 
 skinparam classAttributeIconSize 0
@@ -20,54 +20,67 @@ hide empty members
 
 package "MAUI App" {
   class LaunchPage {
-    +RouteAsync()
+    -RouteAsync()
   }
 
   class SubscriptionPage {
-    +OnAppearing()
-    +KiemTraSubscription()
-    +RestoreSubscriptionStateAsync(deviceId)
+    #OnAppearing()
+    -UpdateRecoveryCard()
+    -RestoreSubscriptionStateAsync(deviceId)
+    -ActivateFreeTrialAsync(deviceId)
   }
 
   class MainPage {
-    +OnAppearing()
-    +EnsureSubscriptionGateAsync()
-    +LoadPoisFromApi()
-    +LoadMap()
-    +RefreshMapIfNeeded()
-    +CheckGeofence(lat, lng)
-    +SendHeartbeatAsync()
-    +RecordPoiViewAsync()
-    +RecordPoiVisitAsync()
-    +RestorePoiHistoryAsync()
-    +SyncPoiHistoryAsync()
+    #OnAppearing()
+    -EnsureSubscriptionGateAsync()
+    -RestoreSubscriptionStateAsync()
+    -RestorePoiHistoryAsync()
+    -EnsureGpsTrackingAsync()
+    -LoadPoisFromApi(showFailureAlert)
+    -SendHeartbeatAsync(lat, lng)
+    -RecordPoiViewAsync(poi)
+    -RecordPoiVisitAsync(poi)
+    -SyncPoiHistoryAsync()
+    -LoadMap()
+    -RefreshMapIfNeeded()
+    -CheckGeofence(lat, lng)
   }
 
   class DetailPage {
-    +LoadDetail(poi)
-    +RenderMenu()
-    +UseFallback()
+    -LoadDetail(poiId, tenPoi)
+    -UseFallback(tenPoi)
+    -RenderMenu(monAns)
+    -OnNgheClicked(sender, e)
   }
 
   class PaymentPage {
-    +CreatePaymentRequestAsync()
-    +OpenPaymentStatusAsync()
+    -SetupUi()
+    -OnDaChuyenKhoanClicked(sender, e)
   }
 
   class PaymentStatusPage {
-    +StartPollingStatus()
-    +ClosePaymentFlowAsync()
+    #OnAppearing()
+    -StartPollingAsync(ct)
+    -PollStatusAsync()
+    -ClosePaymentFlowAsync(closeSubscriptionPage)
   }
 
   class QrScannerPage {
-    +StartScan()
+    -OnBarcodesDetected(sender, e)
   }
 
   class AppConfig <<static>> {
     +ApiBaseUrl
     +EnsureApiBaseUrlAsync()
     +CanReachApiBaseUrlAsync()
+    +NormalizeApiBaseUrl()
     +ResolveImageUrl()
+  }
+
+  class AppClientLogic <<static>> {
+    +NormalizeApiBaseUrl()
+    +ResolveImageUrl()
+    +CalculateRemainingDays()
   }
 
   class DeviceIdentity <<static>> {
@@ -84,9 +97,39 @@ package "MAUI App" {
     +CalculateRemainingDays()
   }
 
+  class UserGeoLocation {
+    +Latitude
+    +Longitude
+  }
+
+  class PoiPlaybackItem {
+    +Id
+    +TenPOI
+    +ViDo
+    +KinhDo
+    +BanKinh
+    +MucUuTien
+  }
+
+  class PoiSelection {
+    +Poi
+    +DistanceMeters
+  }
+
+  class PoiGeofenceSelector <<static>> {
+    +Select(pois, userLocation, currentPoiId, switchDistanceBufferMeters)
+  }
+
+  class "PoiPlaybackQueue<T>" as PoiPlaybackQueue {
+    +Enqueue(id, value)
+    +TryDequeue(out id, out value)
+    +SetPlaying(id)
+    +ClearPlaying(id)
+  }
+
   class PoiDto {
     +Id
-    +TenPoi
+    +TenPOI
     +ViDo
     +KinhDo
     +BanKinh
@@ -260,7 +303,10 @@ PaymentStatusPage --> MainPage : dong flow va quay ve app
 PaymentStatusPage ..> SubscriptionController : GET request status
 
 MainPage --> AppConfig : resolve API / image URL
+MainPage --> AppClientLogic : image/url helpers
 MainPage --> DeviceIdentity : dinh danh thiet bi
+MainPage --> PoiGeofenceSelector : chon POI trong geofence
+MainPage --> PoiPlaybackQueue : queue audio per-device
 MainPage --> DetailPage : mo chi tiet POI
 MainPage --> QrScannerPage : quet ma khoi phuc
 MainPage ..> PoiController : GET POI
@@ -269,6 +315,13 @@ MainPage --> PoiDto : render list + map
 
 DetailPage --> AppConfig : resolve anh / audio URL
 DetailPage ..> PoiController : GET chi tiet POI
+
+AppConfig --> AppClientLogic : delegate helpers
+SubscriptionState --> AppClientLogic : CalculateRemainingDays()
+PoiGeofenceSelector --> UserGeoLocation
+PoiGeofenceSelector --> PoiPlaybackItem
+PoiGeofenceSelector --> PoiSelection
+PoiPlaybackQueue ..> PoiDto : queue item
 
 PoiController --> AppDbContext
 HeartbeatController --> AppDbContext
@@ -316,6 +369,7 @@ note right of SubscriptionController
   - "ngay", "tuan", "thang", "nam"
   - tao yeu cau chuyen khoan
   - app polling trang thai 10s
+  - Approve/Reject duoc bao ve boi AdminApiKey
 end note
 
 @enduml

@@ -1,12 +1,12 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan va monitoring CMS (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
+' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadAnalyticsPortableAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
 ' - VinhKhanhTour.CMS/Utils/ImageUrlHelper.cs: ResolvePoi()
-' Note: So do chi tiet hoa 11 che do range, 2 pha tai du lieu POI/analytics, retry ClearNpgsqlPoolsQuietly, va 5 nhom du lieu analytics.
+' Note: So do chi tiet hoa 12 che do range, 2 pha tai du lieu POI/analytics, retry ClearNpgsqlPoolsQuietly, va nhanh provider Npgsql/raw hoac portable EF.
 ' Note: 3 the thong ke o stats-grid: TongPOI (tat ca POI ke ca chua gia han), POIDangHoatDong (TrangThai=true va NgayHetHanDuyTri >= now), Ngon ngu (hard-code 3).
 title F10 - Dashboard tong quan va monitoring CMS
 start
@@ -15,17 +15,14 @@ start
 :Gan SinceUtc, UntilUtc, Granularity, RangeLabel;
 note right
   Ho tro:
-  today, yesterday, last7, last30,
-  thismonth, lastmonth, last12m,
+  today, yesterday, thismonth, lastmonth,
+  last7, last30, last12m,
   day, week, month, year, custom
 end note
 
 :LoadPoiSectionAsync();
 if (Load POI thanh cong?) then (Co)
-  :_db.POIs.AsNoTracking()\n.Include(MonAns).OrderBy(MucUuTien);
-  :TongPOI = POIs.Count\n(tat ca POI ke ca chua gia han);
-  :POIDangHoatDong = POIs.Count(p =>\np.TrangThai && p.NgayHetHanDuyTri.HasValue\n&& p.NgayHetHanDuyTri >= now);
-  :SoQuanQuaHan = POIs.Count(p =>\np.TrangThai && (NgayHetHanDuyTri == null\n|| NgayHetHanDuyTri < now));
+  :Nap POIs.Include(MonAns)\nva tinh TongPOI, POIDangHoatDong, SoQuanQuaHan;
   :Index.cshtml dung ImageUrlHelper.ResolvePoi de hien anh;
 else (Khong)
   :Neu IsDisposedWaitHandle va attempt dau -> ClearNpgsqlPoolsQuietly();
@@ -35,17 +32,19 @@ endif
 :LoadAnalyticsWithRetryAsync();
 if (Analytics thanh cong?) then (Co)
   :LoadAnalyticsAsync();
-  :Mo DbConnection neu chua open;
-  :LoadActivityAsync();
-  :Tong hop bucket hoat dong -> ActivityBuckets;
-  :LoadGeoAsync();
-  :Tong hop diem nong POI hop le -> GeoPoints;
-  :LoadTopPoiAsync();
-  :Tong hop top POI theo views/visits;
-  :LoadRevenueAsync();
-  :Tong hop doanh thu app + duy tri -> RevenueBuckets;
-  :LoadSummaryAsync();
-  :Tinh TotalActiveDevices, TotalViews, TotalVisits, TotalRevenue;
+  if (ProviderName chua Npgsql?) then (Khong)
+    :LoadAnalyticsPortableAsync();
+    :Doc LichSuPhats, POIs, DangKyApps, HoaDons qua EF Core;
+    :Tinh ActivityBuckets, GeoPoints, TopPoi,\nRevenueBuckets, TotalRevenue, TotalViews,\nTotalVisits, TotalActiveDevices;
+  else (Co)
+    :Mo DbConnection neu can;
+    :LoadActivityAsync();
+    :LoadGeoAsync();
+    :LoadTopPoiAsync();
+    :LoadRevenueAsync();
+    :LoadSummaryAsync();
+    :Dong DbConnection neu duoc mo trong helper;
+  endif
   :FillMissingBuckets();
   :Serialize ActivityJson, GeoJson, RevenueJson;
 else (Khong)

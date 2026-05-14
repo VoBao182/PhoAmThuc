@@ -1,14 +1,14 @@
 @startuml
 ' Diagram: F08 - Duyet hoac tu choi thanh toan goi app (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
+' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml.cs: OnGetAsync(), LoadStatsAsync(), LoadListAsync(), OnGetPendingSnapshotAsync(), OnPostApproveAsync(), OnPostRejectAsync()
 ' - VinhKhanhTour.CMS/Pages/DuyetThanhToan/Index.cshtml: polling PendingSnapshot
 ' - VinhKhanhTour.API/Models/YeuCauThanhToan.cs
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
-' Note: Sequence khop voi PageModel hien tai, gom snapshot polling, approve, reject, va redirect theo tab.
-' Note: Sequence chi mo ta handler/PageModel/AppDbContext/PostgreSQL o cap hanh vi; khong liet ke cau SQL.
+' Note: Sequence da doi ve dung owner method cua PageModel, bo nhan vat helper gia, va bo sung nhanh lyDo bat buoc khi reject.
+' Note: Sequence khong liet ke cau SQL; chi the hien handler, helper method, va thao tac persistence chinh.
 title F08 - Duyet hoac tu choi thanh toan goi app
 
 actor Admin
@@ -17,45 +17,65 @@ control "DuyetThanhToan IndexModel" as IndexModel
 participant "AppDbContext\n<<persistence>>" as DbContext
 database "PostgreSQL" as DB
 
-Admin -> IndexModel: OnGetAsync(tab)
-IndexModel -> DbContext: YeuCauThanhToans.AsNoTracking().ToListAsync()
-DbContext -> DB: read payment request rows
+Admin -> IndexModel: OnGetAsync(tab, search, pkg, msg, err)
+IndexModel -> IndexModel: LoadStatsAsync()
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read grouped request stats
 DB --> DbContext: rows
-DbContext --> IndexModel: danh sach
-IndexModel --> Admin: render request table
+DbContext --> IndexModel: grouped stats
+IndexModel -> IndexModel: LoadListAsync()
+IndexModel -> DbContext: ToListAsync()
+DbContext -> DB: read request rows for current tab
+DB --> DbContext: rows
+DbContext --> IndexModel: DanhSach
+IndexModel --> Admin: render stats + request table
 
 loop JS polling snapshot
   JS -> IndexModel: OnGetPendingSnapshotAsync()
-  IndexModel -> DbContext: YeuCauThanhToans.CountAsync()/FirstOrDefaultAsync()
+  IndexModel -> DbContext: CountAsync()
   DbContext -> DB: read pending snapshot
-  DB --> DbContext: count + latest row
-  DbContext --> IndexModel: count + latest
+  DB --> DbContext: count
+  DbContext --> IndexModel: count
+  IndexModel -> DbContext: FirstOrDefaultAsync()
+  DbContext -> DB: read latest pending row
+  DB --> DbContext: latest row
+  DbContext --> IndexModel: latest row
   IndexModel --> JS: JSON Count, LatestId, LatestTransferContent
 end
 
 alt admin duyet
   Admin -> IndexModel: OnPostApproveAsync(yeuCauId)
-  IndexModel -> DbContext: YeuCauThanhToans.FirstOrDefaultAsync()\nDangKyApps.FirstOrDefaultAsync()
-  DbContext -> DB: read request and current subscription rows
-  DB --> DbContext: rows
-  DbContext --> IndexModel: data
+  IndexModel -> DbContext: FirstOrDefaultAsync()
+  DbContext -> DB: read target request row
+  DB --> DbContext: request row
+  DbContext --> IndexModel: request row
+  IndexModel -> DbContext: FirstOrDefaultAsync()
+  DbContext -> DB: read active DangKyApp row
+  DB --> DbContext: active subscription row
+  DbContext --> IndexModel: active subscription row
   note right of IndexModel
     OnPostApproveAsync() computes
     mocBatDau and NgayHetHan.
   end note
+  IndexModel -> DbContext: Add(DangKyApp)
+  DbContext --> IndexModel: tracked entity
   IndexModel -> DbContext: SaveChangesAsync()
   DbContext -> DB: persist approval result
   DB --> DbContext: saved
   IndexModel --> Admin: Redirect ?tab=cho_duyet
 else admin tu choi
   Admin -> IndexModel: OnPostRejectAsync(yeuCauId, lyDo)
-  IndexModel -> DbContext: YeuCauThanhToans.FirstOrDefaultAsync()
-  DbContext -> DB: read target request row
-  DB --> DbContext: request row
-  DbContext --> IndexModel: request
-  IndexModel -> DbContext: SaveChangesAsync()
-  DbContext -> DB: persist reject result
-  DB --> DbContext: saved
-  IndexModel --> Admin: Redirect ?tab=tu_choi
+  alt lyDo blank
+    IndexModel --> Admin: Redirect ?tab=cho_duyet&err=...
+  else lyDo valid
+    IndexModel -> DbContext: FirstOrDefaultAsync()
+    DbContext -> DB: read target request row
+    DB --> DbContext: request row
+    DbContext --> IndexModel: request row
+    IndexModel -> DbContext: SaveChangesAsync()
+    DbContext -> DB: persist reject result
+    DB --> DbContext: saved
+    IndexModel --> Admin: Redirect ?tab=tu_choi
+  end
 end
 @enduml

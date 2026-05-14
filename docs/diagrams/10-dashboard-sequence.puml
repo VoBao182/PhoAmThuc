@@ -1,31 +1,32 @@
 @startuml
 ' Diagram: F10 - Dashboard tong quan va monitoring CMS (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
+' - VinhKhanhTour.CMS/Pages/Index.cshtml.cs: OnGetAsync(), ResolveRange(), LoadPoiSectionAsync(), LoadAnalyticsWithRetryAsync(), LoadAnalyticsAsync(), LoadAnalyticsPortableAsync(), LoadActivityAsync(), LoadGeoAsync(), LoadTopPoiAsync(), LoadRevenueAsync(), LoadSummaryAsync(), FillMissingBuckets()
 ' - VinhKhanhTour.CMS/Pages/Index.cshtml
-' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, shared connection, va serialize JSON cho chart/heatmap/revenue.
-' Note: Sequence chi the hien method/step cua IndexModel va persistence helper, khong liet ke cau SQL.
+' Note: Sequence chi tiet hoa ResolveRange(), 2 pha load POI/analytics, nhanh portable EF va nhanh Npgsql/raw tren shared connection.
+' Note: Sequence chi the hien owner method cua IndexModel va persistence objects; khong liet ke cau SQL.
 ' Note: 3 the thong ke o stats-grid: TongPOI (tat ca POI ke ca chua gia han), POIDangHoatDong (TrangThai=true va con han duy tri), Ngon ngu (3).
 title F10 - Dashboard tong quan va monitoring CMS
 
 actor Admin
 control "CMS IndexModel" as IndexModel
 participant "AppDbContext\n<<persistence>>" as DbContext
-participant "Analytics read helper" as AnalyticsRead
+participant "DbConnection\n<<persistence>>" as Conn
 database "PostgreSQL" as DB
 
 Admin -> IndexModel: OnGetAsync(mode, date, week, month, year, from, to)
 IndexModel -> IndexModel: ResolveRange()
 note right of IndexModel
   Mode:
-  today, yesterday, last7, last30,
-  thismonth, lastmonth, last12m,
+  today, yesterday, thismonth, lastmonth,
+  last7, last30, last12m,
   day, week, month, year, custom
 end note
 
-IndexModel -> DbContext: LoadPoiSectionAsync()
+IndexModel -> IndexModel: LoadPoiSectionAsync()
+IndexModel -> DbContext: ToListAsync()
 DbContext -> DB: read POI and MonAn rows
 DB --> DbContext: POIs
 DbContext --> IndexModel: POIs
@@ -36,32 +37,48 @@ note right of IndexModel
 end note
 
 IndexModel -> IndexModel: LoadAnalyticsWithRetryAsync()
-IndexModel -> DbContext: Database.GetDbConnection()
-DbContext --> IndexModel: connection
-IndexModel -> AnalyticsRead: LoadActivityAsync(conn, since, until, granularity)
-AnalyticsRead -> DB: read activity buckets
-DB --> AnalyticsRead: ActivityBuckets
-AnalyticsRead --> IndexModel: ActivityBuckets
-
-IndexModel -> AnalyticsRead: LoadGeoAsync(conn, since, until)
-AnalyticsRead -> DB: read geo points
-DB --> AnalyticsRead: GeoPoints
-AnalyticsRead --> IndexModel: GeoPoints
-
-IndexModel -> AnalyticsRead: LoadTopPoiAsync(conn, since, until)
-AnalyticsRead -> DB: read top POI metrics
-DB --> AnalyticsRead: TopPoi
-AnalyticsRead --> IndexModel: TopPoi
-
-IndexModel -> AnalyticsRead: LoadRevenueAsync(conn, since, until, granularity)
-AnalyticsRead -> DB: read revenue buckets
-DB --> AnalyticsRead: RevenueBuckets
-AnalyticsRead --> IndexModel: RevenueBuckets
-
-IndexModel -> AnalyticsRead: LoadSummaryAsync(conn, since, until)
-AnalyticsRead -> DB: read summary metrics
-DB --> AnalyticsRead: summary
-AnalyticsRead --> IndexModel: summary
+IndexModel -> IndexModel: LoadAnalyticsAsync()
+alt ProviderName does not contain Npgsql
+  IndexModel -> IndexModel: LoadAnalyticsPortableAsync()
+  IndexModel -> DbContext: ToListAsync()
+  DbContext -> DB: read LichSuPhats in range
+  DB --> DbContext: logs
+  DbContext --> IndexModel: logs
+  IndexModel -> DbContext: ToListAsync()
+  DbContext -> DB: read POIs for top/geo
+  DB --> DbContext: POIs
+  DbContext --> IndexModel: POIs
+  IndexModel -> DbContext: ToListAsync()
+  DbContext -> DB: read DangKyApps in range
+  DB --> DbContext: app revenue rows
+  DbContext --> IndexModel: app revenue rows
+  IndexModel -> DbContext: ToListAsync()
+  DbContext -> DB: read HoaDons in range
+  DB --> DbContext: POI revenue rows
+  DbContext --> IndexModel: POI revenue rows
+else ProviderName contains Npgsql
+  IndexModel -> DbContext: GetDbConnection()
+  DbContext --> IndexModel: DbConnection
+  IndexModel -> Conn: OpenAsync()
+  Conn -> DB: open connection
+  DB --> Conn: opened
+  IndexModel -> IndexModel: LoadActivityAsync(conn, since, until, granularity)
+  Conn -> DB: execute activity aggregation
+  DB --> Conn: ActivityBuckets
+  IndexModel -> IndexModel: LoadGeoAsync(conn, since, until)
+  Conn -> DB: execute geo aggregation
+  DB --> Conn: GeoPoints
+  IndexModel -> IndexModel: LoadTopPoiAsync(conn, since, until)
+  Conn -> DB: execute top POI aggregation
+  DB --> Conn: TopPoi
+  IndexModel -> IndexModel: LoadRevenueAsync(conn, since, until, granularity)
+  Conn -> DB: execute revenue aggregation
+  DB --> Conn: RevenueBuckets
+  IndexModel -> IndexModel: LoadSummaryAsync(conn, since, until)
+  Conn -> DB: execute summary aggregation
+  DB --> Conn: summary
+  IndexModel -> Conn: CloseAsync()
+end
 
 IndexModel -> IndexModel: FillMissingBuckets()\nSerialize ActivityJson/GeoJson/RevenueJson
 IndexModel --> Admin: render dashboard + monitoring section

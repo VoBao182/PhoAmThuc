@@ -1,14 +1,14 @@
 @startuml
 ' Diagram: F09 - Theo doi khach hang va trang thai su dung (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsAsync(), LoadLocationsAsync(), LoadPoiActivityCountsAsync(), ExecuteRawReadAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort(), DescribeRemaining(), SubscriptionBadgeClass(), ActivityBadgeClass(), ActivityBadgeText()
+' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml.cs: OnGetAsync(), LoadSubscriptionsPortableAsync(), LoadLocationsPortableAsync(), LoadPoiActivityCountsAsync(), BuildCustomerRows(), ApplySearch(), ApplyFilter(), ApplySort(), DescribeRemaining(), SubscriptionBadgeClass(), ActivityBadgeClass(), ActivityBadgeText()
 ' - VinhKhanhTour.CMS/Pages/BanDo/Index.cshtml
 ' - VinhKhanhTour.API/Models/DangKyApp.cs
 ' - VinhKhanhTour.API/Models/VitriKhach.cs
 ' - VinhKhanhTour.API/Models/LichSuPhat.cs
-' Note: Da sync theo BanDo hien tai: render server-side, helper doc du lieu co timeout/retry, chi lay toa do trong vung phuc vu va khac 0/0, filter/sort, tinh XP/level, va helper badge/remaining moi.
+' Note: Da sync theo BanDo hien tai: render server-side, helper portable EF la luong chinh, chi lay toa do trong vung phuc vu va khac 0/0, filter/sort, tinh XP/level, va helper badge/remaining.
 title F09 - Theo doi khach hang va trang thai su dung
 start
 :BanDo/Index.OnGetAsync(search,filter,sort,dir);
@@ -16,9 +16,9 @@ start
 :now = DateTime.UtcNow;
 :onlineCutoff = now - 2 phut;
 :expiringSoonCutoff = now + 7 ngay;
-:LoadSubscriptionsAsync();
+:LoadSubscriptionsPortableAsync();
 :Doc tong hop goi dang ky theo MaThietBi;
-:LoadLocationsAsync();
+:LoadLocationsPortableAsync();
 :Doc snapshot vi tri hop le tu VitriKhach;
 :LoadPoiActivityCountsAsync(VisitedSourceValues);
 :Tong hop so POI da ghe theo nhom Nguon visited;
@@ -35,6 +35,11 @@ start
 :ApplyFilter();
 :ApplySort();
 :Render bang + badge text/class trong Index.cshtml;
+note right
+  Moi helper load du lieu tu bat loi noi bo.
+  Neu loi, helper AppendLoadWarning() va tra []
+  de trang van render duoc phan con lai.
+end note
 
 stop
 @enduml
