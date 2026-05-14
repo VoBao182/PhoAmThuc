@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
 
@@ -75,7 +76,8 @@ public sealed class ApiIntegrationTests
         Assert.Equal("cho_duyet", Property(createBody.RootElement, "TrangThai").GetString());
         Assert.StartsWith("VKT TUAN DEVICE", Property(createBody.RootElement, "NoiDungChuyen").GetString());
 
-        var approveResponse = await client.PostAsJsonAsync(
+        using var adminClient = CreateAdminClient(factory);
+        var approveResponse = await adminClient.PostAsJsonAsync(
             $"/api/subscription/approve/{requestId}",
             new { GhiChu = "Da doi soat" });
 
@@ -91,11 +93,53 @@ public sealed class ApiIntegrationTests
         Assert.True(Property(subscriptionStatus!.RootElement, "CoDangKy").GetBoolean());
         Assert.Equal("tuan", Property(subscriptionStatus.RootElement, "LoaiGoi").GetString());
 
-        var duplicateApproval = await client.PostAsJsonAsync(
+        var duplicateApproval = await adminClient.PostAsJsonAsync(
             $"/api/subscription/approve/{requestId}",
             new { GhiChu = "Approve again" });
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicateApproval.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubscriptionRequest_ApproveAndReject_RequireAdminToken()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        await factory.ResetDatabaseAsync();
+        using var client = factory.CreateClient();
+
+        var createApproveResponse = await client.PostAsJsonAsync(
+            "/api/subscription/request",
+            new { MaThietBi = "device-auth-approve", LoaiGoi = "tuan" });
+        Assert.Equal(HttpStatusCode.OK, createApproveResponse.StatusCode);
+        var createApproveBody = await ReadJsonAsync(createApproveResponse);
+        var approveRequestId = Property(createApproveBody.RootElement, "YeuCauId").GetGuid();
+
+        var createRejectResponse = await client.PostAsJsonAsync(
+            "/api/subscription/request",
+            new { MaThietBi = "device-auth-reject", LoaiGoi = "ngay" });
+        Assert.Equal(HttpStatusCode.OK, createRejectResponse.StatusCode);
+        var createRejectBody = await ReadJsonAsync(createRejectResponse);
+        var rejectRequestId = Property(createRejectBody.RootElement, "YeuCauId").GetGuid();
+
+        var approveWithoutToken = await client.PostAsJsonAsync(
+            $"/api/subscription/approve/{approveRequestId}",
+            new { GhiChu = "No token" });
+        var rejectWithoutToken = await client.PostAsJsonAsync(
+            $"/api/subscription/reject/{rejectRequestId}",
+            new { GhiChu = "No token" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, approveWithoutToken.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejectWithoutToken.StatusCode);
+
+        await factory.AssertAsync(async db =>
+        {
+            var approveRequest = await db.YeuCauThanhToans.SingleAsync(y => y.Id == approveRequestId);
+            var rejectRequest = await db.YeuCauThanhToans.SingleAsync(y => y.Id == rejectRequestId);
+
+            Assert.Equal("cho_duyet", approveRequest.TrangThai);
+            Assert.Equal("cho_duyet", rejectRequest.TrangThai);
+            Assert.False(await db.DangKyApps.AnyAsync(d => d.MaThietBi == "device-auth-approve"));
+        });
     }
 
     [Fact]
@@ -165,7 +209,8 @@ public sealed class ApiIntegrationTests
         var createBody = await ReadJsonAsync(createResponse);
         var requestId = Property(createBody.RootElement, "YeuCauId").GetGuid();
 
-        var rejectResponse = await client.PostAsJsonAsync(
+        using var adminClient = CreateAdminClient(factory);
+        var rejectResponse = await adminClient.PostAsJsonAsync(
             $"/api/subscription/reject/{requestId}",
             new { GhiChu = "Sai noi dung chuyen khoan" });
         Assert.Equal(HttpStatusCode.OK, rejectResponse.StatusCode);
@@ -175,7 +220,7 @@ public sealed class ApiIntegrationTests
         Assert.Equal("tu_choi", Property(requestStatus!.RootElement, "TrangThai").GetString());
         Assert.Equal("Sai noi dung chuyen khoan", Property(requestStatus.RootElement, "GhiChuAdmin").GetString());
 
-        var duplicateReject = await client.PostAsJsonAsync(
+        var duplicateReject = await adminClient.PostAsJsonAsync(
             $"/api/subscription/reject/{requestId}",
             new { GhiChu = "Reject again" });
         Assert.Equal(HttpStatusCode.BadRequest, duplicateReject.StatusCode);
@@ -443,15 +488,57 @@ public sealed class ApiIntegrationTests
 
         throw new KeyNotFoundException($"JSON property '{name}' was not found.");
     }
+
+    private static HttpClient CreateAdminClient(ApiTestApplicationFactory factory)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Admin-Token", ApiTestApplicationFactory.AdminApiToken);
+        return client;
+    }
 }
 
 public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly SqliteConnection _connection = new("Data Source=:memory:");
+    public const string AdminApiToken = "integration-test-admin-token";
+
+    private readonly bool _usePostgres = string.Equals(
+        Environment.GetEnvironmentVariable("API_TEST_DATABASE"),
+        "postgres",
+        StringComparison.OrdinalIgnoreCase);
+    private readonly SqliteConnection? _sqliteConnection;
+    private readonly string? _postgresAdminConnectionString;
+    private readonly string? _postgresConnectionString;
+    private readonly string? _postgresDatabaseName;
 
     public ApiTestApplicationFactory()
     {
-        _connection.Open();
+        if (_usePostgres)
+        {
+            var baseConnectionString = Environment.GetEnvironmentVariable("API_TEST_CONNECTION_STRING")
+                ?? Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
+                ?? throw new InvalidOperationException(
+                    "Set API_TEST_CONNECTION_STRING when API_TEST_DATABASE=postgres.");
+
+            _postgresDatabaseName = $"vinhkhanhtour_api_tests_{Guid.NewGuid():N}";
+
+            var testBuilder = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            {
+                Database = _postgresDatabaseName,
+                Pooling = false
+            };
+            _postgresConnectionString = testBuilder.ConnectionString;
+
+            var adminBuilder = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            {
+                Database = "postgres",
+                Pooling = false
+            };
+            _postgresAdminConnectionString = adminBuilder.ConnectionString;
+            return;
+        }
+
+        _sqliteConnection = new SqliteConnection("Data Source=:memory:");
+        _sqliteConnection.Open();
     }
 
     public async Task ResetDatabaseAsync()
@@ -486,8 +573,10 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] =
-                    "Host=localhost;Port=5432;Database=vinhkhanhtour_test;Username=postgres;Password=postgres;Timeout=1;Command Timeout=1;Pooling=false",
-                ["Database:DisableSslForLocalDev"] = "true"
+                    _postgresConnectionString
+                    ?? "Host=localhost;Port=5432;Database=vinhkhanhtour_test;Username=postgres;Password=postgres;Timeout=1;Command Timeout=1;Pooling=false",
+                ["Database:DisableSslForLocalDev"] = "true",
+                ["AdminApi:Token"] = AdminApiToken
             });
         });
 
@@ -495,12 +584,21 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
         {
             RemoveDbContextRegistrations(services);
 
+            if (_usePostgres)
+            {
+                services.AddDbContext<AppDbContext>(options =>
+                    options.UseNpgsql(_postgresConnectionString));
+                return;
+            }
+
             var sqliteProvider = new ServiceCollection()
                 .AddEntityFrameworkSqlite()
                 .BuildServiceProvider();
+            var sqliteConnection = _sqliteConnection
+                ?? throw new InvalidOperationException("SQLite connection was not initialized.");
 
             services.AddDbContext<AppDbContext>(options => options
-                .UseSqlite(_connection)
+                .UseSqlite(sqliteConnection)
                 .UseInternalServiceProvider(sqliteProvider));
         });
     }
@@ -523,7 +621,43 @@ public sealed class ApiTestApplicationFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        if (disposing)
-            _connection.Dispose();
+        if (!disposing)
+            return;
+
+        _sqliteConnection?.Dispose();
+
+        if (!_usePostgres
+            || string.IsNullOrWhiteSpace(_postgresAdminConnectionString)
+            || string.IsNullOrWhiteSpace(_postgresDatabaseName))
+        {
+            return;
+        }
+
+        try
+        {
+            NpgsqlConnection.ClearAllPools();
+            using var connection = new NpgsqlConnection(_postgresAdminConnectionString);
+            connection.Open();
+
+            using var terminate = connection.CreateCommand();
+            terminate.CommandText = """
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = @databaseName AND pid <> pg_backend_pid();
+                """;
+            terminate.Parameters.AddWithValue("databaseName", _postgresDatabaseName);
+            terminate.ExecuteNonQuery();
+
+            using var drop = connection.CreateCommand();
+            drop.CommandText = $"DROP DATABASE IF EXISTS {QuoteIdentifier(_postgresDatabaseName)}";
+            drop.ExecuteNonQuery();
+        }
+        catch
+        {
+            // Test database cleanup is best-effort; CI Postgres services are ephemeral.
+        }
     }
+
+    private static string QuoteIdentifier(string identifier)
+        => "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 }

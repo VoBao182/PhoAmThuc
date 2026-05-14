@@ -5,7 +5,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$connectionString = "Host=localhost;Port=5432;Database=vinhkhanhtour_test;Username=postgres;Password=postgres;Timeout=1;Command Timeout=1;Pooling=false"
 $script:cmsProcess = $null
 
 function Invoke-Step {
@@ -40,6 +39,10 @@ function Invoke-External {
 
 try {
     Push-Location $repoRoot
+    $testResultsDir = Join-Path $repoRoot "TestResults"
+    $artifactDir = Join-Path $testResultsDir "artifacts"
+    New-Item -ItemType Directory -Force -Path $testResultsDir, $artifactDir | Out-Null
+    $env:TEST_ARTIFACT_DIR = $artifactDir
 
     Invoke-Step "Restore packages" {
         Invoke-External dotnet restore .\VinhKhanhTourDemo.slnx
@@ -60,59 +63,12 @@ try {
     }
 
     Invoke-Step "API tests" {
-        Invoke-External dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build
-    }
-
-    Invoke-Step "Start CMS for Playwright" {
-        try {
-            Invoke-WebRequest -Uri "$($CmsUrl.TrimEnd('/'))/health" -UseBasicParsing -TimeoutSec 2 | Out-Null
-            Write-Host "CMS is already running at $CmsUrl; reusing it for Playwright."
-            return
-        }
-        catch {
-            Write-Host "Starting CMS at $CmsUrl."
-        }
-
-        $envVars = @{
-            "ASPNETCORE_URLS" = $CmsUrl
-            "ASPNETCORE_ENVIRONMENT" = "Testing"
-            "SUPABASE_CONNECTION_STRING" = $connectionString
-            "Logging__LogLevel__Default" = "Warning"
-            "Logging__LogLevel__Microsoft.AspNetCore" = "Warning"
-            "Logging__LogLevel__Microsoft.Hosting.Lifetime" = "Warning"
-        }
-
-        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $startInfo.FileName = "dotnet"
-        $cmsProject = Join-Path $repoRoot "VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj"
-        $startInfo.Arguments = "run --no-launch-profile --project `"$cmsProject`" --no-build"
-        $startInfo.WorkingDirectory = $repoRoot
-        $startInfo.UseShellExecute = $false
-        foreach ($key in $envVars.Keys) {
-            $startInfo.Environment[$key] = $envVars[$key]
-        }
-
-        $script:cmsProcess = [System.Diagnostics.Process]::Start($startInfo)
-        $deadline = (Get-Date).AddSeconds(45)
-        do {
-            Start-Sleep -Milliseconds 700
-            try {
-                Invoke-WebRequest -Uri "$($CmsUrl.TrimEnd('/'))/health" -UseBasicParsing -TimeoutSec 3 | Out-Null
-                return
-            }
-            catch {
-                if ($script:cmsProcess.HasExited) {
-                    throw "CMS process exited before it became ready."
-                }
-            }
-        } while ((Get-Date) -lt $deadline)
-
-        throw "CMS did not become ready at $CmsUrl."
+        Invoke-External dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-tests.trx" --results-directory $testResultsDir
     }
 
     Invoke-Step "CMS Playwright tests" {
-        $env:CMS_BASE_URL = $CmsUrl
-        Invoke-External dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build
+        Remove-Item Env:\CMS_BASE_URL -ErrorAction SilentlyContinue
+        Invoke-External dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build --logger "trx;LogFileName=cms-e2e-tests.trx" --results-directory $testResultsDir
     }
 
     Invoke-Step "MAUI Appium tests" {
@@ -123,7 +79,7 @@ try {
             Remove-Item Env:\RUN_APPIUM_TESTS -ErrorAction SilentlyContinue
         }
 
-        Invoke-External dotnet test .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-build
+        Invoke-External dotnet test .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-build --logger "trx;LogFileName=maui-appium-tests.trx" --results-directory $testResultsDir
     }
 }
 finally {

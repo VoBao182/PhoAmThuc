@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VinhKhanhTour.API.Data;
 using VinhKhanhTour.API.Models;
+using VinhKhanhTour.API.Security;
 using VinhKhanhTour.API.Utils;
 
 namespace VinhKhanhTour.API.Controllers;
@@ -240,6 +241,7 @@ public class SubscriptionController : ControllerBase
     // Body: { GhiChu? }
     // -----------------------------------------------------------------------
     [HttpPost("approve/{yeuCauId:guid}")]
+    [AdminApiKey]
     public async Task<IActionResult> Approve(Guid yeuCauId, [FromBody] ApproveRequest req)
     {
         var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
@@ -290,6 +292,7 @@ public class SubscriptionController : ControllerBase
     // Body: { GhiChu }
     // -----------------------------------------------------------------------
     [HttpPost("reject/{yeuCauId:guid}")]
+    [AdminApiKey]
     public async Task<IActionResult> Reject(Guid yeuCauId, [FromBody] ApproveRequest req)
     {
         var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);

@@ -6,6 +6,9 @@ on:
       - main
       - master
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 19 * * *"
 
 jobs:
   api-and-cms-tests:
@@ -39,10 +42,69 @@ jobs:
         run: .\tests\VinhKhanhTour.CMS.E2ETests\bin\Debug\net10.0\playwright.ps1 install chromium
 
       - name: Run API tests
-        run: dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build --logger trx
+        run: dotnet test .\tests\VinhKhanhTour.API.Tests\VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-tests.trx" --results-directory .\TestResults
 
       - name: Run CMS Playwright tests
-        run: dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build --logger trx
+        run: dotnet test .\tests\VinhKhanhTour.CMS.E2ETests\VinhKhanhTour.CMS.E2ETests.csproj --no-build --logger "trx;LogFileName=cms-e2e-tests.trx" --results-directory .\TestResults
 
       - name: Run MAUI Appium contract tests
-        run: dotnet test .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-build --logger trx
+        run: dotnet test .\tests\VinhKhanhTour.MAUI.AppiumTests\VinhKhanhTour.MAUI.AppiumTests.csproj --no-build --logger "trx;LogFileName=maui-appium-tests.trx" --results-directory .\TestResults
+
+      - name: Upload test reports and failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults/**/*.trx
+            TestResults/artifacts/**
+          if-no-files-found: ignore
+
+  api-postgres-nightly:
+    name: API tests on Postgres
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore API test project
+        run: dotnet restore tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj
+
+      - name: Build API test project
+        run: dotnet build tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj --no-restore
+
+      - name: Run API tests against Postgres
+        env:
+          API_TEST_DATABASE: postgres
+          API_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false;Include Error Detail=true
+        run: dotnet test tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj --no-build --logger "trx;LogFileName=api-postgres-tests.trx" --results-directory ./TestResults
+
+      - name: Upload Postgres test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-postgres-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore

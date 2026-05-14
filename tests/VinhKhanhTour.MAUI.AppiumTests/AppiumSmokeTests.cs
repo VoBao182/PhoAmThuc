@@ -34,33 +34,41 @@ public sealed class AppiumSmokeTests
         RequireAppiumEnabled();
 
         using var driver = CreateAndroidDriver();
-        var entryScreen = WaitForAnyElement(
-            driver,
-            TimeSpan.FromSeconds(60),
-            "main-page",
-            "subscription-page",
-            "launch-page");
-
-        Assert.That(
-            entryScreen.AutomationId,
-            Is.AnyOf("main-page", "subscription-page", "launch-page"),
-            "The app launched, but none of the known MAUI entry screens were visible.");
-
-        if (entryScreen.AutomationId == "main-page")
+        try
         {
-            Assert.That(ExistsByAutomationId(driver, "main-search-entry"), Is.True);
-            Assert.That(ExistsByAutomationId(driver, "main-tab-settings"), Is.True);
-            return;
-        }
+            var entryScreen = WaitForAnyElement(
+                driver,
+                TimeSpan.FromSeconds(60),
+                "main-page",
+                "subscription-page",
+                "launch-page");
 
-        if (entryScreen.AutomationId == "subscription-page")
+            Assert.That(
+                entryScreen.AutomationId,
+                Is.AnyOf("main-page", "subscription-page", "launch-page"),
+                "The app launched, but none of the known MAUI entry screens were visible.");
+
+            if (entryScreen.AutomationId == "main-page")
+            {
+                Assert.That(ExistsByAutomationId(driver, "main-search-entry"), Is.True);
+                Assert.That(ExistsByAutomationId(driver, "main-tab-settings"), Is.True);
+                return;
+            }
+
+            if (entryScreen.AutomationId == "subscription-page")
+            {
+                Assert.That(ExistsByAutomationId(driver, "subscription-trial-button"), Is.True);
+                Assert.That(ExistsByAutomationId(driver, "subscription-month-button"), Is.True);
+                return;
+            }
+
+            Assert.That(ExistsByAutomationId(driver, "launch-status"), Is.True);
+        }
+        catch
         {
-            Assert.That(ExistsByAutomationId(driver, "subscription-trial-button"), Is.True);
-            Assert.That(ExistsByAutomationId(driver, "subscription-month-button"), Is.True);
-            return;
+            SaveDriverArtifacts(driver, nameof(AndroidApp_LaunchesToKnownEntryScreen_WhenEnabled));
+            throw;
         }
-
-        Assert.That(ExistsByAutomationId(driver, "launch-status"), Is.True);
     }
 
     private static AndroidDriver CreateAndroidDriver()
@@ -156,6 +164,49 @@ public sealed class AppiumSmokeTests
     {
         if (!string.Equals(Environment.GetEnvironmentVariable("RUN_APPIUM_TESTS"), "1", StringComparison.Ordinal))
             Assert.Ignore("Set RUN_APPIUM_TESTS=1 after starting an emulator/device and Appium server.");
+    }
+
+    private static void SaveDriverArtifacts(AndroidDriver driver, string testName)
+    {
+        var artifactRoot = Environment.GetEnvironmentVariable("TEST_ARTIFACT_DIR");
+        if (string.IsNullOrWhiteSpace(artifactRoot))
+            artifactRoot = Path.Combine(FindRepoRoot(), "TestResults", "artifacts", "appium");
+
+        Directory.CreateDirectory(artifactRoot);
+
+        var safeName = string.Concat(testName.Select(ch => char.IsLetterOrDigit(ch) ? ch : '-'));
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        var prefix = Path.Combine(artifactRoot, $"{safeName}-{timestamp}");
+
+        try
+        {
+            driver.GetScreenshot().SaveAsFile($"{prefix}.png");
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            File.WriteAllText($"{prefix}.xml", driver.PageSource);
+        }
+        catch
+        {
+        }
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "VinhKhanhTourDemo.slnx")))
+                return directory.FullName;
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not find repository root from test output directory.");
     }
 
     private sealed record AppiumElementMatch(string AutomationId, IWebElement Element);

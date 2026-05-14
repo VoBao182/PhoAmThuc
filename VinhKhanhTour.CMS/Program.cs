@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,12 @@ builder.Configuration
         optional: true,
         reloadOnChange: true);
 
-var connectionString = GetConnectionString(builder.Configuration, builder.Environment);
+var testSqlitePath = Environment.GetEnvironmentVariable("CMS_TEST_SQLITE_PATH");
+var useTestSqlite = builder.Environment.IsEnvironment("Testing")
+    && !string.IsNullOrWhiteSpace(testSqlitePath);
+var connectionString = useTestSqlite
+    ? null
+    : GetConnectionString(builder.Configuration, builder.Environment);
 var port = Environment.GetEnvironmentVariable("PORT");
 
 if (!string.IsNullOrWhiteSpace(port))
@@ -29,13 +35,38 @@ if (!string.IsNullOrWhiteSpace(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
-builder.Services.AddRazorPages();
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "VinhKhanhTour.CMS.Auth";
+        options.LoginPath = "/Login";
+        options.AccessDeniedPath = "/Login";
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Login");
+    options.Conventions.AllowAnonymousToPage("/Error");
+});
 
-// Kết nối Supabase
+// Kết nối Supabase. In Testing, CMS E2E can opt into a local SQLite database
+// via CMS_TEST_SQLITE_PATH so browser tests are deterministic and offline.
 builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    if (useTestSqlite)
+    {
+        options.UseSqlite($"Data Source={testSqlitePath}");
+        return;
+    }
+
     options.UseNpgsql(
         connectionString,
-        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps => new ResilientExecutionStrategy(deps))));
+        npgsqlOptions => npgsqlOptions.ExecutionStrategy(deps => new ResilientExecutionStrategy(deps)));
+});
 
 // Cho phép MAUI app gọi API
 builder.Services.AddCors(options =>
@@ -54,6 +85,7 @@ Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles();
 
 app.UseCors("AllowAll");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/health/db", async (AppDbContext db) =>
