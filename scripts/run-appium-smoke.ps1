@@ -3,7 +3,8 @@ param(
     [string]$AppiumServerUrl = "http://127.0.0.1:4723",
     [string]$Configuration = "Debug",
     [switch]$SkipBuild,
-    [switch]$NoReset
+    [switch]$NoReset,
+    [switch]$RestartAppium
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,6 +38,17 @@ function Resolve-AdbPath {
     throw "Khong tim thay adb. Cai Android SDK platform-tools hoac truyen -AdbPath."
 }
 
+function Resolve-AndroidSdkRootFromAdb {
+    param([string]$ResolvedAdbPath)
+
+    $platformTools = Split-Path -Parent $ResolvedAdbPath
+    if ((Split-Path -Leaf $platformTools) -eq "platform-tools") {
+        return Split-Path -Parent $platformTools
+    }
+
+    return $null
+}
+
 function Wait-AppiumReady {
     param([string]$Url)
 
@@ -58,8 +70,62 @@ function Wait-AppiumReady {
     throw "Appium chua san sang tai $statusUrl."
 }
 
+function Stop-AppiumProcesses {
+    $currentProcessId = $PID
+    $processes = Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.ProcessId -ne $currentProcessId
+                -and $_.Name -in @("node.exe", "powershell.exe", "cmd.exe")
+                -and $_.CommandLine -match "appium"
+        }
+
+    foreach ($process in $processes) {
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Stop-DotnetBuildProcesses {
+    Write-Host "Don build server/MSBuild node cu de tranh lock Java.Interop.dll..."
+    & dotnet build-server shutdown | Out-Host
+
+    $currentProcessId = $PID
+    $processes = Get-CimInstance Win32_Process |
+        Where-Object {
+            $isBuildHelper = $_.Name -in @("MSBuild.exe", "VBCSCompiler.exe")
+            $isDotnetMsBuildNode = $_.Name -eq "dotnet.exe" -and $_.CommandLine -match "MSBuild\.dll"
+            $_.ProcessId -ne $currentProcessId -and ($isBuildHelper -or $isDotnetMsBuildNode)
+        }
+
+    foreach ($process in $processes) {
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+
+    Start-Sleep -Seconds 2
+}
+
+function Invoke-AndroidPublish {
+    param(
+        [string]$ProjectPath,
+        [string]$BuildConfiguration
+    )
+
+    dotnet publish $ProjectPath `
+        -f net10.0-android `
+        -c $BuildConfiguration `
+        /nr:false `
+        /p:UseSharedCompilation=false |
+        Out-Host
+
+    return [int]$LASTEXITCODE
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $adb = Resolve-AdbPath $AdbPath
+$androidSdkRoot = Resolve-AndroidSdkRootFromAdb $adb
+if ($androidSdkRoot -and (Test-Path $androidSdkRoot)) {
+    $env:ANDROID_HOME = $androidSdkRoot
+    $env:ANDROID_SDK_ROOT = $androidSdkRoot
+}
 
 Write-Host "1. Kiem tra thiet bi Android..."
 $devices = & $adb devices
@@ -71,9 +137,16 @@ Write-Host "OK: $onlineDevice"
 
 if (-not $SkipBuild) {
     Write-Host "2. Build APK Android..."
-    dotnet publish "$repoRoot\VinhKhanhTourDemo\VinhKhanhTourDemo.csproj" -f net10.0-android -c $Configuration
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet publish failed with exit code $LASTEXITCODE"
+    Stop-DotnetBuildProcesses
+    $publishExitCode = Invoke-AndroidPublish "$repoRoot\VinhKhanhTourDemo\VinhKhanhTourDemo.csproj" $Configuration
+    if ($publishExitCode -ne 0) {
+        Write-Host "Publish lan 1 loi, don lock build va thu lai..."
+        Stop-DotnetBuildProcesses
+        $publishExitCode = Invoke-AndroidPublish "$repoRoot\VinhKhanhTourDemo\VinhKhanhTourDemo.csproj" $Configuration
+    }
+
+    if ($publishExitCode -ne 0) {
+        throw "dotnet publish failed with exit code $publishExitCode"
     }
 }
 else {
@@ -95,6 +168,12 @@ if (-not $appium) {
     throw "Khong tim thay appium. Chay: npm install -g appium; appium driver install uiautomator2"
 }
 
+if ($RestartAppium) {
+    Write-Host "Restart Appium server de nhan ANDROID_HOME/ANDROID_SDK_ROOT..."
+    Stop-AppiumProcesses
+    Start-Sleep -Seconds 2
+}
+
 $serverReady = $false
 try {
     Wait-AppiumReady $AppiumServerUrl
@@ -103,7 +182,15 @@ try {
 }
 catch {
     Write-Host "Dang start Appium server..."
-    $appiumProcess = Start-Process -FilePath $appium -ArgumentList "--base-path","/" -WindowStyle Hidden -PassThru
+    if ([System.IO.Path]::GetExtension($appium) -ieq ".ps1") {
+        $appiumProcess = Start-Process -FilePath "powershell" -ArgumentList "-ExecutionPolicy","Bypass","-File",$appium,"--base-path","/" -WindowStyle Hidden -PassThru
+    }
+    elseif ([System.IO.Path]::GetExtension($appium) -ieq ".cmd" -or [System.IO.Path]::GetExtension($appium) -ieq ".bat") {
+        $appiumProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c",$appium,"--base-path","/" -WindowStyle Hidden -PassThru
+    }
+    else {
+        $appiumProcess = Start-Process -FilePath $appium -ArgumentList "--base-path","/" -WindowStyle Hidden -PassThru
+    }
     Wait-AppiumReady $AppiumServerUrl
     $serverReady = $true
 }

@@ -158,10 +158,10 @@ public sealed class AppiumSmokeTests
         var options = new AppiumOptions
         {
             PlatformName = "Android",
-            AutomationName = "UiAutomator2"
+            AutomationName = "UiAutomator2",
+            DeviceName = Environment.GetEnvironmentVariable("APPIUM_DEVICE_NAME") ?? "Android"
         };
 
-        options.AddAdditionalAppiumOption("deviceName", Environment.GetEnvironmentVariable("APPIUM_DEVICE_NAME") ?? "Android");
         options.AddAdditionalAppiumOption("autoGrantPermissions", true);
         options.AddAdditionalAppiumOption("newCommandTimeout", 120);
 
