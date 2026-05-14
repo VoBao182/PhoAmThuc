@@ -123,14 +123,21 @@ public sealed class CmsE2ETests : IAsyncLifetime
             await ExpectBodyContainsAsync(page, "CMS Seed Overdue");
 
             var row = page.Locator("tr").Filter(new LocatorFilterOptions { HasTextString = "CMS Seed Overdue" }).First;
+            var renewalFormLoaded = page.Locator("select[name='SoThangGiaHan']").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 30000 });
             await row.Locator("a[href*='/ThanhToan/GhiNhan']").First.ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+            await renewalFormLoaded;
 
             await page.Locator("select[name='SoThangGiaHan']").SelectOptionAsync("2");
             await page.Locator("input[name='PhiDuyTriThang']").FillAsync("80000");
             await page.Locator("input[name='GhiChu']").FillAsync("CMS E2E renewal");
+            var redirectedToPaymentList = page.WaitForURLAsync(
+                url =>
+                    url.Contains("/ThanhToan", StringComparison.OrdinalIgnoreCase)
+                    && !url.Contains("/ThanhToan/GhiNhan", StringComparison.OrdinalIgnoreCase),
+                new PageWaitForURLOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
             await page.Locator("form button[type='submit']").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+            await redirectedToPaymentList;
 
             await ExpectBodyContainsAsync(page, "CMS Seed Overdue");
             await ExpectBodyContainsAsync(page, "160");
