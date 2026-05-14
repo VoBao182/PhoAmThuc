@@ -7,7 +7,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apiProjectDir = Join-Path $repoRoot "VinhKhanhTour.API"
-$apiDllPath = Join-Path $repoRoot ".codex-temp\api-build\VinhKhanhTour.API.dll"
+$apiBuildDir = Join-Path $repoRoot ".codex-temp\api-build"
+$apiDllPath = Join-Path $apiBuildDir "VinhKhanhTour.API.dll"
 $stdoutPath = Join-Path $repoRoot ".codex-temp\api-stdout.log"
 $stderrPath = Join-Path $repoRoot ".codex-temp\api-stderr.log"
 
@@ -16,7 +17,8 @@ if (!(Test-Path $AdbPath)) {
 }
 
 Write-Host "1. Build API..."
-dotnet build (Join-Path $apiProjectDir "VinhKhanhTour.API.csproj") | Out-Host
+New-Item -ItemType Directory -Force -Path $apiBuildDir | Out-Null
+dotnet build (Join-Path $apiProjectDir "VinhKhanhTour.API.csproj") -o $apiBuildDir | Out-Host
 
 Write-Host "2. Giai phong port $ApiPort neu dang co tien trinh treo..."
 $listeners = netstat -ano | Select-String ":$ApiPort"
@@ -43,6 +45,7 @@ $apiProcess = Start-Process `
     -WorkingDirectory $apiProjectDir `
     -RedirectStandardOutput $stdoutPath `
     -RedirectStandardError $stderrPath `
+    -WindowStyle Hidden `
     -PassThru
 
 Write-Host "API PID: $($apiProcess.Id)"

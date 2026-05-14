@@ -1,6 +1,7 @@
 param(
     [string]$SupabaseConnectionString,
-    [switch]$ForgetSavedConnectionString
+    [switch]$ForgetSavedConnectionString,
+    [int]$CmsPort = 5213
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +42,83 @@ function Get-StoredConnectionString {
     return $null
 }
 
+function Get-LocalConnectionString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $localSettingsPath = Join-Path $RepoRoot "VinhKhanhTour.CMS\appsettings.Development.Local.json"
+    if (-not (Test-Path -LiteralPath $localSettingsPath)) {
+        return $null
+    }
+
+    try {
+        $settings = Get-Content -LiteralPath $localSettingsPath -Raw | ConvertFrom-Json
+        $connectionString = $settings.ConnectionStrings.DefaultConnection
+        if (-not [string]::IsNullOrWhiteSpace($connectionString)) {
+            return $connectionString
+        }
+    }
+    catch {
+        Write-Warning "Khong doc duoc appsettings.Development.Local.json: $($_.Exception.Message)"
+    }
+
+    return $null
+}
+
+function Stop-StaleCmsProcesses {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    if (-not ($IsWindows -or $env:OS -eq "Windows_NT")) {
+        return
+    }
+
+    $normalizedRepoRoot = $RepoRoot.TrimEnd('\')
+    $markers = @(
+        "VinhKhanhTour.CMS\bin\Debug\net10.0\VinhKhanhTour.CMS.dll",
+        "VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj"
+    )
+
+    $processIds = @()
+    $processIds += Get-CimInstance Win32_Process -Filter "Name = 'dotnet.exe'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $commandLine = $_.CommandLine
+            if ([string]::IsNullOrWhiteSpace($commandLine) -or $commandLine -notlike "*$normalizedRepoRoot*") {
+                return $false
+            }
+
+            foreach ($marker in $markers) {
+                if ($commandLine -like "*$marker*") {
+                    return $true
+                }
+            }
+
+            return $false
+        } |
+        Select-Object -ExpandProperty ProcessId
+
+    $processIds += Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
+        Where-Object { $_.LocalPort -eq $Port } |
+        Select-Object -ExpandProperty OwningProcess
+
+    foreach ($processId in ($processIds | Sort-Object -Unique)) {
+        try {
+            Stop-Process -Id $processId -Force -ErrorAction Stop
+            Write-Host "Da dung CMS/port process cu PID $processId."
+        }
+        catch {
+            Write-Warning "Khong dung duoc PID ${processId}: $($_.Exception.Message)"
+        }
+    }
+}
+
 if ($ForgetSavedConnectionString) {
     [Environment]::SetEnvironmentVariable("SUPABASE_CONNECTION_STRING", $null, "User")
     Write-Host "Da xoa SUPABASE_CONNECTION_STRING luu o muc User."
@@ -56,6 +134,10 @@ if (-not (Test-Path -LiteralPath $cmsProjectPath)) {
 
 if ([string]::IsNullOrWhiteSpace($SupabaseConnectionString)) {
     $SupabaseConnectionString = Get-StoredConnectionString
+}
+
+if ([string]::IsNullOrWhiteSpace($SupabaseConnectionString)) {
+    $SupabaseConnectionString = Get-LocalConnectionString -RepoRoot $repoRoot
 }
 
 if ([string]::IsNullOrWhiteSpace($SupabaseConnectionString)) {
@@ -78,8 +160,11 @@ if ([string]::IsNullOrWhiteSpace($SupabaseConnectionString)) {
 $env:SUPABASE_CONNECTION_STRING = $SupabaseConnectionString
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 
+Stop-StaleCmsProcesses -RepoRoot $repoRoot -Port $CmsPort
+
 Write-Host "Dang chay CMS local..."
 Write-Host "API hien dang tro toi https://phoamthuc.onrender.com"
+Write-Host "CMS URL: http://localhost:$CmsPort"
 Write-Host "Dung Ctrl+C de dung CMS."
 
-dotnet run --project $cmsProjectPath
+dotnet run --project $cmsProjectPath --urls "http://localhost:$CmsPort"

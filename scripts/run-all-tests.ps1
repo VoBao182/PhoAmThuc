@@ -1,7 +1,9 @@
 param(
     [switch]$WithAppium,
     [string]$CmsUrl = "http://127.0.0.1:5199",
-    [string]$LogPath
+    [string]$LogPath,
+    [switch]$NoRestartCms,
+    [int]$CmsPort = 5213
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,6 +41,91 @@ function Invoke-External {
     }
 }
 
+function Stop-RepoDotnetAppProcesses {
+    if (-not ($IsWindows -or $env:OS -eq "Windows_NT")) {
+        return
+    }
+
+    $normalizedRepoRoot = $repoRoot.TrimEnd('\')
+    $projectMarkers = @(
+        "VinhKhanhTour.API\bin\Debug\net10.0\VinhKhanhTour.API.dll",
+        "VinhKhanhTour.CMS\bin\Debug\net10.0\VinhKhanhTour.CMS.dll",
+        "VinhKhanhTour.API\VinhKhanhTour.API.csproj",
+        "VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj"
+    )
+
+    $processes = Get-CimInstance Win32_Process -Filter "Name = 'dotnet.exe'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $commandLine = $_.CommandLine
+            if ([string]::IsNullOrWhiteSpace($commandLine)) {
+                return $false
+            }
+
+            if ($commandLine -notlike "*$normalizedRepoRoot*") {
+                return $false
+            }
+
+            foreach ($marker in $projectMarkers) {
+                if ($commandLine -like "*$marker*") {
+                    return $true
+                }
+            }
+
+            return $false
+        }
+
+    foreach ($process in $processes) {
+        try {
+            Write-Host "Stopping stale local app process PID $($process.ProcessId) before building..."
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Could not stop PID $($process.ProcessId): $($_.Exception.Message)"
+        }
+    }
+}
+
+function Stop-DotnetBuildServers {
+    dotnet build-server shutdown | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "dotnet build-server shutdown returned exit code $LASTEXITCODE."
+        $global:LASTEXITCODE = 0
+    }
+}
+
+function Start-CmsLocalForDev {
+    if ($NoRestartCms) {
+        return
+    }
+
+    if (-not ($IsWindows -or $env:OS -eq "Windows_NT")) {
+        return
+    }
+
+    $scriptPath = Join-Path $repoRoot "scripts\start-cms-local.ps1"
+    if (-not (Test-Path -LiteralPath $scriptPath)) {
+        Write-Warning "Could not restart CMS local because start-cms-local.ps1 was not found."
+        return
+    }
+
+    $testResultsDir = Join-Path $repoRoot "TestResults"
+    New-Item -ItemType Directory -Force -Path $testResultsDir | Out-Null
+    $stdoutPath = Join-Path $testResultsDir "cms-local-after-tests.out.log"
+    $stderrPath = Join-Path $testResultsDir "cms-local-after-tests.err.log"
+    Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+
+    $process = Start-Process `
+        -FilePath "powershell" `
+        -ArgumentList @("-ExecutionPolicy", "Bypass", "-File", $scriptPath, "-CmsPort", "$CmsPort") `
+        -WorkingDirectory $repoRoot `
+        -RedirectStandardOutput $stdoutPath `
+        -RedirectStandardError $stderrPath `
+        -WindowStyle Hidden `
+        -PassThru
+
+    Write-Host "Restarting CMS local after tests on http://localhost:$CmsPort (launcher PID $($process.Id))."
+}
+
 function Unblock-BuildOutputs {
     if (-not $IsWindows -and $env:OS -ne "Windows_NT") {
         return
@@ -74,6 +161,11 @@ try {
     $script:transcriptStarted = $true
 
     Write-Host "Automation test log: $resolvedLogPath" -ForegroundColor Green
+
+    Invoke-Step "Clean stale local app processes" {
+        Stop-RepoDotnetAppProcesses
+        Stop-DotnetBuildServers
+    }
 
     Invoke-Step "Restore packages" {
         Invoke-External dotnet restore .\VinhKhanhTourDemo.slnx
@@ -129,6 +221,7 @@ finally {
     if ($script:cmsProcess -and -not $script:cmsProcess.HasExited) {
         Stop-Process -Id $script:cmsProcess.Id -Force
     }
+    Start-CmsLocalForDev
     if ($script:transcriptStarted) {
         Stop-Transcript | Out-Null
     }
