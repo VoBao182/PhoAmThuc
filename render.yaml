@@ -28,6 +28,6 @@ services:
       - key: CMS_ADMIN_USERNAME
         value: admin
       - key: CMS_ADMIN_PASSWORD
-        generateValue: true
+        value: admin
       - key: ApiBaseUrl
         value: https://phoamthuc.onrender.com
