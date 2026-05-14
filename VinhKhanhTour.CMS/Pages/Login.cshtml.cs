@@ -86,7 +86,13 @@ public sealed class LoginModel : PageModel
     }
 
     private string? GetConfiguredValue(string configKey, string envKey)
-        => Environment.GetEnvironmentVariable(envKey) ?? _configuration[configKey];
+    {
+        var envValue = Environment.GetEnvironmentVariable(envKey);
+        if (!string.IsNullOrWhiteSpace(envValue))
+            return envValue;
+
+        return _configuration[configKey];
+    }
 
     private IActionResult RedirectToLocal(string? returnUrl)
     {
