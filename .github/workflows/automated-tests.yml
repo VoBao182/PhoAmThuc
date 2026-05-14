@@ -19,7 +19,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - name: Restore test projects
         run: |
@@ -101,7 +101,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
 
       - name: Restore API test project
         run: dotnet restore tests/VinhKhanhTour.API.Tests/VinhKhanhTour.API.Tests.csproj
