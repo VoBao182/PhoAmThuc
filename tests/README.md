@@ -16,6 +16,7 @@ Expected local result without a device:
 
 - API integration tests pass.
 - CMS Playwright E2E tests pass.
+- MAUI geofence/playback queue logic tests pass.
 - MAUI Appium contract tests pass.
 - Real Appium tests are skipped unless `RUN_APPIUM_TESTS=1`.
 

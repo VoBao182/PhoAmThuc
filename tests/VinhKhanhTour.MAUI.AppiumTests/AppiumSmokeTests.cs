@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Android;
@@ -195,8 +196,33 @@ public sealed class AppiumSmokeTests
         }
     }
 
-    private static string FindRepoRoot()
+    private static string FindRepoRoot([CallerFilePath] string sourcePath = "")
     {
+        var configuredRoot = Environment.GetEnvironmentVariable("TEST_REPO_ROOT");
+        if (!string.IsNullOrWhiteSpace(configuredRoot)
+            && File.Exists(Path.Combine(configuredRoot, "VinhKhanhTourDemo.slnx")))
+        {
+            return configuredRoot;
+        }
+
+        var currentDirectory = new DirectoryInfo(Environment.CurrentDirectory);
+        while (currentDirectory is not null)
+        {
+            if (File.Exists(Path.Combine(currentDirectory.FullName, "VinhKhanhTourDemo.slnx")))
+                return currentDirectory.FullName;
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
+        var sourceDirectory = new DirectoryInfo(Path.GetDirectoryName(sourcePath) ?? "");
+        while (sourceDirectory is not null)
+        {
+            if (File.Exists(Path.Combine(sourceDirectory.FullName, "VinhKhanhTourDemo.slnx")))
+                return sourceDirectory.FullName;
+
+            sourceDirectory = sourceDirectory.Parent;
+        }
+
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {

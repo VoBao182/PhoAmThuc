@@ -21,4 +21,8 @@
     <Using Include="NUnit.Framework" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\VinhKhanhTourDemo\PoiPlaybackLogic.cs" Link="AppLogic\PoiPlaybackLogic.cs" />
+  </ItemGroup>
+
 </Project>

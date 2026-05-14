@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 using VinhKhanhTour.API.Data;
@@ -506,8 +507,33 @@ public sealed class CmsE2ETests : IAsyncLifetime
         return port;
     }
 
-    private static string FindRepoRoot()
+    private static string FindRepoRoot([CallerFilePath] string sourcePath = "")
     {
+        var configuredRoot = Environment.GetEnvironmentVariable("TEST_REPO_ROOT");
+        if (!string.IsNullOrWhiteSpace(configuredRoot)
+            && File.Exists(Path.Combine(configuredRoot, "VinhKhanhTourDemo.slnx")))
+        {
+            return configuredRoot;
+        }
+
+        var currentDirectory = new DirectoryInfo(Environment.CurrentDirectory);
+        while (currentDirectory is not null)
+        {
+            if (File.Exists(Path.Combine(currentDirectory.FullName, "VinhKhanhTourDemo.slnx")))
+                return currentDirectory.FullName;
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
+        var sourceDirectory = new DirectoryInfo(Path.GetDirectoryName(sourcePath) ?? "");
+        while (sourceDirectory is not null)
+        {
+            if (File.Exists(Path.Combine(sourceDirectory.FullName, "VinhKhanhTourDemo.slnx")))
+                return sourceDirectory.FullName;
+
+            sourceDirectory = sourceDirectory.Parent;
+        }
+
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {

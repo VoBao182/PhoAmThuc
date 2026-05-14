@@ -9,4 +9,11 @@
     <BaseOutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT' And ('$(MSBuildProjectName)' == 'VinhKhanhTour.API.Tests' Or '$(MSBuildProjectName)' == 'VinhKhanhTour.CMS.E2ETests' Or '$(MSBuildProjectName)' == 'VinhKhanhTour.MAUI.AppiumTests')">
+    <!-- Keep test DLLs out of OneDrive-synced source folders so Windows Application Control does not block discovery. -->
+    <BaseIntermediateOutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(LOCALAPPDATA)\VinhKhanhTourDemo\bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
 </Project>

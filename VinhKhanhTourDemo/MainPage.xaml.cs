@@ -68,8 +68,7 @@ public partial class MainPage : ContentPage
     private readonly SemaphoreSlim _speakLock = new(1, 1);
     private readonly SemaphoreSlim _historySyncLock = new(1, 1);
     private readonly Dictionary<string, DateTime> _lastSpokenTime = new();
-    private readonly Queue<PoiDto> _speakQueue = new();
-    private readonly HashSet<Guid> _queuedSpeakPoiIds = [];
+    private readonly PoiPlaybackQueue<PoiDto> _speakQueue = new();
     private readonly object _speakQueueGate = new();
     private bool _isProcessingSpeakQueue;
     private int _heartbeatTick = 0;
@@ -816,35 +815,28 @@ public partial class MainPage : ContentPage
 
     private NearbyPoiCandidate? SelectPoiForLocation(Location userLoc)
     {
-        var candidates = _pois
-            .Select(poi =>
-            {
-                var poiLoc = new Location(poi.ViDo, poi.KinhDo);
-                double distance = Location.CalculateDistance(userLoc, poiLoc, DistanceUnits.Kilometers) * 1000;
-                return new NearbyPoiCandidate(poi, distance);
-            })
-            .Where(candidate => candidate.DistanceMeters <= candidate.Poi.BanKinh)
-            .OrderBy(candidate => candidate.Poi.MucUuTien)
-            .ThenBy(candidate => candidate.DistanceMeters)
-            .ThenBy(candidate => candidate.Poi.TenPOI, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        var selected = PoiGeofenceSelector.Select(
+            _pois.Select(ToPlaybackItem),
+            new UserGeoLocation(userLoc.Latitude, userLoc.Longitude),
+            _currentPoi?.Id,
+            PoiSwitchDistanceBufferMeters);
 
-        if (candidates.Count == 0)
+        if (selected is null)
             return null;
 
-        var selected = candidates[0];
-        if (_currentPoi is null || _currentPoi.Id == selected.Poi.Id)
-            return selected;
+        var poi = _pois.FirstOrDefault(candidate => candidate.Id == selected.Poi.Id);
+        return poi is null ? null : new NearbyPoiCandidate(poi, selected.DistanceMeters);
+    }
 
-        var currentCandidate = candidates.FirstOrDefault(candidate => candidate.Poi.Id == _currentPoi.Id);
-        if (currentCandidate is not null
-            && currentCandidate.Poi.MucUuTien == selected.Poi.MucUuTien
-            && currentCandidate.DistanceMeters <= selected.DistanceMeters + PoiSwitchDistanceBufferMeters)
-        {
-            return currentCandidate;
-        }
-
-        return selected;
+    private static PoiPlaybackItem ToPlaybackItem(PoiDto poi)
+    {
+        return new PoiPlaybackItem(
+            poi.Id,
+            poi.TenPOI,
+            poi.ViDo,
+            poi.KinhDo,
+            poi.BanKinh,
+            poi.MucUuTien);
     }
 
     private void QueuePoiPlayback(PoiDto poi)
@@ -853,11 +845,11 @@ public partial class MainPage : ContentPage
 
         lock (_speakQueueGate)
         {
-            if (_playingPoi?.Id == poi.Id || _queuedSpeakPoiIds.Contains(poi.Id))
+            if (_playingPoi?.Id == poi.Id)
                 return;
 
-            _speakQueue.Enqueue(poi);
-            _queuedSpeakPoiIds.Add(poi.Id);
+            if (!_speakQueue.Enqueue(poi.Id, poi))
+                return;
 
             if (!_isProcessingSpeakQueue)
             {
@@ -874,21 +866,30 @@ public partial class MainPage : ContentPage
     {
         while (true)
         {
-            PoiDto poi;
+            PoiDto? poi;
 
             lock (_speakQueueGate)
             {
-                if (_speakQueue.Count == 0)
+                if (!_speakQueue.TryDequeue(out var poiId, out poi) || poi is null)
                 {
                     _isProcessingSpeakQueue = false;
                     return;
                 }
 
-                poi = _speakQueue.Dequeue();
-                _queuedSpeakPoiIds.Remove(poi.Id);
+                _speakQueue.SetPlaying(poiId);
             }
 
-            await SpeakPoiAsync(poi);
+            try
+            {
+                await SpeakPoiAsync(poi);
+            }
+            finally
+            {
+                lock (_speakQueueGate)
+                {
+                    _speakQueue.ClearPlaying(poi.Id);
+                }
+            }
         }
     }
 
