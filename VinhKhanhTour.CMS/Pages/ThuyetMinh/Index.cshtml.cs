@@ -31,19 +31,21 @@ public class IndexModel : PageModel
                 })
                 .ToListAsync();
 
-            var banDichs = await _db.ThuyetMinhs
+            var thuyetMinhs = await _db.ThuyetMinhs
                 .AsNoTracking()
                 .Where(t => t.TrangThai)
-                .SelectMany(t => t.BanDichs.Select(b => new
-                {
-                    t.POIId,
-                    b.NgonNgu,
-                    b.NoiDung
-                }))
-                .Where(b => !string.IsNullOrWhiteSpace(b.NoiDung))
+                .Include(t => t.BanDichs)
                 .ToListAsync();
 
-            var banDichByPoi = banDichs
+            var banDichByPoi = thuyetMinhs
+                .SelectMany(t => t.BanDichs
+                    .Where(b => !string.IsNullOrWhiteSpace(b.NoiDung))
+                    .Select(b => new
+                    {
+                        t.POIId,
+                        b.NgonNgu,
+                        b.NoiDung
+                    }))
                 .GroupBy(b => b.POIId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 

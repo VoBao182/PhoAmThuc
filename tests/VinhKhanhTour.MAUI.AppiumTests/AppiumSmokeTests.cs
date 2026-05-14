@@ -72,6 +72,73 @@ public sealed class AppiumSmokeTests
         }
     }
 
+    [Test]
+    public void AndroidApp_CanNavigatePrimaryUserFlow_WhenEnabled()
+    {
+        RequireAppiumEnabled();
+
+        using var driver = CreateAndroidDriver();
+        try
+        {
+            var entryScreen = WaitForAnyElement(
+                driver,
+                TimeSpan.FromSeconds(60),
+                "main-page",
+                "subscription-page",
+                "launch-page");
+
+            if (entryScreen.AutomationId == "launch-page")
+            {
+                try
+                {
+                    entryScreen = WaitForAnyElement(
+                        driver,
+                        TimeSpan.FromSeconds(30),
+                        "main-page",
+                        "subscription-page");
+                }
+                catch (WebDriverTimeoutException)
+                {
+                    Assert.That(ExistsByAutomationId(driver, "launch-status"), Is.True);
+                    return;
+                }
+            }
+
+            if (entryScreen.AutomationId == "main-page")
+            {
+                ClickByAutomationId(driver, "main-tab-settings");
+                WaitForAnyElement(
+                    driver,
+                    TimeSpan.FromSeconds(10),
+                    "main-settings-device-id",
+                    "main-settings-subscription-status");
+
+                ClickByAutomationId(driver, "main-tab-explore");
+                WaitForAnyElement(driver, TimeSpan.FromSeconds(10), "main-search-entry");
+                return;
+            }
+
+            if (entryScreen.AutomationId == "subscription-page")
+            {
+                Assert.That(ExistsByAutomationId(driver, "subscription-trial-button"), Is.True);
+                Assert.That(ExistsByAutomationId(driver, "subscription-month-button"), Is.True);
+
+                ClickByAutomationId(driver, "subscription-month-button");
+                WaitForAnyElement(driver, TimeSpan.FromSeconds(15), "payment-page");
+                Assert.That(ExistsByAutomationId(driver, "payment-confirm-transfer-button"), Is.True);
+                Assert.That(ExistsByAutomationId(driver, "payment-cancel-button"), Is.True);
+                return;
+            }
+
+            Assert.That(ExistsByAutomationId(driver, "launch-status"), Is.True);
+        }
+        catch
+        {
+            SaveDriverArtifacts(driver, nameof(AndroidApp_CanNavigatePrimaryUserFlow_WhenEnabled));
+            throw;
+        }
+    }
+
     private static AndroidDriver CreateAndroidDriver()
     {
         var serverUrl = Environment.GetEnvironmentVariable("APPIUM_SERVER_URL") ?? "http://127.0.0.1:4723";
@@ -145,6 +212,12 @@ public sealed class AppiumSmokeTests
 
     private static bool ExistsByAutomationId(AndroidDriver driver, string automationId)
         => FindByAutomationId(driver, automationId) is not null;
+
+    private static void ClickByAutomationId(AndroidDriver driver, string automationId)
+    {
+        var element = WaitForAnyElement(driver, TimeSpan.FromSeconds(10), automationId).Element;
+        element.Click();
+    }
 
     private static IWebElement? FindByAutomationId(AndroidDriver driver, string automationId)
     {

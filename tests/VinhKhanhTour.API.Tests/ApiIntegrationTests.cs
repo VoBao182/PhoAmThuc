@@ -250,6 +250,105 @@ public sealed class ApiIntegrationTests
     }
 
     [Fact]
+    public async Task CmsCreatedPoi_IsVisibleToAppPoiListAndDetailApi()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        var poiId = Guid.NewGuid();
+        await factory.SeedAsync(db =>
+        {
+            var poi = CreatePoi("CMS Created App Visible", priority: 3, expiresAtUtc: DateTime.UtcNow.AddMonths(1), active: true, id: poiId);
+            poi.ThuyetMinhs.Add(new ThuyetMinh
+            {
+                Id = Guid.NewGuid(),
+                POIId = poiId,
+                TrangThai = true,
+                BanDichs =
+                [
+                    new BanDich
+                    {
+                        Id = Guid.NewGuid(),
+                        NgonNgu = "vi",
+                        NoiDung = "Noi dung do admin CMS nhap",
+                        FileAudio = "cms-created.mp3"
+                    }
+                ]
+            });
+            poi.MonAns.Add(new MonAn
+            {
+                Id = Guid.NewGuid(),
+                POIId = poiId,
+                TenMonAn = "Mon CMS tao",
+                DonGia = 45_000m,
+                TinhTrang = true
+            });
+            db.POIs.Add(poi);
+
+            return db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateClient();
+
+        var pois = await client.GetFromJsonAsync<JsonElement[]>("/api/poi");
+        var detail = await client.GetFromJsonAsync<JsonDocument>($"/api/poi/{poiId}?lang=vi");
+
+        Assert.NotNull(pois);
+        Assert.Contains(pois!, poi => Property(poi, "Id").GetGuid() == poiId);
+        Assert.NotNull(detail);
+        Assert.Equal("CMS Created App Visible", Property(detail!.RootElement, "TenPOI").GetString());
+        Assert.Equal("Noi dung do admin CMS nhap", Property(detail.RootElement, "NoiDungThuyetMinh").GetString());
+        Assert.Equal("cms-created.mp3", Property(detail.RootElement, "FileAudio").GetString());
+        var menuNames = Property(detail.RootElement, "MonAns")
+            .EnumerateArray()
+            .Select(m => Property(m, "TenMonAn").GetString())
+            .ToArray();
+        Assert.Contains("Mon CMS tao", menuNames);
+    }
+
+    [Fact]
+    public async Task ExpiredPoi_BecomesVisibleToAppApiAfterCmsMaintenancePayment()
+    {
+        using var factory = new ApiTestApplicationFactory();
+        var poiId = Guid.NewGuid();
+        await factory.SeedAsync(db =>
+        {
+            db.POIs.Add(CreatePoi("Expired Then Renewed", priority: 1, expiresAtUtc: DateTime.UtcNow.AddDays(-3), active: true, id: poiId));
+            db.DangKyDichVus.Add(new DangKyDichVu
+            {
+                Id = Guid.NewGuid(),
+                POIId = poiId,
+                PhiDuyTriThang = 60_000m,
+                PhiConvert = 20_000m,
+                NgayBatDau = DateTime.UtcNow.AddMonths(-2),
+                NgayHetHan = DateTime.UtcNow.AddDays(-3),
+                TrangThai = true
+            });
+
+            return db.SaveChangesAsync();
+        });
+
+        using var client = factory.CreateClient();
+
+        var beforeRenewal = await client.GetFromJsonAsync<JsonElement[]>("/api/poi");
+        Assert.DoesNotContain(beforeRenewal ?? [], poi => Property(poi, "Id").GetGuid() == poiId);
+
+        var renewal = await client.PostAsJsonAsync(
+            "/api/payment/maintenance",
+            new { PoiId = poiId, TaiKhoanId = (Guid?)null, SoThangGiaHan = 1, GhiChu = "CMS ghi nhan gia han" });
+        Assert.Equal(HttpStatusCode.OK, renewal.StatusCode);
+
+        var afterRenewal = await client.GetFromJsonAsync<JsonElement[]>("/api/poi");
+        Assert.Contains(afterRenewal ?? [], poi => Property(poi, "Id").GetGuid() == poiId);
+
+        await factory.AssertAsync(async db =>
+        {
+            var poi = await db.POIs.SingleAsync(p => p.Id == poiId);
+            Assert.True(poi.TrangThai);
+            Assert.True(poi.NgayHetHanDuyTri > DateTime.UtcNow);
+            Assert.True(await db.HoaDons.AnyAsync(h => h.POIId == poiId && h.LoaiPhi == "duytri"));
+        });
+    }
+
+    [Fact]
     public async Task PoiDetail_UsesRequestedTranslation_AndHidesInactiveMenuItems()
     {
         using var factory = new ApiTestApplicationFactory();

@@ -132,6 +132,111 @@ public sealed class PoiPlaybackLogicTests
         });
     }
 
+    [Test]
+    public void GeofencePlayback_DoesNotQueueBeforeDwellTime()
+    {
+        var poi = CreatePoi("Dwell POI", metersNorth: 0, radiusMeters: 50, priority: 1);
+        var controller = new PoiGeofencePlaybackController([poi]);
+        var start = DateTime.UtcNow;
+
+        var firstTick = controller.Evaluate(UserLocation, start);
+        var beforeDwell = controller.Evaluate(UserLocation, start.AddSeconds(4));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstTick.QueuedPlayback, Is.False);
+            Assert.That(firstTick.Reason, Is.EqualTo("dwell_started"));
+            Assert.That(beforeDwell.QueuedPlayback, Is.False);
+            Assert.That(beforeDwell.Reason, Is.EqualTo("dwelling"));
+        });
+    }
+
+    [Test]
+    public void GeofencePlayback_QueuesAfterUserDwellsInsidePoi()
+    {
+        var poi = CreatePoi("Confirmed POI", metersNorth: 0, radiusMeters: 50, priority: 1);
+        var controller = new PoiGeofencePlaybackController([poi]);
+        var start = DateTime.UtcNow;
+
+        controller.Evaluate(UserLocation, start);
+        var confirmed = controller.Evaluate(UserLocation, start.AddSeconds(5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(confirmed.CurrentPoiId, Is.EqualTo(poi.Id));
+            Assert.That(confirmed.QueuedPlayback, Is.True);
+            Assert.That(confirmed.Reason, Is.EqualTo("queued"));
+        });
+    }
+
+    [Test]
+    public void GeofencePlayback_DoesNotReplaySamePoiInsideCooldown()
+    {
+        var poi = CreatePoi("Cooldown POI", metersNorth: 0, radiusMeters: 50, priority: 1);
+        var controller = new PoiGeofencePlaybackController([poi]);
+        var start = DateTime.UtcNow;
+
+        controller.Evaluate(UserLocation, start);
+        var firstPlayback = controller.Evaluate(UserLocation, start.AddSeconds(5));
+        controller.ClearCurrentPoi();
+        controller.Evaluate(UserLocation, start.AddMinutes(2));
+        var replayAttempt = controller.Evaluate(UserLocation, start.AddMinutes(2).AddSeconds(5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstPlayback.QueuedPlayback, Is.True);
+            Assert.That(replayAttempt.QueuedPlayback, Is.False);
+            Assert.That(replayAttempt.Reason, Is.EqualTo("cooldown"));
+        });
+    }
+
+    [Test]
+    public void GeofencePlayback_ReplaysPoiAfterCooldownExpires()
+    {
+        var poi = CreatePoi("Replay POI", metersNorth: 0, radiusMeters: 50, priority: 1);
+        var controller = new PoiGeofencePlaybackController([poi]);
+        var start = DateTime.UtcNow;
+
+        controller.Evaluate(UserLocation, start);
+        var firstPlayback = controller.Evaluate(UserLocation, start.AddSeconds(5));
+        controller.ClearCurrentPoi();
+        controller.Evaluate(UserLocation, start.AddMinutes(11));
+        var replay = controller.Evaluate(UserLocation, start.AddMinutes(11).AddSeconds(5));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstPlayback.QueuedPlayback, Is.True);
+            Assert.That(replay.QueuedPlayback, Is.True);
+            Assert.That(replay.Reason, Is.EqualTo("queued"));
+        });
+    }
+
+    [Test]
+    public void GeofencePlayback_QueuesThreePoisInWalkingOrder()
+    {
+        var first = CreatePoi("A First", metersNorth: 0, radiusMeters: 30, priority: 1);
+        var second = CreatePoi("B Second", metersNorth: 80, radiusMeters: 30, priority: 1);
+        var third = CreatePoi("C Third", metersNorth: 160, radiusMeters: 30, priority: 1);
+        var controller = new PoiGeofencePlaybackController([first, second, third]);
+        var start = DateTime.UtcNow;
+
+        var firstPlayback = WalkIntoPoi(controller, metersNorth: 0, start);
+        controller.Evaluate(LocationAt(40), start.AddSeconds(10));
+        var secondPlayback = WalkIntoPoi(controller, metersNorth: 80, start.AddSeconds(20));
+        controller.Evaluate(LocationAt(120), start.AddSeconds(30));
+        var thirdPlayback = WalkIntoPoi(controller, metersNorth: 160, start.AddSeconds(40));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstPlayback.CurrentPoiId, Is.EqualTo(first.Id));
+            Assert.That(secondPlayback.CurrentPoiId, Is.EqualTo(second.Id));
+            Assert.That(thirdPlayback.CurrentPoiId, Is.EqualTo(third.Id));
+            Assert.That(firstPlayback.QueuedPlayback, Is.True);
+            Assert.That(secondPlayback.QueuedPlayback, Is.True);
+            Assert.That(thirdPlayback.QueuedPlayback, Is.True);
+        });
+    }
+
     private static PoiPlaybackItem CreatePoi(
         string name,
         double metersNorth,
@@ -146,5 +251,23 @@ public sealed class PoiPlaybackLogicTests
             UserLocation.Longitude,
             radiusMeters,
             priority);
+    }
+
+    private static GeofencePlaybackStep WalkIntoPoi(
+        PoiGeofencePlaybackController controller,
+        double metersNorth,
+        DateTime start)
+    {
+        var location = LocationAt(metersNorth);
+        controller.Evaluate(location, start);
+        return controller.Evaluate(location, start.AddSeconds(5));
+    }
+
+    private static UserGeoLocation LocationAt(double metersNorth)
+    {
+        const double metersPerLatitudeDegree = 111_320.0;
+        return new UserGeoLocation(
+            UserLocation.Latitude + (metersNorth / metersPerLatitudeDegree),
+            UserLocation.Longitude);
     }
 }

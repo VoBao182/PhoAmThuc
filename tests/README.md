@@ -16,7 +16,9 @@ Expected local result without a device:
 
 - API integration tests pass.
 - CMS Playwright E2E tests pass.
+- CMS priority E2E coverage includes login failure/logout, POI filters/sort/toggle, POI menu and 3-language narration edits, maintenance payment history, payment approval filters/reject validation, and customer map filters.
 - MAUI geofence/playback queue logic tests pass.
+- MAUI walking scenario tests for dwell time, cooldown, and multi-POI playback order pass.
 - MAUI Appium contract tests pass.
 - Real Appium tests are skipped unless `RUN_APPIUM_TESTS=1`.
 

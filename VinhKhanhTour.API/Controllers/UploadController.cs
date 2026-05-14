@@ -6,8 +6,14 @@ namespace VinhKhanhTour.API.Controllers;
 [Route("api/[controller]")]
 public class UploadController : ControllerBase
 {
+    private readonly IWebHostEnvironment _environment;
     private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
     private const long MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+    public UploadController(IWebHostEnvironment environment)
+    {
+        _environment = environment;
+    }
 
     // POST /api/upload
     // Nhận file ảnh, lưu vào wwwroot/uploads, trả về đường dẫn tương đối.
@@ -25,8 +31,9 @@ public class UploadController : ControllerBase
         if (!AllowedExtensions.Contains(ext))
             return BadRequest(new { error = $"Định dạng không hỗ trợ. Dùng: {string.Join(", ", AllowedExtensions)}" });
 
-        var uploadsDir = Path.Combine(
-            AppContext.BaseDirectory, "wwwroot", "uploads");
+        var webRoot = _environment.WebRootPath
+            ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
+        var uploadsDir = Path.Combine(webRoot, "uploads");
 
         // Fallback nếu wwwroot không tồn tại trong output dir
         if (!Directory.Exists(uploadsDir))

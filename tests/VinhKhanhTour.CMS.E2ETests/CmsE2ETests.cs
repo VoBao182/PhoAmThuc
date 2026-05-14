@@ -26,6 +26,7 @@ public sealed class CmsE2ETests : IAsyncLifetime
 
     private Guid _activePoiId;
     private Guid _overduePoiId;
+    private Guid _expiringPoiId;
     private Guid _approveRequestId;
     private Guid _rejectRequestId;
 
@@ -41,6 +42,42 @@ public sealed class CmsE2ETests : IAsyncLifetime
             Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
             await ExpectBodyContainsAsync(page, "Vinh Khanh CMS");
             await ExpectBodyContainsAsync(page, "Dang nhap");
+        }, signIn: false);
+    }
+
+    [Fact]
+    public async Task Cms_LoginRejectsInvalidCredentials_AndLogoutEndsSession()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_LoginRejectsInvalidCredentials_AndLogoutEndsSession), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/Login?ReturnUrl=%2FPoi",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await page.Locator("input[name='Username']").FillAsync(CmsAdminUsername);
+            await page.Locator("input[name='Password']").FillAsync("wrong-password");
+            await page.Locator("form button[type='submit']").ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
+            await ExpectBodyContainsAsync(page, "Tai khoan hoac mat khau khong dung.");
+
+            await page.Locator("input[name='Password']").FillAsync(CmsAdminPassword);
+            await page.Locator("form button[type='submit']").ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            Assert.Contains("/Poi", page.Url, StringComparison.OrdinalIgnoreCase);
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+
+            await page.Locator("[data-testid='cms-logout']").ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
+
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            Assert.Contains("/Login", page.Url, StringComparison.OrdinalIgnoreCase);
         }, signIn: false);
     }
 
@@ -72,6 +109,55 @@ public sealed class CmsE2ETests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cms_PoiFiltersSortingAndToggle_WorkFromAdminList()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_PoiFiltersSortingAndToggle_WorkFromAdminList), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi?status=visible",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyContainsAsync(page, "CMS Seed Expiring");
+            await ExpectBodyNotContainsAsync(page, "CMS Seed Overdue");
+
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi?status=hidden",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "CMS Seed Overdue");
+            await ExpectBodyNotContainsAsync(page, "CMS Seed Active");
+
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi?expiry=expiring7",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "CMS Seed Expiring");
+            await ExpectBodyNotContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyNotContainsAsync(page, "CMS Seed Overdue");
+
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi?search=CMS%20Seed&sort=name&dir=desc",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            var body = await GetBodyTextAsync(page);
+            Assert.True(
+                body.IndexOf("CMS Seed Overdue", StringComparison.OrdinalIgnoreCase)
+                    < body.IndexOf("CMS Seed Expiring", StringComparison.OrdinalIgnoreCase),
+                "Name descending sort should place Overdue before Expiring.");
+
+            var activeRow = page.Locator("tr").Filter(new LocatorFilterOptions { HasTextString = "CMS Seed Active" }).First;
+            await activeRow.Locator("form[method='post'] button").ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            await using var db = CreateDbContext();
+            var toggled = await db.POIs.SingleAsync(p => p.Id == _activePoiId);
+            Assert.False(toggled.TrangThai);
+
+            await page.GotoAsync(
+                $"{_baseUrl}/Poi?status=hidden&search=Active",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+        });
+    }
+
+    [Fact]
     public async Task Cms_PoiCreateAndEdit_PersistsChanges()
     {
         await RunWithPageArtifactsAsync(nameof(Cms_PoiCreateAndEdit_PersistsChanges), async page =>
@@ -89,26 +175,87 @@ public sealed class CmsE2ETests : IAsyncLifetime
             await page.Locator("[name='POI.ViDo']").FillAsync("10.7589");
             await page.Locator("[name='POI.KinhDo']").FillAsync("106.7018");
             await page.Locator("[name='POI.BanKinh']").FillAsync("35");
+            await page.Locator("[name='POI.MucUuTien']").FillAsync("7");
             await page.Locator("[name='ThuyetMinhVi']").FillAsync("Noi dung test automation.");
-            await page.Locator("form button[type='submit']").ClickAsync();
+            await SetElementValueAsync(page, "[name='ThuyetMinhEn']", "English narration from automation.");
+            await SetElementValueAsync(page, "[name='ThuyetMinhZh']", "Chinese narration from automation.");
+            await page.Locator("button[onclick='addMonAn()']").ClickAsync();
+            await page.Locator("[name='MonAns[0].TenMonAn']").FillAsync("Automation Bun Bo");
+            await page.Locator("[name='MonAns[0].MoTa']").FillAsync("Spicy test dish");
+            await page.Locator("[name='MonAns[0].PhanLoai']").FillAsync("Main");
+            await page.Locator("[name='MonAns[0].DonGia']").FillAsync("75000");
+            await page.Locator("main form button[type='submit']").Last.ClickAsync();
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             await ExpectBodyContainsAsync(page, poiName);
+            await ExpectBodyContainsAsync(page, "Automation Bun Bo");
 
             var row = page.Locator("tr").Filter(new LocatorFilterOptions { HasTextString = poiName }).First;
             await row.Locator("a[href*='/Poi/Edit/']").First.ClickAsync();
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             await page.Locator("[name='POI.TenPOI']").FillAsync(updatedName);
-            await page.Locator("form button[type='submit']").ClickAsync();
+            await page.Locator("[name='POI.SDT']").FillAsync("0909000002");
+            await page.Locator("[name='POI.DiaChi']").FillAsync("456 Updated Street");
+            await page.Locator("[name='POI.ViDo']").FillAsync("10.7599");
+            await page.Locator("[name='POI.KinhDo']").FillAsync("106.7029");
+            await page.Locator("[name='POI.BanKinh']").FillAsync("55");
+            await page.Locator("[name='POI.MucUuTien']").FillAsync("3");
+            await page.Locator("[name='ThuyetMinhVi']").FillAsync("Noi dung da cap nhat.");
+            await SetElementValueAsync(page, "[name='ThuyetMinhEn']", "Updated English narration.");
+            await SetElementValueAsync(page, "[name='ThuyetMinhZh']", "Updated Chinese narration.");
+            await page.Locator(".monan-item").First.Locator(".remove-btn").ClickAsync();
+            await page.Locator("button[onclick='addMonAn()']").ClickAsync();
+            await page.Locator("[name='MonAns[1].TenMonAn']").FillAsync("Automation Oc Len");
+            await page.Locator("[name='MonAns[1].MoTa']").FillAsync("Replacement dish");
+            await page.Locator("[name='MonAns[1].PhanLoai']").FillAsync("Seafood");
+            await page.Locator("[name='MonAns[1].DonGia']").FillAsync("99000");
+            await page.Locator("main form button[type='submit']").Last.ClickAsync();
             await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 
             await ExpectBodyContainsAsync(page, updatedName);
 
             await using var db = CreateDbContext();
-            var saved = await db.POIs.SingleAsync(p => p.TenPOI == updatedName);
-            Assert.Equal("0909000001", saved.SDT);
+            var saved = await db.POIs
+                .Include(p => p.MonAns)
+                .Include(p => p.ThuyetMinhs)
+                    .ThenInclude(t => t.BanDichs)
+                .SingleAsync(p => p.TenPOI == updatedName);
+            Assert.Equal("0909000002", saved.SDT);
+            Assert.Equal("456 Updated Street", saved.DiaChi);
+            Assert.Equal(10.7599, saved.ViDo, 4);
+            Assert.Equal(106.7029, saved.KinhDo, 4);
+            Assert.Equal(55, saved.BanKinh);
+            Assert.Equal(3, saved.MucUuTien);
             Assert.True(saved.NgayHetHanDuyTri > DateTime.UtcNow);
+            Assert.Contains(saved.ThuyetMinhs.SelectMany(t => t.BanDichs), b => b.NgonNgu == "vi" && b.NoiDung == "Noi dung da cap nhat.");
+            Assert.Contains(saved.ThuyetMinhs.SelectMany(t => t.BanDichs), b => b.NgonNgu == "en" && b.NoiDung == "Updated English narration.");
+            Assert.Contains(saved.ThuyetMinhs.SelectMany(t => t.BanDichs), b => b.NgonNgu == "zh" && b.NoiDung == "Updated Chinese narration.");
+            Assert.Contains(saved.MonAns, m => m.TenMonAn == "Automation Bun Bo" && !m.TinhTrang);
+            Assert.Contains(saved.MonAns, m => m.TenMonAn == "Automation Oc Len" && m.TinhTrang && m.DonGia == 99_000m);
+        });
+    }
+
+    [Fact]
+    public async Task Cms_ThuyetMinhList_ShowsTranslationsAndOpensPoiEdit()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_ThuyetMinhList_ShowsTranslationsAndOpensPoiEdit), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/ThuyetMinh",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyContainsAsync(page, "Seed narration VI");
+            await ExpectBodyContainsAsync(page, "Seed narration EN");
+            await ExpectBodyContainsAsync(page, "Seed narration ZH");
+
+            await page.Locator($"a[href='/Poi/Edit/{_activePoiId}']").ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            Assert.Contains($"/Poi/Edit/{_activePoiId}", page.Url, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("CMS Seed Active", await page.Locator("[name='POI.TenPOI']").InputValueAsync());
+            Assert.Equal("Seed narration VI", await page.Locator("[name='ThuyetMinhVi']").InputValueAsync());
         });
     }
 
@@ -137,7 +284,7 @@ public sealed class CmsE2ETests : IAsyncLifetime
                     url.Contains("/ThanhToan", StringComparison.OrdinalIgnoreCase)
                     && !url.Contains("/ThanhToan/GhiNhan", StringComparison.OrdinalIgnoreCase),
                 new PageWaitForURLOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
-            await page.Locator("form button[type='submit']").ClickAsync();
+            await page.Locator("main form button[type='submit']").Last.ClickAsync();
             await redirectedToPaymentList;
 
             await ExpectBodyContainsAsync(page, "CMS Seed Overdue");
@@ -155,6 +302,70 @@ public sealed class CmsE2ETests : IAsyncLifetime
             Assert.Equal(2, invoices.Count);
             Assert.All(invoices, invoice => Assert.Equal(80_000m, invoice.SoTien));
             Assert.All(invoices, invoice => Assert.Equal("CMS E2E renewal", invoice.GhiChu));
+
+            await page.GotoAsync(
+                $"{_baseUrl}/ThanhToan/LichSu/{_overduePoiId}",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "CMS Seed Overdue");
+            await ExpectBodyContainsAsync(page, "CMS E2E renewal");
+            await ExpectBodyContainsAsync(page, "80,000");
+            await ExpectBodyContainsAsync(page, "160,000");
+        });
+    }
+
+    [Fact]
+    public async Task Cms_PaymentApprovalFiltersAndRejectValidation_WorkForAdmin()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_PaymentApprovalFiltersAndRejectValidation_WorkForAdmin), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/DuyetThanhToan?tab=cho_duyet&pkg=tuan&search=E2EAPP",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "VKT TUAN E2EAPP");
+            await ExpectBodyNotContainsAsync(page, "VKT NGAY E2EREJ");
+
+            var stayOnPending = page.WaitForURLAsync(
+                url => url.Contains("tab=cho_duyet", StringComparison.OrdinalIgnoreCase)
+                    && url.Contains("err=", StringComparison.OrdinalIgnoreCase),
+                new PageWaitForURLOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await page.EvaluateAsync(
+                @"id => {
+                    const form = document.querySelector('#modalTuChoi form');
+                    document.querySelector('#tuChoiId').value = id;
+                    const textarea = form.querySelector('textarea[name=""lyDo""]');
+                    textarea.required = false;
+                    textarea.value = '';
+                    HTMLFormElement.prototype.submit.call(form);
+                }",
+                _rejectRequestId.ToString());
+            await stayOnPending;
+
+            await ExpectBodyContainsAsync(page, "Ly do tu choi la bat buoc.");
+
+            await using (var db = CreateDbContext())
+            {
+                var stillPending = await db.YeuCauThanhToans.SingleAsync(y => y.Id == _rejectRequestId);
+                Assert.Equal("cho_duyet", stillPending.TrangThai);
+                Assert.Null(stillPending.GhiChuAdmin);
+            }
+
+            page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
+            var approveRow = page.Locator("tr").Filter(new LocatorFilterOptions { HasTextString = "VKT TUAN E2EAPP" }).First;
+            await approveRow.Locator("form[action*='Approve'] button[type='submit'], form button.action-approve").First.ClickAsync();
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            await page.GotoAsync(
+                $"{_baseUrl}/DuyetThanhToan?tab=da_duyet&pkg=tuan&search=E2EAPP",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "VKT TUAN E2EAPP");
+            await ExpectBodyNotContainsAsync(page, "VKT NGAY E2EREJ");
+
+            await using (var db = CreateDbContext())
+            {
+                var subscription = await db.DangKyApps.SingleAsync(d => d.MaThietBi == "e2eapp-device-01");
+                Assert.Equal("tuan", subscription.LoaiGoi);
+                Assert.True(subscription.NgayHetHan > DateTime.UtcNow.AddDays(6));
+            }
         });
     }
 
@@ -210,6 +421,34 @@ public sealed class CmsE2ETests : IAsyncLifetime
             var subscription = await db.DangKyApps.SingleAsync(d => d.MaThietBi == "e2eapp-device-01");
             Assert.Equal("tuan", subscription.LoaiGoi);
             Assert.True(subscription.NgayHetHan > DateTime.UtcNow.AddDays(6));
+        });
+    }
+
+    [Fact]
+    public async Task Cms_BanDoFiltersCustomersByOnlineStateAndCurrentPoi()
+    {
+        await RunWithPageArtifactsAsync(nameof(Cms_BanDoFiltersCustomersByOnlineStateAndCurrentPoi), async page =>
+        {
+            await page.GotoAsync(
+                $"{_baseUrl}/BanDo?filter=online&search=map-device",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "map-device-online-01");
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyContainsAsync(page, "150 XP");
+            await ExpectBodyNotContainsAsync(page, "map-device-offline-01");
+
+            await page.GotoAsync(
+                $"{_baseUrl}/BanDo?filter=offline&search=map-device",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "map-device-offline-01");
+            await ExpectBodyNotContainsAsync(page, "map-device-online-01");
+
+            await page.GotoAsync(
+                $"{_baseUrl}/BanDo?filter=at-poi&search=CMS%20Seed%20Active",
+                new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+            await ExpectBodyContainsAsync(page, "map-device-online-01");
+            await ExpectBodyContainsAsync(page, "CMS Seed Active");
+            await ExpectBodyNotContainsAsync(page, "map-device-offline-01");
         });
     }
 
@@ -322,6 +561,7 @@ public sealed class CmsE2ETests : IAsyncLifetime
 
         _activePoiId = Guid.NewGuid();
         _overduePoiId = Guid.NewGuid();
+        _expiringPoiId = Guid.NewGuid();
         _approveRequestId = Guid.NewGuid();
         _rejectRequestId = Guid.NewGuid();
 
@@ -349,8 +589,29 @@ public sealed class CmsE2ETests : IAsyncLifetime
             priority: 2,
             expiresAtUtc: DateTime.UtcNow.AddDays(-5),
             active: false);
+        var expiringPoi = CreatePoi(
+            _expiringPoiId,
+            "CMS Seed Expiring",
+            "30 Expiring Street",
+            priority: 3,
+            expiresAtUtc: DateTime.UtcNow.AddDays(3),
+            active: true);
 
-        db.POIs.AddRange(activePoi, overduePoi);
+        var activeNarration = new VinhKhanhTour.API.Models.ThuyetMinh
+        {
+            Id = Guid.NewGuid(),
+            POIId = _activePoiId,
+            TrangThai = true,
+            BanDichs =
+            [
+                new BanDich { Id = Guid.NewGuid(), NgonNgu = "vi", NoiDung = "Seed narration VI" },
+                new BanDich { Id = Guid.NewGuid(), NgonNgu = "en", NoiDung = "Seed narration EN" },
+                new BanDich { Id = Guid.NewGuid(), NgonNgu = "zh", NoiDung = "Seed narration ZH" }
+            ]
+        };
+        activePoi.ThuyetMinhs.Add(activeNarration);
+
+        db.POIs.AddRange(activePoi, overduePoi, expiringPoi);
         db.DangKyDichVus.AddRange(
             new DangKyDichVu
             {
@@ -370,6 +631,16 @@ public sealed class CmsE2ETests : IAsyncLifetime
                 PhiConvert = 25_000m,
                 NgayBatDau = DateTime.UtcNow.AddMonths(-2),
                 NgayHetHan = DateTime.UtcNow.AddDays(-5),
+                TrangThai = true
+            },
+            new DangKyDichVu
+            {
+                Id = Guid.NewGuid(),
+                POIId = _expiringPoiId,
+                PhiDuyTriThang = 70_000m,
+                PhiConvert = 20_000m,
+                NgayBatDau = DateTime.UtcNow.AddMonths(-1),
+                NgayHetHan = DateTime.UtcNow.AddDays(3),
                 TrangThai = true
             });
 
@@ -393,6 +664,65 @@ public sealed class CmsE2ETests : IAsyncLifetime
                 NoiDungChuyen = "VKT NGAY E2EREJ",
                 TrangThai = "cho_duyet",
                 NgayTao = DateTime.UtcNow.AddMinutes(-3)
+            });
+        db.DangKyApps.AddRange(
+            new DangKyApp
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = "map-device-online-01",
+                LoaiGoi = "thang",
+                NgayBatDau = DateTime.UtcNow.AddDays(-1),
+                NgayHetHan = DateTime.UtcNow.AddDays(29),
+                SoTien = 199_000m
+            },
+            new DangKyApp
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = "map-device-offline-01",
+                LoaiGoi = "ngay",
+                NgayBatDau = DateTime.UtcNow.AddDays(-2),
+                NgayHetHan = DateTime.UtcNow.AddDays(-1),
+                SoTien = 29_000m
+            });
+        db.VitriKhachs.AddRange(
+            new VitriKhach
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = "map-device-online-01",
+                Lat = 10.7589,
+                Lng = 106.7018,
+                LanCuoiHeartbeat = DateTime.UtcNow.AddSeconds(-30),
+                PoiIdHienTai = _activePoiId,
+                TenPoiHienTai = "CMS Seed Active"
+            },
+            new VitriKhach
+            {
+                Id = Guid.NewGuid(),
+                MaThietBi = "map-device-offline-01",
+                Lat = 10.7591,
+                Lng = 106.7021,
+                LanCuoiHeartbeat = DateTime.UtcNow.AddMinutes(-20),
+                PoiIdHienTai = null,
+                TenPoiHienTai = null
+            });
+        db.LichSuPhats.AddRange(
+            new LichSuPhat
+            {
+                Id = Guid.NewGuid(),
+                POIId = _activePoiId,
+                MaThietBi = "map-device-online-01",
+                Nguon = "GPS",
+                NgonNguDung = "vi",
+                ThoiGian = DateTime.UtcNow.AddMinutes(-2)
+            },
+            new LichSuPhat
+            {
+                Id = Guid.NewGuid(),
+                POIId = _expiringPoiId,
+                MaThietBi = "map-device-online-01",
+                Nguon = "VIEW",
+                NgonNguDung = "vi",
+                ThoiGian = DateTime.UtcNow.AddMinutes(-1)
             });
 
         await db.SaveChangesAsync();
@@ -471,15 +801,25 @@ public sealed class CmsE2ETests : IAsyncLifetime
             NgayHetHanDuyTri = expiresAtUtc
         };
 
+    private static async Task SetElementValueAsync(IPage page, string selector, string value)
+    {
+        await page.Locator(selector).EvaluateAsync(
+            "(element, nextValue) => { element.value = nextValue; element.dispatchEvent(new Event('input', { bubbles: true })); }",
+            value);
+    }
+
+    private static async Task<string> GetBodyTextAsync(IPage page)
+        => await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 });
+
     private static async Task ExpectBodyContainsAsync(IPage page, string expected)
     {
-        var body = await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 });
+        var body = await GetBodyTextAsync(page);
         Assert.Contains(expected, body, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task ExpectBodyNotContainsAsync(IPage page, string unexpected)
     {
-        var body = await page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 10000 });
+        var body = await GetBodyTextAsync(page);
         Assert.DoesNotContain(unexpected, body, StringComparison.OrdinalIgnoreCase);
     }
 

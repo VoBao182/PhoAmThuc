@@ -282,6 +282,9 @@ public class IndexModel : PageModel
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(lyDo))
+                return RedirectToPage(new { tab = "cho_duyet", err = "Ly do tu choi la bat buoc." });
+
             var yc = await _db.YeuCauThanhToans.FirstOrDefaultAsync(y => y.Id == yeuCauId);
             if (yc == null)
                 return RedirectToPage(new { err = "Không tìm thấy yêu cầu." });

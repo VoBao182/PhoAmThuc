@@ -67,8 +67,8 @@ public class IndexModel : PageModel
             var onlineCutoff = now.Subtract(OnlineThreshold);
             var expiringSoonCutoff = now.Add(ExpiringSoonWindow);
 
-            var subscriptions = await LoadSubscriptionsAsync();
-            var locations = await LoadLocationsAsync();
+            var subscriptions = await LoadSubscriptionsPortableAsync();
+            var locations = await LoadLocationsPortableAsync();
             var visitedCounts = await LoadPoiActivityCountsAsync(VisitedSourceValues, "lượt ghé");
             var viewedCounts = await LoadPoiActivityCountsAsync(ViewedSourceValues, "lượt xem");
 
@@ -180,7 +180,87 @@ public class IndexModel : PageModel
         }).ToList();
     }
 
+    private async Task<List<DeviceSubscription>> LoadSubscriptionsPortableAsync()
+    {
+        try
+        {
+            return await _db.DangKyApps
+                .AsNoTracking()
+                .Where(x => x.MaThietBi != null && x.MaThietBi != "")
+                .GroupBy(x => x.MaThietBi)
+                .Select(g => new DeviceSubscription
+                {
+                    DeviceId = g.Key,
+                    ExpiresAt = g.Max(x => x.NgayHetHan),
+                    PaidPackages = g.Count(x => x.SoTien > 0),
+                    TotalSpent = g.Sum(x => x.SoTien > 0 ? x.SoTien : 0m)
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            AppendLoadWarning($"Tam thoi khong tai duoc goi dang ky: {ex.GetBaseException().Message}");
+            return [];
+        }
+    }
+
+    private async Task<List<DeviceLocation>> LoadLocationsPortableAsync()
+    {
+        try
+        {
+            return await _db.VitriKhachs
+                .AsNoTracking()
+                .Where(x => x.MaThietBi != null
+                    && x.MaThietBi != ""
+                    && x.Lat >= ServiceMinLat
+                    && x.Lat <= ServiceMaxLat
+                    && x.Lng >= ServiceMinLng
+                    && x.Lng <= ServiceMaxLng
+                    && !(x.Lat == 0 && x.Lng == 0))
+                .Select(x => new DeviceLocation
+                {
+                    MaThietBi = x.MaThietBi,
+                    LanCuoiHeartbeat = x.LanCuoiHeartbeat,
+                    PoiIdHienTai = x.PoiIdHienTai,
+                    TenPoiHienTai = x.TenPoiHienTai,
+                    Lat = x.Lat,
+                    Lng = x.Lng
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            AppendLoadWarning($"Tam thoi khong tai duoc vi tri khach hang: {ex.GetBaseException().Message}");
+            return [];
+        }
+    }
+
     private async Task<List<DevicePoiCount>> LoadPoiActivityCountsAsync(string[] sourceValues, string label)
+    {
+        try
+        {
+            return await _db.LichSuPhats
+                .AsNoTracking()
+                .Where(x => x.MaThietBi != null
+                    && x.POIId != null
+                    && x.Nguon != null
+                    && sourceValues.Contains(x.Nguon))
+                .GroupBy(x => x.MaThietBi!)
+                .Select(g => new DevicePoiCount
+                {
+                    DeviceId = g.Key,
+                    Count = g.Select(x => x.POIId).Distinct().Count()
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            AppendLoadWarning($"Tam thoi khong tai duoc {label}: {ex.GetBaseException().Message}");
+            return [];
+        }
+    }
+
+    private async Task<List<DevicePoiCount>> LoadPoiActivityCountsRawAsync(string[] sourceValues, string label)
         => await ExecuteRawReadAsync(label, async (connection, ct) =>
         {
             await using var command = connection.CreateCommand();

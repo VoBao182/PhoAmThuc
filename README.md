@@ -154,7 +154,9 @@ Automation test mặc định gồm:
 - API integration tests.
 - CMS Playwright E2E tests chạy Chromium headless.
 - MAUI logic tests kiểm tra chọn POI theo geofence, xử lý 2 POI chồng bán kính, hysteresis và hàng đợi phát POI.
+- MAUI scenario tests kiểm tra người dùng đi qua nhiều POI, dwell time 5 giây và cooldown 10 phút.
 - MAUI contract tests kiểm tra `AutomationId` trong XAML.
+- Appium real-device tests dạng opt-in: mở app thật và thao tác luồng người dùng cơ bản khi có emulator/Appium.
 
 Đây là functional/integration/E2E/logic automation test, không phải load test đo tải hệ thống. Phần logic test hiện tập trung vào nghiệp vụ quan trọng của app như chọn POI và hàng đợi phát audio.
 
@@ -233,6 +235,8 @@ Kiểm tra các luồng backend chính:
 - Chặn duyệt/từ chối nếu thiếu admin token.
 - Gia hạn gói đang còn hạn.
 - Danh sách POI chỉ trả quán đang hoạt động và còn hạn duy trì.
+- POI do CMS/admin tạo có thể xuất hiện trong API danh sách/chi tiết để app đọc.
+- POI hết hạn bị ẩn khỏi app, sau khi CMS ghi nhận phí duy trì thì xuất hiện lại.
 - Chi tiết POI trả đúng bản dịch theo ngôn ngữ, fallback về tiếng Việt nếu thiếu ngôn ngữ.
 - Ẩn món ăn không còn active.
 - Ghi nhận phí duy trì và tạo hóa đơn.
@@ -252,6 +256,13 @@ Kiểm tra CMS bằng trình duyệt Chromium headless:
 - Ghi nhận phí duy trì, gia hạn POI và tạo hóa đơn.
 - Duyệt và từ chối yêu cầu thanh toán app.
 
+- Login sai mat khau va logout.
+- Loc/sap xep/bat tat POI tren trang quan ly POI.
+- Tao/sua menu mon an va thuyet minh 3 ngon ngu VI/EN/ZH.
+- Xem lich su thanh toan cua POI.
+- Loc/tim kiem yeu cau thanh toan va chan tu choi khi thieu ly do.
+- Loc khach hang tren BanDo theo online/offline/dang o POI.
+
 ### MAUI logic/contract/Appium tests
 
 Mặc định kiểm tra logic app và contract UI:
@@ -265,6 +276,11 @@ Mặc định kiểm tra logic app và contract UI:
 - Hàng đợi phát POI không enqueue trùng POI.
 - Hàng đợi không enqueue POI đang phát.
 - Hàng đợi phát theo thứ tự FIFO.
+- Người dùng đi lướt qua POI dưới 5 giây thì không phát audio.
+- Người dùng đứng đủ 5 giây trong POI thì queue audio.
+- Quay lại cùng POI trong 10 phút thì không phát lại.
+- Hết cooldown 10 phút thì POI được phát lại.
+- Người dùng đi qua 3 POI liên tiếp thì queue theo đúng thứ tự di chuyển.
 - Các page quan trọng có `AutomationId`.
 - Không bị trùng `AutomationId`.
 
@@ -272,6 +288,8 @@ Khi bật Appium thật, kiểm tra thêm:
 
 - Appium server reachable.
 - App Android mở được vào một trong các màn hình đầu vào hợp lệ: launch, subscription hoặc main.
+- Nếu vào main page, test bấm tab Hồ sơ rồi quay lại Khám phá.
+- Nếu vào subscription page, test bấm gói tháng và kiểm tra trang thanh toán QR.
 
 ## 7. Cách vận hành các chức năng chính
 
