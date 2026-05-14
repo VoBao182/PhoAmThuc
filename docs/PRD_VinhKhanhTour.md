@@ -1,6 +1,8 @@
 # PRD – VinhKhanhTour: Hệ thống hướng dẫn du lịch phố ẩm thực Vĩnh Khánh
 
-> **Phiên bản:** 1.4 | **Ngày:** 14/05/2026
+> **Phiên bản:** 1.5 | **Ngày:** 14/05/2026
+>
+> **Lưu ý phiên bản 1.5:** Bổ sung mục báo cáo kiểm thử tự động sau khi chạy `scripts/run-all-tests.ps1` ngày 14/05/2026: API integration, CMS Playwright E2E và MAUI Appium contract đều pass; Appium real-device được ghi nhận là opt-in và đang skip khi chưa bật emulator/device.
 >
 > **Lưu ý phiên bản 1.4:** Đồng bộ PRD với baseline kiểm thử mới: solution có thư mục `tests/`, API/CMS hỗ trợ `WebApplicationFactory<Program>` qua `public partial class Program`, bổ sung smoke test cho API/CMS/MAUI Appium và script `scripts/run-all-tests.ps1`.
 >
@@ -486,15 +488,16 @@ Ngoài ra còn `SoQuanQuaHan = POIs.Count(p => p.TrangThai && (p.NgayHetHanDuyTr
 |---|---|
 | Thời gian phản hồi API | < 500ms (p95) |
 | GPS poll interval | 5 giây |
-| Heartbeat interval | 15 giây |
-| CMS map refresh | 30 giây |
+| Heartbeat interval | 10 giây |
+| Refresh POI nền | 20 giây |
+| CMS auto-refresh/snapshot | 10 giây |
 | App polling thanh toán | 10 giây |
 | API probe cache | 5 phút (success) / 10 giây (fail) |
 
 ### 7.2 Độ tin cậy
 
 - **Geofence dedup:** Không phát lại thuyết minh trong 10 phút/POI
-- **Visit dedup:** Không ghi `visit` trong 5 phút/POI
+- **Visit dedup:** Không ghi `visit` GPS trong 10 phút/POI; view detail dedup 5 phút/POI
 - **Subscription rollover:** Gia hạn nối tiếp, không mất ngày còn lại
 - **Image URL fallback:** `ResolveImageUrl` xử lý cả đường dẫn tương đối, localhost, và URL ngoài
 
@@ -525,6 +528,33 @@ Ngoài ra còn `SoQuanQuaHan = POIs.Count(p => p.TrangThai && (p.NgayHetHanDuyTr
 - Môi trường test dùng `ASPNETCORE_ENVIRONMENT=Testing` và connection string local `vinhkhanhtour_test`; không dùng production database.
 - CMS E2E có thể tự start CMS tại `CMS_BASE_URL` (mặc định `http://127.0.0.1:5199`) nếu chưa có server khỏe.
 - Appium test là opt-in: mặc định skip; chỉ chạy thật khi truyền `-WithAppium` cho script hoặc set `RUN_APPIUM_TESTS=1` sau khi đã bật emulator/device và Appium server.
+
+### 7.6 Báo cáo kết quả kiểm thử tự động
+
+**Thời điểm chạy:** 14/05/2026  
+**Môi trường:** Windows PowerShell tại thư mục gốc dự án `C:\Users\ASUS\OneDrive\Desktop\VinhKhanhTourDemo`  
+**Lệnh chạy:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-all-tests.ps1
+```
+
+**Tổng hợp kết quả:**
+
+| Nhóm kiểm thử | Tổng số | Passed | Failed | Skipped | Kết luận |
+|---|---:|---:|---:|---:|---|
+| API integration tests | 12 | 12 | 0 | 0 | Đạt |
+| CMS Playwright E2E tests | 5 | 5 | 0 | 0 | Đạt |
+| MAUI Appium tests | 4 | 2 | 0 | 2 | Đạt với điều kiện Appium real-device chưa bật |
+| **Tổng cộng** | **21** | **19** | **0** | **2** | **Không có test failed** |
+
+**Diễn giải:**
+- API integration tests xác nhận các endpoint/backend chính chạy được trong môi trường test.
+- CMS Playwright E2E tests xác nhận CMS khởi động được, health check tốt và các luồng web smoke/E2E chạy qua Chromium headless.
+- MAUI Appium có 2 contract/smoke test pass; 2 test real-device được skip đúng thiết kế vì chưa set `RUN_APPIUM_TESTS=1`, chưa bật Appium server/emulator hoặc thiết bị Android.
+- File kết quả được xuất tại `TestResults/api-tests.trx`, `TestResults/cms-e2e-tests.trx`, `TestResults/maui-appium-tests.trx`.
+
+**Kết luận báo cáo:** Baseline automation test local của dự án đạt yêu cầu: build thành công, API/CMS E2E pass, không có test failed. Để có bằng chứng mobile automation trên thiết bị thật, cần chạy bổ sung Appium với `-WithAppium` sau khi mở emulator hoặc kết nối điện thoại Android.
 
 ---
 
@@ -697,4 +727,4 @@ App                          API                         Admin CMS
 
 ---
 
-*Tài liệu này mô tả toàn bộ phạm vi và yêu cầu của đồ án VinhKhanhTour phiên bản 1.4.*
+*Tài liệu này mô tả toàn bộ phạm vi và yêu cầu của đồ án VinhKhanhTour phiên bản 1.5.*

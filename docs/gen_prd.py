@@ -30,7 +30,7 @@ DIAGRAM_PNG_DIR = BASE_DIR / "diagrams" / "png"
 OUT_DOCX = BASE_DIR / "PRD_VinhKhanhTour.docx"
 
 PRODUCT_VERSION = "1.5.3"
-DOC_VERSION = "2.2"
+DOC_VERSION = "2.3"
 DOC_DATE = datetime.now().strftime("%d/%m/%Y")
 
 
@@ -44,7 +44,7 @@ VERSION_HISTORY = [
     ["1.5.1", "07/05/2026", "Refactor 3 thẻ dashboard (Tổng POI, POI hoạt động, Ngôn ngữ)."],
     ["2.0", "08/05/2026", "Tái cấu trúc PRD đầy đủ chuẩn: tóm tắt điều hành, KPI, personas, NFR, API ref, rủi ro, glossary. Đồng bộ với code v1.5.2 (helper CalculateRemainingDays)."],
     ["2.1", "09/05/2026", "Bổ sung bảng phân lớp triển khai và method names cho F01-F05; đồng bộ DOCX với PRD Markdown."],
-    [DOC_VERSION, DOC_DATE, "Đồng bộ baseline kiểm thử: tests folder, API/CMS WebApplicationFactory, Playwright CMS smoke, Appium opt-in smoke và script run-all-tests."],
+    [DOC_VERSION, DOC_DATE, "Bổ sung báo cáo kết quả chạy automation test local: API/CMS pass, MAUI Appium contract pass, Appium real-device skip đúng thiết kế."],
 ]
 
 
@@ -280,6 +280,23 @@ TESTABILITY_NOTES = [
     "Test host dùng `ASPNETCORE_ENVIRONMENT=Testing` và connection string local `vinhkhanhtour_test`, không dùng production database.",
     "CMS E2E có thể tự start CMS tại `CMS_BASE_URL` (mặc định http://127.0.0.1:5199) nếu health check chưa sẵn sàng.",
     "Appium test là opt-in: chạy thật khi truyền `-WithAppium` cho script hoặc set `RUN_APPIUM_TESTS=1` sau khi bật emulator/device và Appium server.",
+]
+
+TEST_REPORT_ROWS = [
+    ["API integration tests", "12", "12", "0", "0", "Đạt"],
+    ["CMS Playwright E2E tests", "5", "5", "0", "0", "Đạt"],
+    ["MAUI Appium tests", "4", "2", "0", "2", "Đạt; Appium real-device chưa bật"],
+    ["Tổng cộng", "21", "19", "0", "2", "Không có test failed"],
+]
+
+TEST_REPORT_NOTES = [
+    "Thời điểm chạy: 14/05/2026 bằng PowerShell tại thư mục gốc dự án.",
+    "Lệnh chạy: powershell -ExecutionPolicy Bypass -File .\\scripts\\run-all-tests.ps1.",
+    "API integration tests xác nhận backend chạy được trong môi trường test.",
+    "CMS Playwright E2E tests xác nhận CMS health check và luồng smoke/E2E chạy qua Chromium headless.",
+    "MAUI Appium có 2 contract/smoke test pass; 2 test real-device skip đúng thiết kế vì chưa set RUN_APPIUM_TESTS=1 và chưa bật Appium server/emulator hoặc thiết bị Android.",
+    "File kết quả: TestResults/api-tests.trx, TestResults/cms-e2e-tests.trx, TestResults/maui-appium-tests.trx.",
+    "Kết luận: baseline automation test local đạt yêu cầu, build thành công, API/CMS E2E pass và không có test failed.",
 ]
 
 
@@ -979,11 +996,12 @@ def build_toc(doc):
         ("17. Rủi ro & Giảm thiểu", "7 rủi ro chính + đề xuất xử lý."),
         ("18. Tiêu chí chấp nhận (DoD)", "Tiêu chí pass khi release."),
         ("19. Kiểm thử tự động & Testability", "API, CMS, Appium smoke tests và script tổng hợp."),
-        ("20. Giả định & Ràng buộc", "Tiền đề và giới hạn kỹ thuật."),
-        ("21. Lịch trình & Cột mốc", "Roadmap từ v1.0 đến v2.0."),
+        ("20. Báo cáo kết quả kiểm thử", "Kết quả chạy run-all-tests.ps1 ngày 14/05/2026."),
+        ("21. Giả định & Ràng buộc", "Tiền đề và giới hạn kỹ thuật."),
+        ("22. Lịch trình & Cột mốc", "Roadmap từ v1.0 đến v2.0."),
         ("PHẦN H — PHỤ LỤC", None),
-        ("22. Thuật ngữ (Glossary)", "Định nghĩa các khái niệm chuyên ngành."),
-        ("23. Tham chiếu tài liệu", "Sơ đồ PlantUML, file mã nguồn liên quan."),
+        ("23. Thuật ngữ (Glossary)", "Định nghĩa các khái niệm chuyên ngành."),
+        ("24. Tham chiếu tài liệu", "Sơ đồ PlantUML, file mã nguồn liên quan."),
     ]
 
     for title, desc in sections:
@@ -1282,15 +1300,32 @@ def build_part_g(doc):
     for item in TESTABILITY_NOTES:
         add_bullet(doc, item)
 
-    add_heading(doc, "20. Giả định & Ràng buộc", level=1)
-    add_heading(doc, "20.1 Giả định", level=3)
+    add_heading(doc, "20. Báo cáo kết quả kiểm thử tự động", level=1)
+    add_paragraph(doc,
+                  "Báo cáo dưới đây ghi nhận kết quả chạy automation test local bằng script tổng hợp của dự án.",
+                  size=11.5)
+    add_table(doc,
+              ["Nhóm kiểm thử", "Tổng số", "Passed", "Failed", "Skipped", "Kết luận"],
+              TEST_REPORT_ROWS,
+              widths_cm=[4.4, 1.7, 1.7, 1.7, 1.7, 4.0])
+    add_heading(doc, "Diễn giải kết quả", level=3)
+    for item in TEST_REPORT_NOTES:
+        add_bullet(doc, item)
+    add_callout(
+        doc,
+        "Kết luận báo cáo: baseline automation test local đạt yêu cầu. Để có bằng chứng mobile automation trên thiết bị thật, "
+        "cần chạy bổ sung Appium với -WithAppium sau khi mở emulator hoặc kết nối điện thoại Android."
+    )
+
+    add_heading(doc, "21. Giả định & Ràng buộc", level=1)
+    add_heading(doc, "21.1 Giả định", level=3)
     for item in ASSUMPTIONS:
         add_bullet(doc, item)
-    add_heading(doc, "20.2 Ràng buộc", level=3)
+    add_heading(doc, "21.2 Ràng buộc", level=3)
     for item in CONSTRAINTS:
         add_bullet(doc, item)
 
-    add_heading(doc, "21. Lịch trình & Cột mốc", level=1)
+    add_heading(doc, "22. Lịch trình & Cột mốc", level=1)
     add_table(doc, ["Phiên bản", "Mốc thời gian", "Nội dung"], ROADMAP,
               widths_cm=[3.5, 3.0, 8.5])
     doc.add_page_break()
@@ -1301,12 +1336,12 @@ def build_part_h(doc):
                   align=WD_ALIGN_PARAGRAPH.CENTER, color=(31, 73, 125),
                   space_before=10, space_after=14)
 
-    add_heading(doc, "22. Thuật ngữ (Glossary)", level=1)
+    add_heading(doc, "23. Thuật ngữ (Glossary)", level=1)
     add_table(doc, ["Thuật ngữ", "Định nghĩa"], GLOSSARY,
               widths_cm=[4.0, 11.0])
 
-    add_heading(doc, "23. Tham chiếu tài liệu", level=1)
-    add_heading(doc, "23.1 Sơ đồ PlantUML", level=3)
+    add_heading(doc, "24. Tham chiếu tài liệu", level=1)
+    add_heading(doc, "24.1 Sơ đồ PlantUML", level=3)
     diagram_refs = [
         ["00", "Use case tổng thể", "00-overall-usecase.puml"],
         ["F01", "Subscription gate", "01-subscription-gate-{activity,sequence}.puml"],
@@ -1326,7 +1361,7 @@ def build_part_h(doc):
     add_table(doc, ["ID", "Tên sơ đồ", "File nguồn"], diagram_refs,
               widths_cm=[1.5, 5.5, 8.0])
 
-    add_heading(doc, "23.2 Mã nguồn liên quan", level=3)
+    add_heading(doc, "24.2 Mã nguồn liên quan", level=3)
     code_refs = [
         ["VinhKhanhTourDemo/MainPage.xaml.cs", "Vòng lặp GPS, geofence, queue audio."],
         ["VinhKhanhTourDemo/SubscriptionPage.xaml.cs", "Gate gói + recovery code/QR."],
