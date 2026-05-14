@@ -48,6 +48,8 @@ function Stop-RepoDotnetAppProcesses {
 
     $normalizedRepoRoot = $repoRoot.TrimEnd('\')
     $projectMarkers = @(
+        "VinhKhanhTourDemo\api-usb-build\VinhKhanhTour.API.dll",
+        "VinhKhanhTourDemo\cms-local-build\VinhKhanhTour.CMS.dll",
         "VinhKhanhTour.API\bin\Debug\net10.0\VinhKhanhTour.API.dll",
         "VinhKhanhTour.CMS\bin\Debug\net10.0\VinhKhanhTour.CMS.dll",
         "VinhKhanhTour.API\VinhKhanhTour.API.csproj",

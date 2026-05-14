@@ -7,7 +7,13 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $apiProjectDir = Join-Path $repoRoot "VinhKhanhTour.API"
-$apiBuildDir = Join-Path $repoRoot ".codex-temp\api-build"
+$apiBuildRoot = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    Join-Path ([System.IO.Path]::GetTempPath()) "VinhKhanhTourDemo"
+}
+else {
+    Join-Path $env:LOCALAPPDATA "VinhKhanhTourDemo"
+}
+$apiBuildDir = Join-Path $apiBuildRoot "api-usb-build"
 $apiDllPath = Join-Path $apiBuildDir "VinhKhanhTour.API.dll"
 $stdoutPath = Join-Path $repoRoot ".codex-temp\api-stdout.log"
 $stderrPath = Join-Path $repoRoot ".codex-temp\api-stderr.log"

@@ -82,6 +82,7 @@ function Stop-StaleCmsProcesses {
 
     $normalizedRepoRoot = $RepoRoot.TrimEnd('\')
     $markers = @(
+        "VinhKhanhTourDemo\cms-local-build\VinhKhanhTour.CMS.dll",
         "VinhKhanhTour.CMS\bin\Debug\net10.0\VinhKhanhTour.CMS.dll",
         "VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj"
     )
@@ -127,6 +128,15 @@ if ($ForgetSavedConnectionString) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $cmsProjectPath = Join-Path $repoRoot "VinhKhanhTour.CMS\VinhKhanhTour.CMS.csproj"
+$cmsProjectDir = Split-Path -Parent $cmsProjectPath
+$cmsBuildRoot = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    Join-Path ([System.IO.Path]::GetTempPath()) "VinhKhanhTourDemo"
+}
+else {
+    Join-Path $env:LOCALAPPDATA "VinhKhanhTourDemo"
+}
+$cmsBuildDir = Join-Path $cmsBuildRoot "cms-local-build"
+$cmsDllPath = Join-Path $cmsBuildDir "VinhKhanhTour.CMS.dll"
 
 if (-not (Test-Path -LiteralPath $cmsProjectPath)) {
     throw "Khong tim thay project CMS tai: $cmsProjectPath"
@@ -165,6 +175,19 @@ Stop-StaleCmsProcesses -RepoRoot $repoRoot -Port $CmsPort
 Write-Host "Dang chay CMS local..."
 Write-Host "API hien dang tro toi https://phoamthuc.onrender.com"
 Write-Host "CMS URL: http://localhost:$CmsPort"
+Write-Host "Build CMS vao thu muc tam de khong khoa bin\\Debug..."
+New-Item -ItemType Directory -Force -Path $cmsBuildDir | Out-Null
+dotnet build $cmsProjectPath -o $cmsBuildDir | Out-Host
+if ($LASTEXITCODE -ne 0) {
+    throw "Build CMS local failed with exit code $LASTEXITCODE."
+}
+
 Write-Host "Dung Ctrl+C de dung CMS."
 
-dotnet run --project $cmsProjectPath --urls "http://localhost:$CmsPort"
+Push-Location $cmsProjectDir
+try {
+    dotnet $cmsDllPath --urls "http://localhost:$CmsPort"
+}
+finally {
+    Pop-Location
+}
