@@ -2,6 +2,8 @@
 
 > **Phiên bản:** 1.5 | **Ngày:** 14/05/2026
 >
+> **Sinh viên:** Võ Quốc Bảo | **Mã số sinh viên:** 3123411031 | **Lớp:** DCT123C5
+>
 > **Lưu ý phiên bản 1.5:** Bổ sung mục báo cáo kiểm thử tự động sau khi chạy `scripts/run-all-tests.ps1` ngày 14/05/2026: API integration, CMS Playwright E2E và MAUI Appium contract đều pass; Appium real-device được ghi nhận là opt-in và đang skip khi chưa bật emulator/device.
 >
 > **Lưu ý phiên bản 1.4:** Đồng bộ PRD với baseline kiểm thử mới: solution có thư mục `tests/`, API/CMS hỗ trợ `WebApplicationFactory<Program>` qua `public partial class Program`, bổ sung smoke test cho API/CMS/MAUI Appium và script `scripts/run-all-tests.ps1`.
@@ -211,38 +213,41 @@ taikhoan ── hoadon
 
 ---
 
-### F03 – Tự động phát thuyết minh (Geofence + Audio)
+### F03 - Tu dong phat thuyet minh (Geofence + Audio)
 
-**Mô tả:** Khi khách bước vào vùng bán kính của quán và đứng đủ thời gian xác nhận, app tự động đưa POI vào hàng đợi phát thuyết minh.
+**Mo ta:** Khi khach buoc vao vung ban kinh cua quan va dung du thoi gian xac nhan, app tu dong dua POI vao hang doi phat thuyet minh.
 **Diagrams:** `docs/diagrams/03-geofence-audio-activity.puml`, `03-geofence-audio-sequence.puml`; sub-flow queue: `03b-queue-playback-activity.puml`, `03b-queue-playback-sequence.puml`.
 
-**Phân lớp triển khai:**
+**Phan lop trien khai:**
 
-| Lớp | Thành phần |
+| Lop | Thanh phan |
 |---|---|
 | UI (boundary) | `MainPage.xaml` (GPS status, map WebView, now-playing banner, POI highlight) |
-| Page/Control | `EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync` |
-| Domain/helper | `Location.CalculateDistance`, `_lastSpokenTime`, `_speakQueue`, `_queuedSpeakPoiIds`, `_speakLock`, `AppText.LanguageCode`, `TextToSpeech.Default` |
+| Page/Control | `EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `ToPlaybackItem`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync` |
+| Domain/helper | `PoiGeofenceSelector.Select`, `PoiPlaybackQueue<PoiDto>`, `_lastSpokenTime`, `_speakLock`, `AppText.LanguageCode`, `AppConfig.EnsureApiBaseUrlAsync`, `TextToSpeech.Default.GetLocalesAsync` |
 | Controller (control) | `HeartbeatController.SendHeartbeat` (`POST /api/heartbeat`), `RecordVisit` (`POST /api/heartbeat/visit`), `ThuyetMinhController.GetByPoi`, `LogController.Post` (`POST /api/log`) |
-| Persistence | `Preferences` (visited ids) + `AppDbContext` → PostgreSQL bảng `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich` |
+| Persistence | `Preferences` (visited ids) + `AppDbContext` -> PostgreSQL bang `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich` |
 
-**Luồng geofence:**
-1. `EnsureGpsTrackingAsync()` xin `Permissions.LocationWhenInUse`, sau đó gọi `StartGpsTracking()`.
-2. `StartGpsTracking()` lấy GPS mỗi 5 giây bằng `Geolocation.Default.GetLocationAsync()`.
-3. `CheckGeofence()` gọi `SelectPoiForLocation()` để chọn candidate trong bán kính, ưu tiên `MucUuTien`, sau đó khoảng cách và tên.
-4. POI phải dwell đủ `DwellSecondsToConfirm` trước khi được commit thành `_currentPoi`.
-5. Nếu là POI mới và qua cooldown, app ghi visited local, gọi `RecordPoiVisitAsync()`, cập nhật UI và `QueuePoiPlayback()`.
-6. `ProcessSpeakQueueAsync()` gọi `SpeakPoiAsync()` tuần tự; `SpeakPoiAsync()` lấy nội dung qua `/api/thuyet-minh/{poiId}?lang=...`, đọc TTS và gọi `LogPlaybackAsync()`.
+**Luong geofence:**
+1. `EnsureGpsTrackingAsync()` xin `Permissions.LocationWhenInUse`, sau do goi `StartGpsTracking()`.
+2. `StartGpsTracking()` lay GPS moi 5 giay bang `Geolocation.Default.GetLocationAsync()`.
+3. `CheckGeofence()` goi `SelectPoiForLocation()`. Ham nay chuyen `_pois` thanh `PoiPlaybackItem`, roi `PoiGeofenceSelector.Select()` tinh `HaversineMeters`, loc cac POI co `distance <= BanKinh`, sau do sort theo `MucUuTien -> DistanceMeters -> TenPOI`.
+4. POI phai dwell du `DwellSecondsToConfirm` truoc khi duoc commit thanh `_currentPoi`.
+5. Neu la POI moi va qua cooldown, app ghi visited local, goi `RecordPoiVisitAsync()`, cap nhat UI va `QueuePoiPlayback()`.
+6. `ProcessSpeakQueueAsync()` goi `SpeakPoiAsync()` tuan tu; `SpeakPoiAsync()` lay `langCode = AppText.LanguageCode`, goi `AppConfig.EnsureApiBaseUrlAsync()`, roi GET `/api/thuyet-minh/{poiId}?lang={langCode}`.
+7. `ThuyetMinhController.GetByPoi()` chuan hoa `lang`, kiem tra POI con hoat dong, lay `ThuyetMinh` dau tien dang bat theo `ThuTu`, roi lay `BanDich` uu tien `langCode` va fallback ve `vi`. DTO tra ve gom `NoiDung`, `FileAudio`, `NgonNgu`.
+8. Luong geofence hien dung `NoiDung` de phat bang `TextToSpeech.Default.SpeakAsync()`. Neu `NoiDung` rong, app dung cau chao fallback theo ngon ngu. Truong `FileAudio` chua duoc phat truc tiep o F03; phan do thuoc F04.
+9. Sau khi doc xong, app goi `LogPlaybackAsync()` de POST `/api/log`.
 
 **Heartbeat GPS:**
-- `SendHeartbeatAsync()` gửi `POST /api/heartbeat` với `{MaThietBi, Lat, Lng, PoiIdHienTai, TenPoiHienTai}` theo chu kỳ tick của GPS.
-- Server `VerifyCurrentPoiAsync()` re-check tọa độ nằm trong `BanKinh + 5m` trước khi tin POI app báo.
-- `RecordVisit` dedup server trong 10 phút cho cùng thiết bị/POI.
+- `SendHeartbeatAsync()` gui `POST /api/heartbeat` voi `{MaThietBi, Lat, Lng, PoiIdHienTai, TenPoiHienTai}` theo chu ky tick cua GPS.
+- Server `VerifyCurrentPoiAsync()` re-check toa do nam trong `BanKinh + 5m` truoc khi tin POI app bao.
+- `RecordVisit` dedup server trong 10 phut cho cung thiet bi/POI.
 
-**Quy tắc nghiệp vụ chính:**
-- Cooldown audio 10 phút/POI trên app bằng `_lastSpokenTime`.
-- Hysteresis giữ POI hiện tại khi hai POI sát nhau, cùng `MucUuTien` và chênh khoảng cách nhỏ, tránh nháy do GPS jitter.
-- Hàng đợi audio chống trùng bằng 3 lớp: `_playingPoi`, `_queuedSpeakPoiIds`, `_speakLock`.
+**Quy tac nghiep vu chinh:**
+- Cooldown audio 10 phut/POI tren app bang `_lastSpokenTime`.
+- Hysteresis giu POI hien tai khi hai POI sat nhau, cung `MucUuTien` va chenh khoang cach `<= 5m`, tranh nhay do GPS jitter.
+- Hang doi audio chong trung bang 3 lop: `_playingPoi`, `_queuedSpeakPoiIds`, `_speakLock`.
 
 ---
 

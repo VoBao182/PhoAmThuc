@@ -32,6 +32,9 @@ OUT_DOCX = BASE_DIR / "PRD_VinhKhanhTour.docx"
 PRODUCT_VERSION = "1.5.3"
 DOC_VERSION = "2.3"
 DOC_DATE = datetime.now().strftime("%d/%m/%Y")
+STUDENT_NAME = "Võ Quốc Bảo"
+STUDENT_ID = "3123411031"
+STUDENT_CLASS = "DCT123C5"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -498,37 +501,39 @@ FEATURES = [
     },
     {
         "id": "F03",
-        "title": "Theo dõi GPS, geofence và tự động phát thuyết minh",
-        "actor": "Khách du lịch",
+        "title": "Theo doi GPS, geofence va tu dong phat thuyet minh",
+        "actor": "Khach du lich",
         "status": "VERIFIED",
         "activity_image": "03-geofence-audio-activity.png",
         "sequence_image": "03-geofence-audio-sequence.png",
         "function_text": (
-            "Nhóm sơ đồ này mô tả phần lõi vận hành theo vị trí: lấy GPS, gửi heartbeat, xác định POI gần nhất, "
-            "ghi nhận visit và tự động phát thuyết minh khi người dùng đi vào vùng geofence. "
-            "Bao gồm xử lý đặc biệt khi khách đứng giữa 2 POI (sort theo MucUuTien → distance → tên + hysteresis 5m)."
+            "Nhom so do nay mo ta phan loi van hanh theo vi tri: lay GPS, gui heartbeat, xac dinh POI gan nhat, "
+            "ghi nhan visit va tu dong phat thuyet minh khi nguoi dung di vao vung geofence. "
+            "Bao gom xu ly dac biet khi khach dung giua 2 POI qua `PoiGeofenceSelector.Select()` (sort theo MucUuTien -> DistanceMeters -> TenPOI + hysteresis 5m)."
         ),
         "capabilities": [
-            "Lấy vị trí định kỳ và cập nhật trạng thái người dùng trên bản đồ.",
-            "Gửi heartbeat vị trí về server để CMS biết thiết bị nào đang online.",
-            "Xác định geofence theo bán kính từng POI và chống phát lặp bằng cooldown 10 phút.",
-            "Hysteresis 5m + dwell 5s tránh nháy POI khi GPS jitter giữa 2 quán liền kề.",
-            "Tự động đọc nội dung thuyết minh và ghi log phát audio.",
+            "Lay vi tri dinh ky va cap nhat trang thai nguoi dung tren ban do." ,
+            "Gui heartbeat vi tri ve server de CMS biet thiet bi nao dang online." ,
+            "Xac dinh geofence theo ban kinh tung POI va chong phat lap bang cooldown 10 phut." ,
+            "Hysteresis 5m + dwell 5s tranh nhay POI khi GPS jitter giua 2 quan lien ke; priority selection di qua `PoiGeofenceSelector.Select()`." ,
+            "Tu dong lay thuyet minh qua API, chon BanDich theo langCode, doc bang TTS va ghi log phat audio." ,
         ],
         "implementation": [
             ["UI (boundary)", "`MainPage.xaml` (GPS status, map WebView, now-playing banner, POI highlight)."],
-            ["Page/Control", "`EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync`."],
-            ["Domain/helper", "`Location.CalculateDistance`, `_lastSpokenTime`, `_speakQueue`, `_queuedSpeakPoiIds`, `_speakLock`, `AppText.LanguageCode`, `TextToSpeech.Default`."],
+            ["Page/Control", "`EnsureGpsTrackingAsync`, `StartGpsTracking`, `CheckGeofence`, `SelectPoiForLocation`, `ToPlaybackItem`, `QueuePoiPlayback`, `ProcessSpeakQueueAsync`, `SpeakPoiAsync`, `SendHeartbeatAsync`, `RecordPoiVisitAsync`, `LogPlaybackAsync`."],
+            ["Domain/helper", "`PoiGeofenceSelector.Select`, `PoiPlaybackQueue<PoiDto>`, `_lastSpokenTime`, `_speakLock`, `AppText.LanguageCode`, `AppConfig.EnsureApiBaseUrlAsync`, `TextToSpeech.Default.GetLocalesAsync`."],
             ["Controller", "`HeartbeatController.SendHeartbeat`, `RecordVisit`, `ThuyetMinhController.GetByPoi`, `LogController.Post`."],
-            ["Persistence", "`Preferences` (visited ids) + `AppDbContext` -> PostgreSQL bảng `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich`."],
+            ["Persistence", "`Preferences` (visited ids) + `AppDbContext` -> PostgreSQL bang `vitrikhach`, `lichsuphat`, `thuyetminh`, `bandich`."],
         ],
         "operation": [
-            "MainPage gọi EnsureGpsTrackingAsync(), xin quyền vị trí và bắt đầu vòng lặp GPS.",
-            "App lấy vị trí mỗi 5 giây bằng Geolocation.Default.GetLocationAsync().",
-            "SelectPoiForLocation() sort candidate theo MucUuTien → DistanceMeters → TenPOI; nếu POI hiện tại cùng priority và chỉ chênh ≤ 5m thì giữ.",
-            "Heartbeat được gửi mỗi 10 giây dựa trên HEARTBEAT_EVERY_TICKS = 2; refresh POI nền mỗi 20 giây dựa trên POI_REFRESH_EVERY_TICKS = 4.",
-            "Khi phát hiện người dùng vừa đi vào một POI mới và đã qua cooldown, app ghi visited local, POST /api/heartbeat/sync-history, POST /api/heartbeat/visit rồi cập nhật UI.",
-            "Sau đó app lấy thuyết minh qua /api/thuyet-minh/{poiId}, đọc bằng TTS và POST /api/log để lưu lịch sử phát.",
+            "MainPage goi EnsureGpsTrackingAsync(), xin quyen vi tri va bat dau vong lap GPS." ,
+            "App lay vi tri moi 5 giay bang Geolocation.Default.GetLocationAsync()." ,
+            "SelectPoiForLocation() chuyen `_pois` thanh `PoiPlaybackItem`, roi `PoiGeofenceSelector.Select()` tinh `HaversineMeters`, loc POI co `distance <= BanKinh`, sort theo `MucUuTien -> DistanceMeters -> TenPOI`; neu POI hien tai cung priority va chi chenh <= 5m thi giu bang hysteresis." ,
+            "Heartbeat duoc gui moi 10 giay dua tren HEARTBEAT_EVERY_TICKS = 2; refresh POI nen moi 20 giay dua tren POI_REFRESH_EVERY_TICKS = 4." ,
+            "Khi phat hien nguoi dung vua di vao mot POI moi va da qua cooldown, app ghi visited local, POST /api/heartbeat/sync-history, POST /api/heartbeat/visit roi cap nhat UI." ,
+            "Sau do `SpeakPoiAsync()` lay `langCode = AppText.LanguageCode`, goi `AppConfig.EnsureApiBaseUrlAsync()`, roi GET `/api/thuyet-minh/{poiId}?lang={langCode}`. API chuan hoa ngon ngu, kiem tra POI con hoat dong, lay `ThuyetMinh` dau tien dang bat theo `ThuTu`, roi lay `BanDich` uu tien `langCode` va fallback ve `vi`." ,
+            "App dung `ThuyetMinhResponse.NoiDung` de phat bang `TextToSpeech.Default.SpeakAsync()`. Neu `NoiDung` rong thi dung cau chao fallback theo ngon ngu. Truong `FileAudio` co duoc tra ve nhung luong geofence hien chua dung; phat file audio truc tiep nam o F04." ,
+            "Sau khi doc xong, app goi `LogPlaybackAsync()` de POST `/api/log` voi `Nguon = GPS`." ,
         ],
     },
     {
@@ -940,6 +945,9 @@ def build_cover(doc):
               [
                   ["Sản phẩm", f"VinhKhanhTour v{PRODUCT_VERSION}"],
                   ["Tài liệu", f"PRD v{DOC_VERSION}"],
+                  ["Sinh viên", STUDENT_NAME],
+                  ["Mã số sinh viên", STUDENT_ID],
+                  ["Lớp", STUDENT_CLASS],
                   ["Ngày phát hành", DOC_DATE],
                   ["Phạm vi", "MAUI App + REST API + CMS Razor Pages"],
                   ["Nguồn sơ đồ", "docs/diagrams/*.puml (PlantUML)"],

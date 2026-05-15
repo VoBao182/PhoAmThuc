@@ -1,23 +1,27 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Sequence)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 0121e4f
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: OnAppearing(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), ToPlaybackItem(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/PoiPlaybackLogic.cs: PoiGeofenceSelector.Select(), HaversineMeters()
+' - VinhKhanhTourDemo/AppConfig.cs: EnsureApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory(), VerifyCurrentPoiAsync()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
 ' - VinhKhanhTour.API/Controllers/LogController.cs: Post()
 ' Note: Sequence da sync dwell 5 giay truoc khi xac nhan vao POI, heartbeat 10 giay, refresh POI 20 giay.
-' Note: Nhanh "giua 2 POI" tach tuong minh: sort theo MucUuTien -> Distance -> TenPOI + hysteresis 5m.
-' Note: Queue audio per-device duoc tach hoan toan vao SpeakQueue (lock + semaphore + dedup); chi tiet o 03b-queue-playback-sequence.puml.
+' Note: Nhanh "giua 2 POI" tach tuong minh: _pois -> ToPlaybackItem() -> PoiGeofenceSelector.Select() voi sort theo MucUuTien -> Distance -> TenPOI + hysteresis 5m.
+' Note: Sequence nay bo sung chi tiet luong app lay NoiDung thuyet minh qua API roi doc bang TTS. FileAudio van duoc API tra ve nhung khong duoc dung trong geofence auto-play.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 
 actor Guest
 participant MainPage
 participant DeviceIdentity
 participant "Geolocation / GPS" as GPS
-participant "SpeakQueue\n(per-device)" as SpeakQueue
+participant "PoiGeofenceSelector\n<<helper>>" as GeofenceSelector
+participant "PoiPlaybackQueue<PoiDto>\n<<entity>>" as SpeakQueue
+participant "AppConfig\n<<helper>>" as AppConfig
 participant "HeartbeatController" as HeartbeatController
 participant "ThuyetMinhController" as ThuyetMinhController
 participant "LogController" as LogController
@@ -44,17 +48,21 @@ loop moi 5 giay
   MainPage -> MainPage: CheckGeofence(location)
 
   group SelectPoiForLocation - xu ly chong lan giua 2 POI
-    MainPage -> MainPage: tinh distance moi POI\nloc distance <= BanKinh\nsort MucUuTien -> Distance -> TenPOI
+    MainPage -> MainPage: SelectPoiForLocation(userLoc)
+    MainPage -> MainPage: _pois.Select(ToPlaybackItem())
+    MainPage -> GeofenceSelector: Select(playbackItems, userLocation,\n_currentPoi?.Id, PoiSwitchDistanceBufferMeters)
+    GeofenceSelector -> GeofenceSelector: HaversineMeters()\nfilter distance <= BanKinh\nsort MucUuTien -> Distance -> TenPOI
     alt khong co POI nao trong ban kinh
-      MainPage -> MainPage: return null\n_candidatePoi=null, _currentPoi=null
+      GeofenceSelector --> MainPage: null
+      MainPage -> MainPage: _candidatePoi=null, _currentPoi=null
     else top1 == _currentPoi (giu nguyen)
-      MainPage -> MainPage: return top1
+      GeofenceSelector --> MainPage: current candidate
     else _currentPoi != null va vao vung 2 POI
-      MainPage -> MainPage: tim _currentPoi trong candidates
+      GeofenceSelector -> GeofenceSelector: tim _currentPoi trong candidates
       alt _currentPoi cung MucUuTien voi top1\nVA chenh distance <= 5m
-        MainPage -> MainPage: HYSTERESIS: giu _currentPoi\n(tranh nhay POI do GPS jitter)
+        GeofenceSelector --> MainPage: current candidate\n(hysteresis)
       else top1 uu tien cao hon\nhoac chenh > 5m
-        MainPage -> MainPage: doi sang top1
+        GeofenceSelector --> MainPage: top1 candidate
       end
     end
   end
@@ -90,35 +98,55 @@ loop moi 5 giay
     DbContext -> DB: persist visit row when needed
     DB --> DbContext: saved
 
-    note right of MainPage
-      Tu day chuyen sang SpeakQueue
-      (chi tiet o 03b-queue-playback-sequence.puml).
-      Phan duoi chi tom tat lai cac
-      tuong tac voi backend de ghi log.
-    end note
-
-    MainPage -> SpeakQueue: QueuePoiPlayback(nearest)
+    MainPage -> MainPage: QueuePoiPlayback(nearest)
+    MainPage -> SpeakQueue: Enqueue(nearest.Id, nearest)
     note right of SpeakQueue
       lock(_speakQueueGate)
-      neu _playingPoi.Id == poi.Id
-      hoac _queuedSpeakPoiIds.Contains
-      -> SKIP (tranh phat trung POI cu)
-      else enqueue + start processor
+      + dedup theo _playingPoi
+      va _queued ids.
     end note
-    SpeakQueue -> ThuyetMinhController: GET /api/thuyet-minh/{poiId}?lang=langCode
-    ThuyetMinhController -> DbContext: POIs.AnyAsync()/ThuyetMinhs.FirstOrDefaultAsync()/BanDichs.FirstOrDefaultAsync()
-    DbContext -> DB: read POI, ThuyetMinh and BanDich rows
-    DB --> DbContext: rows
-    DbContext --> ThuyetMinhController: dto source rows
-    ThuyetMinhController --> SpeakQueue: ThuyetMinhResponse
+    MainPage -> MainPage: ProcessSpeakQueueAsync()
+    MainPage -> SpeakQueue: TryDequeue(out poiId, out poi)
+    SpeakQueue --> MainPage: poi
+    MainPage -> SpeakQueue: SetPlaying(poiId)
+    MainPage -> MainPage: SpeakPoiAsync(poi)
+    MainPage -> AppConfig: EnsureApiBaseUrlAsync(_http)
+    AppConfig --> MainPage: apiBaseUrl
+    MainPage -> ThuyetMinhController: GET /api/thuyet-minh/{poi.Id}?lang={langCode}
+    ThuyetMinhController -> ThuyetMinhController: NormalizeLanguageCode(lang)
+    ThuyetMinhController -> DbContext: AnyAsync()
+    DbContext -> DB: read visible active POI
+    DB --> DbContext: isVisiblePoi
+    DbContext --> ThuyetMinhController: active?
+    ThuyetMinhController -> DbContext: FirstOrDefaultAsync()
+    DbContext -> DB: read first active ThuyetMinh Id\nOrderBy(ThuTu)
+    DB --> DbContext: thuyetMinhId
+    DbContext --> ThuyetMinhController: thuyetMinhId
+    ThuyetMinhController -> DbContext: FirstOrDefaultAsync()
+    DbContext -> DB: read BanDich by langCode\nfallback ve vi
+    DB --> DbContext: BanDich row
+    DbContext --> ThuyetMinhController: ThuyetMinhDto(NoiDung, FileAudio, NgonNgu)
+    ThuyetMinhController --> MainPage: ThuyetMinhDto
+    MainPage -> MainPage: content = dto.NoiDung ?? ""\nif empty -> greeting fallback
+    note right of MainPage
+      DTO co ca FileAudio va NgonNgu.
+      Tuy nhien luong geofence hien tai
+      chi doc NoiDung bang TTS;
+      FileAudio duoc xu ly truc tiep o F04.
+    end note
+    MainPage -> TTS: GetLocalesAsync()
+    TTS --> MainPage: locales
+    MainPage -> TTS: SpeakAsync(content, locale)\n(qua _speakLock semaphore - serial)
+    TTS --> MainPage: da doc xong
 
-    SpeakQueue -> TTS: SpeakAsync(content)\n(qua _speakLock semaphore - serial)
-    TTS --> SpeakQueue: da doc xong
-
-    SpeakQueue -> LogController: POST /api/log
+    MainPage -> MainPage: LogPlaybackAsync(poi.Id, langCode)
+    MainPage -> AppConfig: EnsureApiBaseUrlAsync(_http)
+    AppConfig --> MainPage: apiBaseUrl
+    MainPage -> LogController: POST /api/log
     LogController -> DbContext: LichSuPhats.Add()/SaveChangesAsync()
     DbContext -> DB: persist LichSuPhat row
     DB --> DbContext: saved
+    MainPage -> SpeakQueue: ClearPlaying(poi.Id)
   else dwell >= 5s nhung dang cooldown / khong phai POI moi
     MainPage -> MainPage: cap nhat highlight / card / map\n(log "cooldown N phut con lai" neu can)
   end

@@ -1,9 +1,11 @@
 @startuml
 ' Diagram: F03 - Theo doi GPS, geofence va tu dong phat thuyet minh (Activity)
 ' Status: VERIFIED
-' Baseline: branch master, current worktree @ HEAD 8ed8643
+' Baseline: HEAD 8ca9ec7
 ' Source:
-' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/MainPage.xaml.cs: EnsureGpsTrackingAsync(), StartGpsTracking(), CheckGeofence(), SelectPoiForLocation(), ToPlaybackItem(), SendHeartbeatAsync(), RecordPoiVisitAsync(), SyncPoiHistoryAsync(), QueuePoiPlayback(), ProcessSpeakQueueAsync(), SpeakPoiAsync(), LogPlaybackAsync()
+' - VinhKhanhTourDemo/PoiPlaybackLogic.cs: PoiGeofenceSelector.Select(), HaversineMeters()
+' - VinhKhanhTourDemo/AppConfig.cs: EnsureApiBaseUrlAsync()
 ' - VinhKhanhTourDemo/DeviceIdentity.cs: GetDeviceId()
 ' - VinhKhanhTour.API/Controllers/HeartbeatController.cs: SendHeartbeat(), RecordVisit(), SyncHistory(), VerifyCurrentPoiAsync()
 ' - VinhKhanhTour.API/Controllers/ThuyetMinhController.cs: GetByPoi()
@@ -11,6 +13,7 @@
 ' Note: Code hien tai xac nhan vao POI sau khi dwell 5 giay trong ban kinh. Heartbeat gui moi 10 giay va refresh POI moi 20 giay voi GPS poll 5 giay.
 ' Note: Nhanh "giua 2 POI" duoc tach tuong minh: sort theo MucUuTien -> Distance -> TenPOI; hysteresis 5m giu POI cu khi cung MucUuTien.
 ' Note: Queue audio per-device (1 may): _speakQueue + _queuedSpeakPoiIds dedup, _speakQueueGate lock, _speakLock semaphore serial hoa TTS. Sub-activity tach o 03b-queue-playback-activity.puml.
+' Note: Luong geofence hien tai lay NoiDung thuyet minh qua API roi doc bang TTS. API van tra ca FileAudio, nhung geofence auto-play khong phat file audio truc tiep; FileAudio duoc dung o F04.
 ' Note: Geofence/audio luon dua tren toa do that cua POI (ViDo/KinhDo, BanKinh). Marker offset tren map chi la presentation, khong doi logic geofence.
 title F03 - Theo doi GPS, geofence va tu dong phat thuyet minh
 start
@@ -30,7 +33,9 @@ while (token chua bi cancel?) is (Co)
     :UpdateUserLocationOnMap(location);
 
     partition "SelectPoiForLocation - xu ly chong lan giua 2 POI" {
-      :Tinh distance toi tat ca POI;
+      :_pois.Select(ToPlaybackItem());
+      :PoiGeofenceSelector.Select(\nplaybackItems, userLocation,\n_currentPoi?.Id, PoiSwitchDistanceBufferMeters);
+      :Tinh HaversineMeters toi tat ca POI;
       :Loc candidates co distance <= BanKinh;
       if (candidates rong?) then (Co)
         :return null;
@@ -85,6 +90,33 @@ while (token chua bi cancel?) is (Co)
               (enqueue voi dedup, processor
               don, _speakLock serial hoa TTS).
             end note
+            partition "SpeakPoiAsync - lay noi dung va doc TTS" {
+              :langCode = AppText.LanguageCode;
+              :AppConfig.EnsureApiBaseUrlAsync(_http);
+              :GET /api/thuyet-minh/{poiId}?lang={langCode};
+              :NormalizeLanguageCode(lang);
+              :Kiem tra POI con hoat dong\n(TrangThai=true, con han duy tri);
+              :Lay ThuyetMinh dau tien dang TrangThai=true\nOrderBy(ThuTu);
+              :Lay BanDich uu tien langCode,\nfall back ve vi;
+              :Tra ThuyetMinhDto(NoiDung, FileAudio, NgonNgu);
+              if (NoiDung rong?) then (Co)
+                :content = greeting fallback theo ngon ngu;
+              else (Khong)
+                :content = NoiDung;
+              endif
+              note right
+                FileAudio co trong DTO tra ve,
+                nhung luong geofence hien tai
+                chi dung NoiDung + TTS.
+                Phat file audio truc tiep nam o F04.
+              end note
+              :TextToSpeech.Default.GetLocalesAsync();
+              :Chon locale theo langCode;
+              :ShowNowPlaying(); RenderPoiCards();
+              :TextToSpeech.Default.SpeakAsync(content, locale);
+              :LogPlaybackAsync(poi.Id, langCode);
+              :POST /api/log (Nguon=GPS);
+            }
             :UpdateCaiDatUI();
           else (Khong)
             :Chi highlight / render lai card\n(hoac chi log "cooldown N phut con lai");
